@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+data/
+*.db
+.DS_Store
+node_modules/
+.next/
+*.tsbuildinfo
+
+# MkDocs build output
+site/
