@@ -1,0 +1,65 @@
+site_name: aikioku
+site_description: AI-Augmented Personal Knowledge Management — Documentation
+site_url: https://d2a8k3u.github.io/aikioku/
+repo_url: https://github.com/d2a8k3u/aikioku
+repo_name: d2a8k3u/aikioku
+
+docs_dir: docs
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+
+nav:
+  - Home: index.md
+  - Architecture:
+      - architecture/index.md
+      - Ingestion: architecture/ingestion.md
+      - Knowledge Representation: architecture/knowledge-representation.md
+      - Retrieval: architecture/retrieval.md
+      - Memory: architecture/memory.md
+      - Reasoning: architecture/reasoning.md
+      - Cognitive Augmentation: architecture/cognitive-augmentation.md
+      - Interface: architecture/interface.md
+  - API:
+      - api/index.md
+      - REST API: api/rest.md
+      - MCP Server: api/mcp.md
+  - Clients:
+      - clients/index.md
+      - Claude Code: clients/claude-code.md
+      - Claude Desktop: clients/claude-desktop.md
+      - Cursor: clients/cursor.md
+      - Hermes Agent: clients/hermes-agent.md
+  - Development:
+      - development/index.md
+      - Setup: development/setup.md
+      - Testing: development/testing.md
+      - Docker: development/docker.md
+  - Reference:
+      - reference/index.md
+      - Technology Stack: reference/stack.md
+      - Project Structure: reference/project-structure.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - tables
+  - toc:
+      permalink: true
