@@ -1,0 +1,32 @@
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: server
+    command: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    ports:
+      - "127.0.0.1:8869:8000"
+    volumes:
+      - ./apps/server/src:/app/src
+      - ./apps/server/tests:/app/tests
+      - server-data:/data
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dashboard
+    ports:
+      - "127.0.0.1:3369:3000"
+    volumes:
+      - ./apps/dashboard/src:/app/src
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8869
+    depends_on:
+      - server
+    restart: unless-stopped
+
+volumes:
+  server-data:

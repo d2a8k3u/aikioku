@@ -1,0 +1,47 @@
+# Dev stack — source is bind-mounted, code changes hot-reload without rebuild.
+# Rebuild only when deps change: `docker compose -f docker-compose.dev.yml build`.
+#   Start:  docker compose -f docker-compose.dev.yml up
+#   Or:     make dev-up
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: server-dev
+    command: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/src"]
+    environment:
+      # macOS Docker bind mounts don't forward inotify events; poll instead.
+      - WATCHFILES_FORCE_POLLING=true
+    ports:
+      - "127.0.0.1:8869:8000"
+    volumes:
+      - ./apps/server/src:/app/src
+      - ./apps/server/tests:/app/tests
+      - ./apps/server/pyproject.toml:/app/pyproject.toml
+      - server-dev-data:/data
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dashboard-dev
+    command: ["npm", "run", "dev", "--", "-H", "0.0.0.0", "-p", "3000"]
+    environment:
+      # Force polling so webpack/Next picks up edits over the bind mount on macOS.
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+      - NEXT_PUBLIC_API_URL=http://localhost:8869
+    ports:
+      - "127.0.0.1:3369:3000"
+    volumes:
+      - ./apps/dashboard:/app
+      # Anonymous volumes shadow the bind mount so image-built deps/build survive.
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - server
+    restart: unless-stopped
+
+volumes:
+  server-dev-data:
