@@ -1,0 +1,409 @@
+@import 'tailwindcss';
+
+@theme {
+  /* ── Background surfaces — Linear-inspired luminance stacking ── */
+  --color-aiki-bg: #08090a;
+  --color-aiki-panel: #0f1011;
+  --color-aiki-elevated: #191a1b;
+  --color-aiki-surface: #28282c;
+  --color-aiki-overlay: rgba(0, 0, 0, 0.85);
+
+  /* ── Borders — semi-transparent white, never solid ── */
+  --color-aiki-border-subtle: rgba(255, 255, 255, 0.05);
+  --color-aiki-border: rgba(255, 255, 255, 0.08);
+  --color-aiki-border-strong: rgba(255, 255, 255, 0.12);
+
+  /* ── Accent — copper, the only chromatic color ── */
+  --color-aiki-accent: #b87333;
+  --color-aiki-accent-hover: #d78f4c;
+  --color-aiki-accent-bg: rgba(184, 115, 51, 0.12);
+  --color-aiki-accent-border: rgba(184, 115, 51, 0.25);
+
+  /* ── Status colors — used sparingly ── */
+  --color-aiki-danger: #ef4444;
+  --color-aiki-danger-bg: rgba(239, 68, 68, 0.12);
+  --color-aiki-success: #34d399;
+  --color-aiki-success-bg: rgba(52, 211, 153, 0.12);
+  --color-aiki-warning: #fbbf24;
+  --color-aiki-warning-bg: rgba(251, 191, 36, 0.12);
+
+  /* ── Text hierarchy — never pure white ── */
+  --color-aiki-text: #f7f8f8;
+  --color-aiki-text-secondary: #d0d6e0;
+  --color-aiki-text-tertiary: #8a8f98;
+  --color-aiki-text-muted: #62666d;
+
+  /* ── Typography ── */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+
+  /* ── Animations — subtle, purposeful ── */
+  --animate-fade-in: fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-slide-up: slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-scale-in: scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-shimmer: shimmer 3s linear infinite;
+  --animate-pulse-subtle: pulse-subtle 3s ease-in-out infinite;
+  --animate-drawer-in-left: drawer-in-left 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Keyframes ────────────────────────────────────── */
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes pulse-subtle {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes kgPanelIn {
+  from {
+    transform: translateX(22px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeSlideIn {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes breatheSlow {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.16);
+  }
+}
+
+@keyframes pulseDot {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(63, 185, 80, 0);
+  }
+}
+
+@keyframes drawer-in-left {
+  from {
+    transform: translateX(-100%);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes auraPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.09);
+    opacity: 0.85;
+  }
+}
+
+@keyframes typing {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+@keyframes floatY {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+
+@keyframes spinSlow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── Base ──────────────────────────────────────────── */
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-aiki-bg);
+  color: var(--color-aiki-text-secondary);
+  font-family: var(--font-sans);
+  font-feature-settings: 'cv01', 'ss03';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.165px;
+}
+
+::selection {
+  background: rgba(184, 115, 51, 0.25);
+  color: var(--color-aiki-text);
+}
+
+/* ── Scrollbar ─────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* ── Focus ─────────────────────────────────────────── */
+
+:focus-visible {
+  outline: 1px solid var(--color-aiki-accent);
+  outline-offset: 2px;
+}
+
+/* ── Rendered markdown (.aiki-md) ──────────────────── */
+
+.aiki-md {
+  font-family: var(--font-sans);
+  color: var(--color-aiki-text-secondary);
+  font-size: 14px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.aiki-md > :first-child {
+  margin-top: 0;
+}
+.aiki-md > :last-child {
+  margin-bottom: 0;
+}
+
+.aiki-md h3,
+.aiki-md h4,
+.aiki-md h5,
+.aiki-md h6 {
+  font-family: var(--font-mono);
+  color: var(--color-aiki-text);
+  font-weight: 500;
+  line-height: 1.3;
+  margin: 1.6em 0 0.6em;
+}
+.aiki-md h3 {
+  font-size: 1.25rem;
+}
+.aiki-md h4 {
+  font-size: 1.1rem;
+}
+.aiki-md h5 {
+  font-size: 1rem;
+}
+.aiki-md h6 {
+  font-size: 0.9rem;
+  color: var(--color-aiki-text-secondary);
+}
+
+.aiki-md p {
+  margin: 0.85em 0;
+}
+
+.aiki-md a {
+  color: var(--color-aiki-accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s;
+}
+.aiki-md a:hover {
+  border-bottom-color: var(--color-aiki-accent);
+}
+
+.aiki-md strong {
+  color: var(--color-aiki-text);
+  font-weight: 600;
+}
+.aiki-md em {
+  font-style: italic;
+}
+
+.aiki-md ul,
+.aiki-md ol {
+  margin: 0.85em 0;
+  padding-left: 1.5em;
+}
+.aiki-md ul {
+  list-style: disc;
+}
+.aiki-md ol {
+  list-style: decimal;
+}
+.aiki-md li {
+  margin: 0.3em 0;
+}
+.aiki-md li::marker {
+  color: var(--color-aiki-text-muted);
+}
+
+.aiki-md li input[type='checkbox'] {
+  margin-right: 0.5em;
+  accent-color: var(--color-aiki-accent);
+}
+.aiki-md li.task-list-item {
+  list-style: none;
+  margin-left: -1.4em;
+}
+
+.aiki-md blockquote {
+  margin: 1em 0;
+  padding: 0.2em 0 0.2em 1em;
+  border-left: 2px solid var(--color-aiki-accent-border);
+  color: var(--color-aiki-text-tertiary);
+  font-style: italic;
+}
+
+.aiki-md code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--color-aiki-elevated);
+  color: var(--color-aiki-accent);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+}
+
+.aiki-md pre {
+  margin: 1em 0;
+  padding: 14px 16px;
+  background: var(--color-aiki-panel);
+  border: 1px solid var(--color-aiki-border);
+  border-radius: 8px;
+  overflow-x: auto;
+}
+.aiki-md pre code {
+  background: transparent;
+  color: var(--color-aiki-text-secondary);
+  padding: 0;
+  border-radius: 0;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+.aiki-md hr {
+  margin: 1.5em 0;
+  border: none;
+  border-top: 1px solid var(--color-aiki-border);
+}
+
+.aiki-md table {
+  width: 100%;
+  margin: 1em 0;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+.aiki-md th,
+.aiki-md td {
+  border: 1px solid var(--color-aiki-border-subtle);
+  padding: 7px 10px;
+  text-align: left;
+}
+.aiki-md th {
+  background: var(--color-aiki-elevated);
+  color: var(--color-aiki-text);
+  font-weight: 600;
+}
+
+.aiki-md img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+/* ── Reduced motion ───────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
