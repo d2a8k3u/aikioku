@@ -64,7 +64,7 @@ class TestLifespanServices:
 
 
 class TestCORSAllowlist:
-    """CORS must reflect an explicit allowlist, never a wildcard (Phase 4)."""
+    """CORS must reflect an explicit allowlist, never a wildcard."""
 
     def test_allowed_origin_is_reflected(self):
         from src.main import app

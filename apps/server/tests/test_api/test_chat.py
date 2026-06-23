@@ -118,7 +118,7 @@ class TestChatEndpoint:
 
 
 class TestChatCapturesMemories:
-    """POST /api/chat/ must persist the memories RAG extracted (Phase 3)."""
+    """POST /api/chat/ must persist the memories RAG extracted."""
 
     def test_simple_chat_persists_extracted_memory(self, client):
         from src.models.memory import Memory

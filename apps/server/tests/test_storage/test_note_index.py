@@ -1,4 +1,4 @@
-"""Tests for the persistent SQLite metadata index in NoteStore (PHASE 6a).
+"""Tests for the persistent SQLite metadata index in NoteStore.
 
 These verify the optimization layer: list/count/tag/path operations are served
 from a SQLite index of note metadata, so the markdown corpus is NOT fully
@@ -307,7 +307,7 @@ class TestScale:
         reads = _count_markdown_reads(monkeypatch)
         page = store.list(skip=0, limit=50)
         assert len(page) == 50
-        # The whole point of PHASE 6a: a 50-item page must not scan 1000 files.
+        # A 50-item page must not scan 1000 files.
         assert reads["count"] <= 55, f"read {reads['count']} files for a 50-item page out of {n}"
 
 
