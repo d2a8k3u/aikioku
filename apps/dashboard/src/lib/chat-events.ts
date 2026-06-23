@@ -1,6 +1,6 @@
 // Pure helpers for normalizing chat SSE event payloads.
 //
-// The backend `citations` SSE event has two shapes (backend Phase 2b):
+// The backend `citations` SSE event has two shapes:
 //   - simple mode:    an ARRAY of Citation
 //   - multi_hop mode: an OBJECT { citations: Citation[], sub_questions: string[] }
 // This module normalizes both into a single shape so the UI never has to care.

@@ -71,9 +71,7 @@ class HybridFusion:
         """
         loop = asyncio.get_event_loop()
         with ThreadPoolExecutor() as executor:
-            dense_task = self._with_timeout(
-                self.dense.search(query, limit=20), self._DENSE_TIMEOUT
-            )
+            dense_task = self._with_timeout(self.dense.search(query, limit=20), self._DENSE_TIMEOUT)
             sparse_future = loop.run_in_executor(
                 executor, lambda: self.sparse.search(query, limit=20)
             )
@@ -107,9 +105,7 @@ class HybridFusion:
         return fused[:limit]
 
     @staticmethod
-    async def _with_timeout(
-        coro_or_future, timeout: float
-    ) -> list[SearchResult]:
+    async def _with_timeout(coro_or_future, timeout: float) -> list[SearchResult]:
         """Await *coro_or_future* with a timeout; return [] on timeout."""
         try:
             return await asyncio.wait_for(coro_or_future, timeout=timeout)
@@ -152,9 +148,7 @@ class HybridFusion:
                 continue
             for rank, result in enumerate(result_list):
                 rrf_score = weight * (1.0 / (rank + _RRF_K))
-                fused_scores[result.note_id] = (
-                    fused_scores.get(result.note_id, 0.0) + rrf_score
-                )
+                fused_scores[result.note_id] = fused_scores.get(result.note_id, 0.0) + rrf_score
 
                 existing = fused_results.get(result.note_id)
                 if existing is None:
@@ -164,11 +158,15 @@ class HybridFusion:
                         source="fusion",
                         snippet=result.snippet,
                         metadata=result.metadata,
+                        source_type=result.source_type,
                     )
                 else:
                     existing.score = fused_scores[result.note_id]
                     # Upgrade to a non-empty snippet (and its metadata) if the
                     # representative is still empty and this source has content.
+                    # source_type is NOT overwritten here — it keeps whatever was
+                    # set when the result was first added (preserves "entity" for
+                    # synthetic entity results).
                     if not existing.snippet and result.snippet:
                         existing.snippet = result.snippet
                         if result.metadata:
