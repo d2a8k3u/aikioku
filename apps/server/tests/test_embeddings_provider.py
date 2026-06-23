@@ -1,4 +1,4 @@
-"""Tests for the real semantic embedding path (PHASE 0).
+"""Tests for the real semantic embedding path.
 
 Embeddings must come from the host Ollama ``mxbai-embed-large`` model (1024-dim)
 via a DEDICATED embedding base url, separate from the cloud chat ``base_url``.
@@ -237,7 +237,7 @@ class TestEmbeddingBaseUrlFallback:
 
 
 class TestConfigDefaults:
-    """PHASE 0 config defaults."""
+    """Config defaults."""
 
     def test_embedding_defaults(self):
         from src.config import Settings

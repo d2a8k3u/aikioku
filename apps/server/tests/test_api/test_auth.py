@@ -1,4 +1,4 @@
-"""Tests for JWT auth helpers and the LOCAL-TRUST optional-auth model (Phase 4).
+"""Tests for JWT auth helpers and the LOCAL-TRUST optional-auth model.
 
 Post-refactor: the signing secret is persisted via the encrypted secrets store
 (``auth.get_secret_key()``), users live in the ``users`` SQLite table (no in-memory

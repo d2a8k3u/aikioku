@@ -274,7 +274,7 @@ class TestImportMarkdownEndpoint:
 
 
 class TestImportAuthConsistency:
-    """Import routes carry the same require_auth dependency as POST /api/notes/ (Phase 4).
+    """Import routes carry the same require_auth dependency as POST /api/notes/.
 
     In the LOCAL-TRUST default (auth_required=False) this is a no-op: anonymous
     access is still allowed, so importing with no token must keep working.

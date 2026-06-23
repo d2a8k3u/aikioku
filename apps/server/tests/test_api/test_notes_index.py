@@ -1,6 +1,6 @@
 """API-level tests proving the notes list/stats endpoints use the metadata index.
 
-PHASE 6a wiring: the list endpoint must page via NoteStore.list (reading only
+The list endpoint must page via NoteStore.list (reading only
 the page's files), and /api/stats must count via the O(1) index count rather
 than scanning the whole corpus.
 """

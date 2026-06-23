@@ -76,7 +76,7 @@ class TestConfigDefaults:
 
 
 class TestSecuritySettings:
-    """Phase 4 LOCAL-TRUST security configuration defaults."""
+    """LOCAL-TRUST security configuration defaults."""
 
     # These assert the CODE defaults via the model field defaults, which is
     # env-independent — the running container sets AUTH_REQUIRED/JWT_SECRET/

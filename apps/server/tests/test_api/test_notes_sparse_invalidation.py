@@ -1,4 +1,4 @@
-"""PHASE 6b: creating/updating/deleting a note must invalidate the shared
+"""creating/updating/deleting a note must invalidate the shared
 sparse index so the change is reflected in the next search.
 
 The notes router calls ``app.state.hybrid_fusion.sparse.mark_dirty()`` on

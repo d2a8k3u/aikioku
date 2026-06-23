@@ -109,7 +109,7 @@ def test_empty_notes_dir() -> None:
 
 
 # ---------------------------------------------------------------------------
-# PHASE 6b: index caching — build once, rebuild only when dirty.
+# Index caching — build once, rebuild only when dirty.
 # ---------------------------------------------------------------------------
 
 
