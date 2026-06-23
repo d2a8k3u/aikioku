@@ -265,6 +265,53 @@ class TestFindEntities:
         assert len(results) == 0
 
 
+class TestFindEntitiesByAlias:
+    """Test find_entities_by_alias — alias substring search."""
+
+    def test_find_entities_by_alias_exact_match(self, graph):
+        """Alias substring in aliases JSON string matches."""
+        from src.models.entity import Entity, EntityType
+
+        entity = Entity(
+            name="Free Energy Principle",
+            type=EntityType.Concept,
+            aliases=["FEP", "Active Inference"],
+        )
+        graph.create_entity(entity)
+        results = graph.find_entities_by_alias(alias="FEP")
+        assert len(results) == 1
+        assert results[0].name == "Free Energy Principle"
+        assert "FEP" in results[0].aliases
+
+    def test_find_entities_by_alias_no_match(self, graph):
+        """Returns empty list when no alias matches."""
+        from src.models.entity import Entity, EntityType
+
+        entity = Entity(
+            name="Some Entity",
+            type=EntityType.Concept,
+            aliases=["Alpha", "Beta"],
+        )
+        graph.create_entity(entity)
+        results = graph.find_entities_by_alias(alias="Gamma")
+        assert results == []
+
+    def test_find_entities_by_alias_limit(self, graph):
+        """Respects limit parameter."""
+        from src.models.entity import Entity, EntityType
+
+        for i in range(5):
+            graph.create_entity(
+                Entity(
+                    name=f"Entity{i}",
+                    type=EntityType.Concept,
+                    aliases=["shared_alias"],
+                )
+            )
+        results = graph.find_entities_by_alias(alias="shared_alias", limit=2)
+        assert len(results) == 2
+
+
 class TestFindPaths:
     """Test graph path finding."""
 

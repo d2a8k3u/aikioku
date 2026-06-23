@@ -19,20 +19,22 @@ from src.storage.note_store import NoteStore
 def mock_fusion() -> MagicMock:
     """Return a mock HybridFusion."""
     fusion = MagicMock(spec=HybridFusion)
-    fusion.search = AsyncMock(return_value=[
-        SearchResult(
-            note_id="note-1",
-            score=0.85,
-            source="fusion",
-            snippet="Python is a programming language.",
-        ),
-        SearchResult(
-            note_id="note-2",
-            score=0.72,
-            source="fusion",
-            snippet="Machine learning uses algorithms.",
-        ),
-    ])
+    fusion.search = AsyncMock(
+        return_value=[
+            SearchResult(
+                note_id="note-1",
+                score=0.85,
+                source="fusion",
+                snippet="Python is a programming language.",
+            ),
+            SearchResult(
+                note_id="note-2",
+                score=0.72,
+                source="fusion",
+                snippet="Machine learning uses algorithms.",
+            ),
+        ]
+    )
     return fusion
 
 
@@ -50,15 +52,17 @@ def mock_llm_provider() -> AsyncMock:
 def mock_memory_extractor() -> MagicMock:
     """Return a mock MemoryExtractor."""
     extractor = MagicMock(spec=MemoryExtractor)
-    extractor.extract_from_conversation = AsyncMock(return_value=[
-        Memory(
-            subject="Python",
-            predicate="is_a",
-            object="versatile programming language",
-            confidence=0.9,
-            source="conversation",
-        ),
-    ])
+    extractor.extract_from_conversation = AsyncMock(
+        return_value=[
+            Memory(
+                subject="Python",
+                predicate="is_a",
+                object="versatile programming language",
+                confidence=0.9,
+                source="conversation",
+            ),
+        ]
+    )
     return extractor
 
 
@@ -148,7 +152,7 @@ class TestRAGGenerator:
     ):
         """Memory extraction must run over the conversational exchange ONLY.
 
-        The system prompt now embeds the full retrieved note content (Phase 1).
+        The system prompt now embeds the full retrieved note content.
         Feeding it to the extractor causes it to re-derive every fact from every
         retrieved note (noise). The extractor must therefore be called with only
         the user + assistant messages: no message may have role 'system', and the
@@ -345,9 +349,7 @@ class TestRAGGenerator:
 
         fusion = MagicMock(spec=HybridFusion)
         fusion.search = AsyncMock(
-            return_value=[
-                SearchResult(note_id=note.id, score=0.9, source="fusion", snippet="")
-            ]
+            return_value=[SearchResult(note_id=note.id, score=0.9, source="fusion", snippet="")]
         )
 
         generator = RAGGenerator(
@@ -403,8 +405,98 @@ class TestRAGGenerator:
 
         fusion = MagicMock(spec=HybridFusion)
         fusion.search = AsyncMock(
+            return_value=[SearchResult(note_id=note.id, score=0.9, source="fusion", snippet="")]
+        )
+
+        generator = RAGGenerator(
+            fusion=fusion,
+            llm_provider=mock_llm_provider,
+            memory_extractor=mock_memory_extractor,
+        )
+
+        system_prompt, citations = await generator.build_context("What is Docker?", mock_note_store)
+
+        assert isinstance(system_prompt, str)
+        assert "Docker is a platform for running applications in containers." in system_prompt
+        assert isinstance(citations, list)
+        assert len(citations) == 1
+        assert citations[0]["note_id"] == note.id
+        # build_context must NOT call the LLM to generate an answer.
+        mock_llm_provider.complete.assert_not_called()
+
+
+class TestEntitySourceResults:
+    """Tests for entity-source result handling."""
+
+    @pytest.mark.asyncio
+    async def test_build_context_entry_handles_entity_source(self, tmp_path):
+        """When a SearchResult with source_type='entity' is passed,
+        _build_context_entry should use the snippet directly without calling
+        note_store.get.
+        """
+        from src.reasoning.rag import RAGGenerator
+        from src.storage.note_store import NoteStore
+
+        note_store = NoteStore(str(tmp_path / "notes"))
+        fusion = MagicMock(spec=HybridFusion)
+        llm_provider = AsyncMock(spec=LLMProvider)
+        memory_extractor = MagicMock(spec=MemoryExtractor)
+
+        generator = RAGGenerator(
+            fusion=fusion,
+            llm_provider=llm_provider,
+            memory_extractor=memory_extractor,
+        )
+
+        entity_result = SearchResult(
+            note_id="entity:abc-123",
+            score=1.0,
+            source="graph",
+            snippet="Free Energy Principle (Concept) - A mathematical framework...",
+            metadata={
+                "entity_id": "abc-123",
+                "entity_name": "Free Energy Principle",
+                "entity_type": "Concept",
+            },
+            source_type="entity",
+        )
+
+        entry = await generator._build_context_entry(entity_result, note_store)
+
+        assert entry["source_type"] == "entity"
+        assert entry["content"] == "Free Energy Principle (Concept) - A mathematical framework..."
+        assert entry["snippet"] == entity_result.snippet
+        assert entry["score"] == 1.0
+        assert entry["note_id"] == "entity:abc-123"
+        assert entry["title"] == "Free Energy Principle"
+
+    @pytest.mark.asyncio
+    async def test_build_context_includes_entity_snippet(
+        self, mock_llm_provider, mock_memory_extractor, tmp_path
+    ):
+        """The system prompt should contain the entity's snippet text when an
+        entity result is in the context.
+        """
+        from src.reasoning.rag import RAGGenerator
+        from src.storage.note_store import NoteStore
+
+        note_store = NoteStore(str(tmp_path / "notes"))
+        fusion = MagicMock(spec=HybridFusion)
+        entity_snippet = "Free Energy Principle (Concept) describes predictive processing."
+        fusion.search = AsyncMock(
             return_value=[
-                SearchResult(note_id=note.id, score=0.9, source="fusion", snippet="")
+                SearchResult(
+                    note_id="entity:abc-123",
+                    score=1.0,
+                    source="graph",
+                    snippet=entity_snippet,
+                    metadata={
+                        "entity_id": "abc-123",
+                        "entity_name": "Free Energy Principle",
+                        "entity_type": "Concept",
+                    },
+                    source_type="entity",
+                )
             ]
         )
 
@@ -414,14 +506,187 @@ class TestRAGGenerator:
             memory_extractor=mock_memory_extractor,
         )
 
-        system_prompt, citations = await generator.build_context(
-            "What is Docker?", mock_note_store
+        await generator.generate("What is the Free Energy Principle?", note_store)
+
+        mock_llm_provider.complete.assert_called_once()
+        system = mock_llm_provider.complete.call_args.kwargs.get("system", "")
+        assert entity_snippet in system
+
+    @pytest.mark.asyncio
+    async def test_system_prompt_labels_entity_results_differently(self):
+        """Entity results should be labeled [E1] not [1], and should include
+        '(from knowledge graph)' annotation.
+        """
+        from src.reasoning.rag import RAGGenerator
+
+        fusion = MagicMock(spec=HybridFusion)
+        llm_provider = AsyncMock(spec=LLMProvider)
+        memory_extractor = MagicMock(spec=MemoryExtractor)
+
+        generator = RAGGenerator(
+            fusion=fusion,
+            llm_provider=llm_provider,
+            memory_extractor=memory_extractor,
         )
 
-        assert isinstance(system_prompt, str)
-        assert "Docker is a platform for running applications in containers." in system_prompt
-        assert isinstance(citations, list)
+        context = [
+            {
+                "note_id": "entity:abc-123",
+                "snippet": "Free Energy Principle (Concept) ...",
+                "content": "Free Energy Principle (Concept) ...",
+                "score": 1.0,
+                "title": "Free Energy Principle",
+                "source_type": "entity",
+                "entity_id": "abc-123",
+                "entity_type": "Concept",
+            },
+        ]
+
+        prompt = generator._build_system_prompt(context)
+
+        assert "[E1]" in prompt
+        assert "[1]" not in prompt
+        assert "(entity: Free Energy Principle" in prompt
+        assert "from knowledge graph" in prompt
+
+    @pytest.mark.asyncio
+    async def test_citations_include_entity_references(self):
+        """Citations list should include entity citation with entity_id,
+        entity_name, entity_type.
+        """
+        from src.reasoning.rag import RAGGenerator
+
+        fusion = MagicMock(spec=HybridFusion)
+        llm_provider = AsyncMock(spec=LLMProvider)
+        memory_extractor = MagicMock(spec=MemoryExtractor)
+
+        generator = RAGGenerator(
+            fusion=fusion,
+            llm_provider=llm_provider,
+            memory_extractor=memory_extractor,
+        )
+
+        context = [
+            {
+                "note_id": "entity:abc-123",
+                "snippet": "Free Energy Principle (Concept) ...",
+                "content": "Free Energy Principle (Concept) ...",
+                "score": 1.0,
+                "title": "Free Energy Principle",
+                "source_type": "entity",
+                "entity_id": "abc-123",
+                "entity_type": "Concept",
+            },
+        ]
+
+        citations = generator._extract_citations("answer", context)
+
         assert len(citations) == 1
-        assert citations[0]["note_id"] == note.id
-        # build_context must NOT call the LLM to generate an answer.
-        mock_llm_provider.complete.assert_not_called()
+        c = citations[0]
+        assert c["source_type"] == "entity"
+        assert c["entity_id"] == "abc-123"
+        assert c["entity_name"] == "Free Energy Principle"
+        assert c["entity_type"] == "Concept"
+        assert c["note_id"] == "entity:abc-123"
+        assert c["score"] == 1.0
+
+    @pytest.mark.asyncio
+    async def test_mixed_note_and_entity_context(self):
+        """When both note and entity results are present, both appear in the
+        system prompt with correct labeling.
+        """
+        from src.reasoning.rag import RAGGenerator
+
+        fusion = MagicMock(spec=HybridFusion)
+        llm_provider = AsyncMock(spec=LLMProvider)
+        memory_extractor = MagicMock(spec=MemoryExtractor)
+
+        generator = RAGGenerator(
+            fusion=fusion,
+            llm_provider=llm_provider,
+            memory_extractor=memory_extractor,
+        )
+
+        context = [
+            {
+                "note_id": "note-1",
+                "snippet": "Python is great.",
+                "content": "Python is great.",
+                "score": 0.85,
+                "title": "Python Notes",
+                "source_type": "note",
+            },
+            {
+                "note_id": "entity:abc-123",
+                "snippet": "Free Energy Principle (Concept) ...",
+                "content": "Free Energy Principle (Concept) ...",
+                "score": 1.0,
+                "title": "Free Energy Principle",
+                "source_type": "entity",
+                "entity_id": "abc-123",
+                "entity_type": "Concept",
+            },
+        ]
+
+        prompt = generator._build_system_prompt(context)
+
+        # Note result should be labeled [1]
+        assert "[1] (note: note-1" in prompt
+        # Entity result should be labeled [E1]
+        assert "[E1] (entity: Free Energy Principle" in prompt
+        # Both should appear in the prompt
+        assert "Python is great." in prompt
+        assert "Free Energy Principle (Concept) ..." in prompt
+        assert "from knowledge graph" in prompt
+
+    @pytest.mark.asyncio
+    async def test_entity_result_does_not_call_note_store(self, tmp_path):
+        """Verify note_store.get is NOT called for entity results (use a mock
+        that raises if called with entity: prefix).
+        """
+        from src.reasoning.rag import RAGGenerator
+        from src.storage.note_store import NoteStore
+
+        note_store = NoteStore(str(tmp_path / "notes"))
+
+        # Wrap note_store.get so it raises if called with an entity: prefix.
+        original_get = note_store.get
+
+        def guarded_get(note_id):
+            if note_id.startswith("entity:"):
+                raise AssertionError(
+                    f"note_store.get() should NOT be called for entity results, "
+                    f"but was called with {note_id!r}"
+                )
+            return original_get(note_id)
+
+        note_store.get = guarded_get  # type: ignore[method-assign]
+
+        fusion = MagicMock(spec=HybridFusion)
+        llm_provider = AsyncMock(spec=LLMProvider)
+        memory_extractor = MagicMock(spec=MemoryExtractor)
+
+        generator = RAGGenerator(
+            fusion=fusion,
+            llm_provider=llm_provider,
+            memory_extractor=memory_extractor,
+        )
+
+        entity_result = SearchResult(
+            note_id="entity:abc-123",
+            score=1.0,
+            source="graph",
+            snippet="Free Energy Principle (Concept) ...",
+            metadata={
+                "entity_id": "abc-123",
+                "entity_name": "Free Energy Principle",
+                "entity_type": "Concept",
+            },
+            source_type="entity",
+        )
+
+        # This should NOT raise — note_store.get should never be called.
+        entry = await generator._build_context_entry(entity_result, note_store)
+
+        assert entry["source_type"] == "entity"
+        assert entry["content"] == "Free Energy Principle (Concept) ..."
