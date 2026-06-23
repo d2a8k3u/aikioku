@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { chatApi, buddyApi, conversationsApi, statsApi } from '@/lib/api';
+import { MarkdownPreview } from '@/components/markdown/MarkdownPreview';
 import type { BuddyProfile, ConversationMessage } from '@/types';
 
 // ── Types ──────────────────────────────────────────────
@@ -503,7 +504,7 @@ export default function ChatPage() {
                           </div>
                         )}
                       </div>
-                    ) : (
+                    ) : isUser ? (
                       <div
                         style={{
                           font: '400 13px/1.65 "JetBrains Mono"',
@@ -513,6 +514,8 @@ export default function ChatPage() {
                       >
                         {m.text}
                       </div>
+                    ) : (
+                      <MarkdownPreview content={m.text} />
                     )}
                   </div>
                   {m.chips && m.chips.length > 0 && (
