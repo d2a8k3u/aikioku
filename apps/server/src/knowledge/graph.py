@@ -185,6 +185,31 @@ class KnowledgeGraph:
         rows = result.get_all()
         return [self._row_to_entity(row) for row in rows]
 
+    def find_entities_by_alias(self, alias: str, limit: int = 20) -> list[Entity]:
+        """Search entities by alias substring.
+
+        ``aliases`` is stored as a JSON-encoded string, so a ``CONTAINS`` match
+        on the serialized text effectively performs a substring search across all
+        alias values of each entity. This mirrors ``find_entities(name=...)`` but
+        matches against the aliases column instead of the name column.
+
+        Args:
+            alias: Substring to search for within the aliases JSON string.
+            limit: Maximum number of entities to return.
+
+        Returns:
+            A list of matching Entity objects, ordered by most-recently-modified.
+        """
+        result = self._conn.execute(
+            "MATCH (a:Entity) WHERE a.aliases CONTAINS $alias "
+            "RETURN a.id, a.name, a.type, a.aliases, a.properties, "
+            "a.confidence, a.source_note_ids "
+            "ORDER BY a.modified DESC LIMIT $limit",
+            {"alias": alias, "limit": limit},
+        )
+        rows = result.get_all()
+        return [self._row_to_entity(row) for row in rows]
+
     def find_entities_by_note_id(self, note_id: str) -> list[Entity]:
         """Return every entity whose ``source_note_ids`` contains ``note_id``.
 

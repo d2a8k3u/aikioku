@@ -83,7 +83,10 @@ class RAGGenerator:
         # note content (title + body) rather than the retrieval snippet alone.
         context = list(
             await asyncio.gather(
-                *(self._build_context_entry(r, note_store, query=query) for r in results[:_CONTEXT_TOP_K])
+                *(
+                    self._build_context_entry(r, note_store, query=query)
+                    for r in results[:_CONTEXT_TOP_K]
+                )
             )
         )
 
@@ -92,9 +95,7 @@ class RAGGenerator:
         conversation_context = await self._recall_conversations(query)
 
         # Step 3: Build the system prompt and citations.
-        system_prompt = self._build_system_prompt(
-            context, conversation_context, history
-        )
+        system_prompt = self._build_system_prompt(context, conversation_context, history)
         citations = self._extract_citations("", context)
         return system_prompt, citations
 
@@ -103,16 +104,12 @@ class RAGGenerator:
         if self._conversation_retriever is None:
             return []
         try:
-            return await asyncio.wait_for(
-                self._conversation_retriever.search(query), timeout=5.0
-            )
+            return await asyncio.wait_for(self._conversation_retriever.search(query), timeout=5.0)
         except asyncio.TimeoutError:
             logger.warning("Conversation recall timed out; continuing without it.")
             return []
         except Exception:
-            logger.warning(
-                "Conversation recall failed; continuing without it.", exc_info=True
-            )
+            logger.warning("Conversation recall failed; continuing without it.", exc_info=True)
             return []
 
     async def generate(
@@ -149,9 +146,7 @@ class RAGGenerator:
             ``extract_memories`` is False.
         """
         # Step 1: Build grounding context (retrieval + system prompt + citations).
-        system_prompt, citations = await self.build_context(
-            query, note_store, history=history
-        )
+        system_prompt, citations = await self.build_context(query, note_store, history=history)
         user_prompt = self._build_user_prompt(query)
 
         # Step 2: Generate response via LLM
@@ -166,7 +161,7 @@ class RAGGenerator:
         #
         # Only the conversational exchange (user question + assistant answer) is
         # passed to extraction. The system prompt embeds the FULL retrieved note
-        # content (Phase 1 grounding); including it would re-derive every fact
+        # content; including it would re-derive every fact
         # from every retrieved note, polluting captured memory with dozens of
         # note facts instead of what was actually asked and answered.
         memories: list[Memory] = []
@@ -178,7 +173,9 @@ class RAGGenerator:
             try:
                 memories = await self._memory_extractor.extract_from_conversation(messages)
             except Exception:
-                logger.warning("Memory extraction failed; returning answer without memories.", exc_info=True)
+                logger.warning(
+                    "Memory extraction failed; returning answer without memories.", exc_info=True
+                )
                 memories = []
 
         return {
@@ -187,16 +184,20 @@ class RAGGenerator:
             "memories": memories,
         }
 
-    async def _build_context_entry(
-        self, result, note_store: NoteStore, *, query: str = ""
-    ) -> dict:
+    async def _build_context_entry(self, result, note_store: NoteStore, *, query: str = "") -> dict:
         """Build a single context entry for a fused result.
 
-        Fetches the real note via ``note_store.get`` and grounds on its full
-        title + body. The content is never truncated: notes that fit a single
-        pass are used verbatim, oversized notes are compressed via token-level
-        perplexity pruning (LLMLingua) so the whole note is still represented.
-        Falls back to the retrieval snippet when the note cannot be resolved.
+        For ``source_type="note"`` results: fetches the real note via
+        ``note_store.get`` and grounds on its full title + body. The content is
+        never truncated: notes that fit a single pass are used verbatim,
+        oversized notes are compressed via token-level perplexity pruning
+        (LLMLingua) so the whole note is still represented. Falls back to the
+        retrieval snippet when the note cannot be resolved.
+
+        For ``source_type="entity"`` results (synthetic results from the graph
+        retriever for orphaned entities with no source notes): uses the rich
+        snippet directly — no note_store lookup, no compression. The entity
+        snippet is already compact and purpose-built for grounding.
 
         Args:
             result: A fused SearchResult.
@@ -205,8 +206,25 @@ class RAGGenerator:
                 condition which tokens to keep.
 
         Returns:
-            A context dict with note_id, snippet, content, score, and title.
+            A context dict with note_id, snippet, content, score, title, and
+            source_type.
         """
+        # Entity-source results: synthetic results from the graph retriever.
+        # Use the rich snippet directly — no note_store lookup, no compression.
+        if result.source_type == "entity":
+            entity_name = result.metadata.get("entity_name") or "Knowledge Graph Entity"
+            return {
+                "note_id": result.note_id,
+                "snippet": result.snippet,
+                "content": result.snippet,
+                "score": result.score,
+                "title": entity_name,
+                "source_type": "entity",
+                "entity_id": result.metadata.get("entity_id", ""),
+                "entity_type": result.metadata.get("entity_type", ""),
+            }
+
+        # Note-source results (default): resolve full note content.
         note = note_store.get(result.note_id)
         if note is not None:
             body = (note.content or "").strip()
@@ -222,6 +240,7 @@ class RAGGenerator:
             "content": content,
             "score": result.score,
             "title": title,
+            "source_type": "note",
         }
 
     def _build_system_prompt(
@@ -258,12 +277,27 @@ class RAGGenerator:
         ]
 
         if context:
-            for i, chunk in enumerate(context, 1):
+            # Separate counters: notes use [1], [2]... entities use [E1], [E2]...
+            note_idx = 0
+            entity_idx = 0
+            for chunk in context:
                 text = chunk.get("content") or chunk.get("snippet", "")
-                lines.append(
-                    f"[{i}] (note: {chunk['note_id']}, score: {chunk['score']:.4f}) "
-                    f"{text}"
-                )
+                source_type = chunk.get("source_type", "note")
+                if source_type == "entity":
+                    entity_idx += 1
+                    entity_name = chunk.get("title") or "Knowledge Graph Entity"
+                    lines.append(
+                        f"[E{entity_idx}] (entity: {entity_name}, "
+                        f"score: {chunk['score']:.4f}, from knowledge graph) "
+                        f"{text}"
+                    )
+                else:
+                    note_idx += 1
+                    lines.append(
+                        f"[{note_idx}] (note: {chunk['note_id']}, "
+                        f"score: {chunk['score']:.4f}) "
+                        f"{text}"
+                    )
         else:
             lines.append("No relevant context found.")
 
@@ -310,9 +344,7 @@ class RAGGenerator:
         """
         return f"Question: {query}"
 
-    def _extract_citations(
-        self, response: str, context: list[dict]
-    ) -> list[dict]:
+    def _extract_citations(self, response: str, context: list[dict]) -> list[dict]:
         """Extract citation information from the response and context.
 
         Returns a list of citation dicts for each context chunk,
@@ -333,11 +365,25 @@ class RAGGenerator:
             if note_id in seen:
                 continue
             seen.add(note_id)
-            citation = {
-                "note_id": note_id,
-                "score": chunk["score"],
-                "snippet": chunk["snippet"],
-                "title": chunk.get("title") or "",
-            }
+            source_type = chunk.get("source_type", "note")
+            if source_type == "entity":
+                citation = {
+                    "note_id": note_id,
+                    "entity_id": note_id.removeprefix("entity:"),
+                    "entity_name": chunk.get("title") or "",
+                    "entity_type": chunk.get("entity_type") or "",
+                    "score": chunk["score"],
+                    "snippet": chunk["snippet"],
+                    "title": chunk.get("title") or "",
+                    "source_type": "entity",
+                }
+            else:
+                citation = {
+                    "note_id": note_id,
+                    "score": chunk["score"],
+                    "snippet": chunk["snippet"],
+                    "title": chunk.get("title") or "",
+                    "source_type": "note",
+                }
             citations.append(citation)
         return citations
