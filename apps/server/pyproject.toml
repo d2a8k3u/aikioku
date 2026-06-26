@@ -63,3 +63,7 @@ line-length = 100
 [tool.mypy]
 python_version = "3.11"
 strict = true
+
+[[tool.mypy.overrides]]
+module = ["llmlingua", "llmlingua.*"]
+follow_untyped_imports = true
