@@ -1,7 +1,7 @@
 """Token-level perplexity compression via LLMLingua.
 
 Provides ``compress_for_prompt`` — an async, drop-in alternative to
-``condense_for_prompt`` that uses GPT-2-small perplexity pruning instead of
+``condense_for_prompt`` that uses LLMLingua-2 token classification instead of
 LLM-based summarisation.  When compression is disabled or unavailable the
 function falls back to returning the raw text unchanged (never truncated).
 
@@ -41,13 +41,14 @@ def _get_compressor() -> Any | None:
 
     _compressor_load_attempted = True
     try:
-        from llmlingua import PromptCompressor  # type: ignore[import-not-found]
+        from llmlingua import PromptCompressor
 
         _compressor = PromptCompressor(
-            model_name="gpt2",
+            model_name="microsoft/llmlingua-2-bert-base-multilingual-cased-meetingbank",
+            use_llmlingua2=True,
             device_map="cpu",
         )
-        logger.info("LLMLingua PromptCompressor loaded (gpt2, cpu)")
+        logger.info("LLMLingua-2 PromptCompressor loaded (bert-base-multilingual, cpu)")
     except ImportError:
         logger.warning(
             "llmlingua is not installed; compression will fall back to raw text. "
@@ -55,7 +56,9 @@ def _get_compressor() -> Any | None:
         )
         _compressor = None
     except Exception:
-        logger.warning("Failed to load LLMLingua PromptCompressor; falling back to raw text.", exc_info=True)
+        logger.warning(
+            "Failed to load LLMLingua PromptCompressor; falling back to raw text.", exc_info=True
+        )
         _compressor = None
 
     return _compressor
@@ -82,15 +85,16 @@ async def compress_for_prompt(
     This is an async, drop-in replacement for ``condense_for_prompt`` with the
     same interface shape: it accepts text and returns (possibly compressed)
     text.  Unlike ``condense_for_prompt`` it does **not** require an
-    ``LLMProvider`` — compression runs locally on CPU via GPT-2-small.
+    ``LLMProvider`` — compression runs locally on CPU via LLMLingua-2.
 
     Parameters
     ----------
     text:
         The text to compress.  Empty or very short text is returned unchanged.
     query:
-        The user's question, used by LLMLingua to condition which tokens to
-        keep (``condition_in_question="after_condition"``).  Optional.
+        Accepted for interface parity with ``condense_for_prompt``.
+        LLMLingua-2 classifies token importance query-agnostically, so this
+        is currently unused.  Optional.
     target_tokens:
         Approximate token budget for the compressed output (default 2000).
 
@@ -122,12 +126,9 @@ async def compress_for_prompt(
     try:
         result: dict[str, Any] = await asyncio.to_thread(
             compressor.compress_prompt,
-            context=[text],
-            question=query,
+            text,
             target_token=target_tokens,
-            condition_in_question="after_condition",
-            reorder_context="sort",
-            return_compressed_text=True,
+            force_tokens=["\n", ".", "!", "?", ","],
         )
         compressed: str = result.get("compressed_prompt", "")
         if compressed and compressed.strip():
