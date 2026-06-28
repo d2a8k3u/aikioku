@@ -8,8 +8,9 @@ Architecture:
 - GPTCache SSDataManager with ONNX embedding (fast CPU, ~10ms) + FAISS vector store
 - SQLite for metadata, FAISS for vector similarity search
 - All GPTCache operations run in a dedicated thread pool (SQLite/FAISS are not async-safe)
-- SHA-256 cache key from query+mode+tone for deterministic identification
-- Mode/tone validation on cache hit (different modes produce different answers)
+- SHA-256 cache key from query+mode+tone+model for deterministic identification
+- Mode/tone/model validation on cache hit (different modes/tones/models produce
+  different answers — a model switch must never serve a prior model's answer)
 - Graceful degradation: if gptcache is not installed, the cache is silently disabled
 
 Compatibility:
@@ -55,15 +56,13 @@ _stats_lock = asyncio.Lock()
 # Environment toggles
 # ---------------------------------------------------------------------------
 
-_SIMILARITY_THRESHOLD = float(
-    os.getenv("SEMANTIC_CACHE_SIMILARITY_THRESHOLD", "0.85")
-)
+_SIMILARITY_THRESHOLD = float(os.getenv("SEMANTIC_CACHE_SIMILARITY_THRESHOLD", "0.85"))
 _TTL = int(os.getenv("SEMANTIC_CACHE_TTL", "3600"))
 
 
-def _build_cache_key(query: str, mode: str, tone: str) -> str:
-    """Build a deterministic SHA-256 cache key from query + mode + tone."""
-    raw = f"{query}|{mode}|{tone}"
+def _build_cache_key(query: str, mode: str, tone: str, model: str) -> str:
+    """Build a deterministic SHA-256 cache key from query + mode + tone + model."""
+    raw = f"{query}|{mode}|{tone}|{model}"
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
@@ -132,9 +131,7 @@ def _patch_onnx_for_transformers_v5() -> None:
                 return padded
 
             padded_input_ids = np.stack([_pad(ids, max_len) for ids in input_ids_list])
-            padded_attention_mask = np.stack(
-                [_pad(mask, max_len) for mask in attention_mask_list]
-            )
+            padded_attention_mask = np.stack([_pad(mask, max_len) for mask in attention_mask_list])
             padded_token_type_ids = np.stack(
                 [_pad(ttids, max_len) for ttids in token_type_ids_list]
             )
@@ -176,9 +173,7 @@ async def _init_cache() -> tuple[Any, Any, Any] | None:
         enabled_env = os.getenv("SEMANTIC_CACHE_ENABLED", "true").lower()
         if enabled_env not in ("true", "1", "yes"):
             _enabled = False
-            logger.info(
-                "Semantic cache disabled via SEMANTIC_CACHE_ENABLED=%s", enabled_env
-            )
+            logger.info("Semantic cache disabled via SEMANTIC_CACHE_ENABLED=%s", enabled_env)
             return None
 
         try:
@@ -201,9 +196,7 @@ async def _init_cache() -> tuple[Any, Any, Any] | None:
             onnx = Onnx()
             sim_eval = OnnxModelEvaluation()
             dm = get_data_manager(
-                cache_base=CacheBase(
-                    "sqlite", sql_url=f"sqlite:///{data_dir}/cache.db"
-                ),
+                cache_base=CacheBase("sqlite", sql_url=f"sqlite:///{data_dir}/cache.db"),
                 vector_base=VectorBase(
                     "faiss", dimension=onnx.dimension, index_path=f"{data_dir}/faiss.index"
                 ),
@@ -231,9 +224,7 @@ async def _init_cache() -> tuple[Any, Any, Any] | None:
 
         except Exception:
             _enabled = False
-            logger.warning(
-                "Failed to initialize semantic cache — disabled.", exc_info=True
-            )
+            logger.warning("Failed to initialize semantic cache — disabled.", exc_info=True)
             return None
 
 
@@ -242,13 +233,14 @@ async def _init_cache() -> tuple[Any, Any, Any] | None:
 # ---------------------------------------------------------------------------
 
 
-async def cache_get(query: str, mode: str, tone: str) -> dict | None:
-    """Check the semantic cache for a query matching the given mode and tone.
+async def cache_get(query: str, mode: str, tone: str, model: str) -> dict | None:
+    """Check the semantic cache for a query matching the given mode, tone, and model.
 
     Uses ONNX embedding for the query, FAISS for vector similarity search, and
     the ONNX similarity model for cross-encoding. When a cached result is found,
-    the stored mode/tone are validated against the request — different modes/tone
-    produce different answers, so a mismatch is treated as a cache miss.
+    the stored mode/tone/model are validated against the request — different
+    modes, tones, or LLM models produce different answers, so a mismatch is
+    treated as a cache miss.
 
     Returns:
         dict with keys ``response``, ``citations``, ``sub_questions``, or None.
@@ -315,7 +307,7 @@ async def cache_get(query: str, mode: str, tone: str) -> dict | None:
             cached_answer = cached_answer.decode("utf-8")
 
         data = json.loads(cached_answer)
-        if data.get("mode") != mode or data.get("tone") != tone:
+        if data.get("mode") != mode or data.get("tone") != tone or data.get("model") != model:
             async with _stats_lock:
                 _misses += 1
             return None
@@ -325,7 +317,7 @@ async def cache_get(query: str, mode: str, tone: str) -> dict | None:
 
         logger.debug(
             "Cache hit for query hash=%s (mode=%s, tone=%s, score=%.4f)",
-            _build_cache_key(query, mode, tone),
+            _build_cache_key(query, mode, tone, model),
             mode,
             tone,
             best_score,
@@ -350,6 +342,7 @@ async def cache_put(
     response: str,
     citations: list,
     sub_questions: list,
+    model: str,
 ) -> None:
     """Store a query-result pair in the semantic cache.
 
@@ -357,7 +350,9 @@ async def cache_put(
     Failures are logged and silently ignored.
 
     The stored value is a JSON dict containing the response, citations,
-    sub_questions, mode, tone, and a SHA-256 key hash for debugging.
+    sub_questions, mode, tone, model, and a SHA-256 key hash for debugging.
+    The ``model`` is validated on hit (like mode/tone) so a model switch never
+    serves a previous model's answer.
     """
     init_result = await _init_cache()
     if init_result is None:
@@ -373,7 +368,8 @@ async def cache_put(
                 "sub_questions": sub_questions,
                 "mode": mode,
                 "tone": tone,
-                "key_hash": _build_cache_key(query, mode, tone),
+                "model": model,
+                "key_hash": _build_cache_key(query, mode, tone, model),
             }
         )
 
@@ -383,7 +379,7 @@ async def cache_put(
 
         logger.debug(
             "Cache stored for query hash=%s (ttl=%ds)",
-            _build_cache_key(query, mode, tone),
+            _build_cache_key(query, mode, tone, model),
             _TTL,
         )
 
