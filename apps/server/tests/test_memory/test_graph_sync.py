@@ -11,16 +11,48 @@ import pytest
 from src.knowledge.graph import KnowledgeGraph
 from src.llm.base import LLMProvider
 from src.memory.graph_sync import (
+    _find_entity_by_name,
     map_predicate,
     remove_memory_from_graph,
+    sync_memories_to_graph,
     sync_memory_to_graph,
     type_names,
+    type_names_chunked,
 )
 from src.models.entity import Entity, EntityType
 from src.models.memory import Memory
 from src.models.relation import RelationType
 
 _TYPING = '[{"name": "Alice", "type": "Person"}, {"name": "Acme Corp", "type": "Organization"}]'
+
+# Pairwise-dissimilar names so the EntityResolver does not merge them (which would
+# distort entity/relation counts and exact-name lookups in batch tests).
+_WORDS = [
+    "Apple",
+    "Bridge",
+    "Cloud",
+    "Dragon",
+    "Ember",
+    "Forest",
+    "Glacier",
+    "Harbor",
+    "Island",
+    "Jungle",
+    "Kettle",
+    "Lantern",
+    "Mountain",
+    "Needle",
+    "Orchard",
+    "Pyramid",
+    "Quartz",
+    "River",
+    "Sunset",
+    "Tiger",
+    "Umbrella",
+    "Volcano",
+    "Willow",
+    "Zebra",
+]
 
 
 @pytest.fixture
@@ -78,6 +110,66 @@ class TestTypeNames:
     async def test_llm_failure_returns_empty(self, mock_llm):
         mock_llm.complete = AsyncMock(side_effect=RuntimeError("boom"))
         assert await type_names(["Alice"], mock_llm) == {}
+
+
+class TestTypeNamesChunked:
+    async def test_chunks_into_multiple_calls(self, mock_llm):
+        names = [f"N{i}" for i in range(130)]
+        await type_names_chunked(names, mock_llm, chunk_size=64)
+        assert mock_llm.complete.await_count == 3  # ceil(130 / 64)
+
+    async def test_empty_makes_no_calls(self, mock_llm):
+        assert await type_names_chunked([], mock_llm) == {}
+        assert mock_llm.complete.await_count == 0
+
+    async def test_dedups_before_chunking(self, mock_llm):
+        await type_names_chunked(["A", "A", " A ", "B"], mock_llm, chunk_size=64)
+        assert mock_llm.complete.await_count == 1  # 2 unique names -> one chunk
+
+
+class TestSyncMemoriesToGraph:
+    async def test_batch_types_once_not_per_memory(self, graph, mock_llm):
+        mems = [_memory(subject=_WORDS[i], object=_WORDS[i + 8]) for i in range(8)]
+        await sync_memories_to_graph(mems, graph, mock_llm)
+        # 16 unique names fit one chunk -> ONE typing call, not one per memory (8).
+        assert mock_llm.complete.await_count == 1
+        assert graph.count_relations() == 8
+
+    async def test_second_run_makes_zero_typing_calls(self, graph, mock_llm):
+        mems = [_memory(subject=_WORDS[i], object=_WORDS[i + 8]) for i in range(5)]
+        await sync_memories_to_graph(mems, graph, mock_llm)
+        mock_llm.complete.reset_mock()
+        await sync_memories_to_graph(mems, graph, mock_llm)
+        assert mock_llm.complete.await_count == 0  # every entity already in the graph
+        assert graph.count_relations() == 5  # idempotent, no duplicates
+
+    async def test_known_name_reused_only_new_name_typed(self, graph, mock_llm):
+        graph.create_entity(Entity(name="Alice", type=EntityType.Person, source_note_ids=["n1"]))
+        await sync_memories_to_graph([_memory(subject="Alice", object="NewCo")], graph, mock_llm)
+        prompt = mock_llm.complete.await_args.kwargs["prompt"]
+        assert "NewCo" in prompt and "Alice" not in prompt  # only the new name typed
+        assert _find_entity_by_name(graph, "Alice").type == EntityType.Person  # stored type kept
+
+    async def test_all_known_entities_make_no_calls_and_no_dupes(self, graph, mock_llm):
+        graph.create_entity(Entity(name="Alice", type=EntityType.Person, source_note_ids=["n1"]))
+        graph.create_entity(
+            Entity(name="Acme Corp", type=EntityType.Organization, source_note_ids=["n2"])
+        )
+        before = graph.count_entities()
+        await sync_memories_to_graph([_memory()], graph, mock_llm)
+        assert mock_llm.complete.await_count == 0  # both names known -> no typing
+        assert graph.count_entities() == before  # read-only probe created nothing
+
+    async def test_types_param_skips_llm_call(self, graph, mock_llm):
+        mem = _memory()
+        await sync_memory_to_graph(
+            mem,
+            graph,
+            mock_llm,
+            types={"Alice": EntityType.Person, "Acme Corp": EntityType.Organization},
+        )
+        assert mock_llm.complete.await_count == 0  # precomputed map -> no typing call
+        assert graph.count_relations() == 1
 
 
 class TestSyncMemoryToGraph:
