@@ -7,7 +7,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from src.llm.base import LLMProvider
-from src.llm.compression import compress_for_prompt
+from src.llm.long_text import condense_for_prompt
 from src.memory.extraction import MemoryExtractor
 from src.models.memory import Memory
 
@@ -229,7 +229,7 @@ class RAGGenerator:
         if note is not None:
             body = (note.content or "").strip()
             full = f"{note.title}\n{body}".strip()
-            content = await compress_for_prompt(full, query=query)
+            content = full if len(full) <= 16000 else await condense_for_prompt(self._llm, full)
             title = note.title
         else:
             content = result.snippet
