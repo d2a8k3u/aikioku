@@ -1,4 +1,5 @@
 """Tests for Git Sync API endpoints."""
+
 from __future__ import annotations
 
 import os
@@ -15,6 +16,7 @@ def client():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         from src.storage.git_sync import GitSync
+
         gs = GitSync(tmpdir)
         app.state.git_sync = gs
         yield TestClient(app), tmpdir
@@ -108,4 +110,9 @@ class TestGitDiff:
         cli.post("/api/sync/git/commit?message=update+note")
         response = cli.get("/api/sync/git/diff/note")
         data = response.json()
-        assert "v1" in data["diff"] or "v2" in data["diff"] or "-" in data["diff"] or "+" in data["diff"]
+        assert (
+            "v1" in data["diff"]
+            or "v2" in data["diff"]
+            or "-" in data["diff"]
+            or "+" in data["diff"]
+        )

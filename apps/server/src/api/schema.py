@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, HTTPException, Request
 
 from src.knowledge.schema import SchemaRegistry
 from src.knowledge.schema_induction import SchemaInducer
+
+if TYPE_CHECKING:
+    from src.knowledge.graph import KnowledgeGraph
+    from src.llm.base import LLMProvider
 
 logger = logging.getLogger(__name__)
 
@@ -23,9 +28,9 @@ def _get_registry(request: Request) -> SchemaRegistry:
     return reg
 
 
-def _get_llm(request: Request):
+def _get_llm(request: Request) -> LLMProvider:
     """Get the LLM provider from app state."""
-    llm = getattr(request.app.state, "llm_provider", None)
+    llm: LLMProvider | None = getattr(request.app.state, "llm_provider", None)
     if llm is None:
         raise HTTPException(
             status_code=503,
@@ -34,20 +39,21 @@ def _get_llm(request: Request):
     return llm
 
 
-def _get_graph(request: Request):
+def _get_graph(request: Request) -> KnowledgeGraph:
     """Get the KnowledgeGraph from app state."""
-    return request.app.state.knowledge_graph
+    graph: KnowledgeGraph = request.app.state.knowledge_graph
+    return graph
 
 
 @router.get("/types")
-async def list_types(request: Request) -> dict:
+async def list_types(request: Request) -> dict[str, Any]:
     """Return all registered entity and relation types."""
     reg = _get_registry(request)
     return reg.list_types()
 
 
 @router.post("/induce")
-async def induce_schema(request: Request) -> dict:
+async def induce_schema(request: Request) -> dict[str, Any]:
     """Run LLM-driven schema induction to discover new entity/relation types.
 
     Analyzes existing graph data and returns suggestions for human review.

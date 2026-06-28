@@ -56,9 +56,7 @@ class TestTokenRoundTrip:
         username = "old_secret_user"
         _ensure_user(auth, username, "os@local")
 
-        forged = jwt.encode(
-            {"sub": username}, OLD_HARDCODED_SECRET, algorithm=auth.ALGORITHM
-        )
+        forged = jwt.encode({"sub": username}, OLD_HARDCODED_SECRET, algorithm=auth.ALGORITHM)
         # Only valid if the active secret happens to equal the old one (it must not).
         user = await auth.get_current_user(forged)
         assert user is None
@@ -77,9 +75,7 @@ class TestRequireAuthLocalTrust:
         assert user.username == "anonymous"
 
     @pytest.mark.asyncio
-    async def test_valid_token_returns_real_user_when_auth_not_required(
-        self, monkeypatch
-    ):
+    async def test_valid_token_returns_real_user_when_auth_not_required(self, monkeypatch):
         from src import auth
 
         monkeypatch.setattr(auth.runtime_config, "auth_required", lambda: False)

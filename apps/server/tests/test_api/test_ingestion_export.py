@@ -1,4 +1,5 @@
 """Tests for Ingestion & Export production features."""
+
 from __future__ import annotations
 
 import builtins
@@ -29,6 +30,7 @@ def client(tmp_path):
     settings.notes_dir = notes_dir
     # Initialize git sync
     from src.storage.git_sync import GitSync
+
     gs = GitSync(notes_dir)
     app.state.git_sync = gs
     yield TestClient(app), store, notes_dir
@@ -56,6 +58,7 @@ class TestPdfParser:
 
         with patch.object(builtins, "__import__", fake_import):
             from src.ingestion.pdf_parser import parse_pdf
+
             with pytest.raises(ImportError):
                 parse_pdf(b"fake pdf", "test.pdf")
 
@@ -71,6 +74,7 @@ class TestDocxParser:
 
         with patch.object(builtins, "__import__", fake_import):
             from src.ingestion.docx_parser import parse_docx
+
             with pytest.raises(ImportError):
                 parse_docx(b"fake docx", "test.docx")
 
@@ -79,6 +83,7 @@ class TestAudioParser:
     def test_parse_audio_returns_fallback_note(self):
         """parse_audio no longer uses OpenAI Whisper — returns fallback note."""
         from src.ingestion.audio_parser import parse_audio
+
         note = parse_audio(b"fake audio", "test.mp3")
         assert note.title == "Test"
         assert "Transcription unavailable" in note.content
@@ -95,6 +100,7 @@ class TestImageParser:
 
         with patch.object(builtins, "__import__", fake_import):
             from src.ingestion.image_parser import parse_image
+
             with pytest.raises(ImportError):
                 parse_image(b"fake image", "test.png")
 
@@ -110,6 +116,7 @@ class TestWebParser:
 
         with patch.object(builtins, "__import__", fake_import):
             from src.ingestion.web_parser import parse_web_clip
+
             with pytest.raises(ImportError):
                 parse_web_clip("https://example.com")
 
@@ -154,6 +161,7 @@ class TestEmailParser:
 
     def test_parse_email_bad_input_graceful(self):
         from src.ingestion.email_parser import parse_email
+
         # Garbage bytes should still produce a Note (default title)
         note = parse_email(b"not an email", "bad.eml")
         assert isinstance(note.title, str)
@@ -188,10 +196,18 @@ class TestImportPdf:
 class TestImportDocx:
     def test_import_docx_missing_dependency(self, client):
         cli, store, _ = client
-        with patch("src.ingestion.docx_parser.parse_docx", side_effect=ImportError("No python-docx")):
+        with patch(
+            "src.ingestion.docx_parser.parse_docx", side_effect=ImportError("No python-docx")
+        ):
             response = cli.post(
                 "/api/import/docx",
-                files={"file": ("test.docx", io.BytesIO(b"fake"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+                files={
+                    "file": (
+                        "test.docx",
+                        io.BytesIO(b"fake"),
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    )
+                },
             )
         assert response.status_code == 503
 
@@ -210,7 +226,9 @@ class TestImportAudio:
 class TestImportImage:
     def test_import_image_missing_dependency(self, client):
         cli, store, _ = client
-        with patch("src.ingestion.image_parser.parse_image", side_effect=ImportError("No tesseract")):
+        with patch(
+            "src.ingestion.image_parser.parse_image", side_effect=ImportError("No tesseract")
+        ):
             response = cli.post(
                 "/api/import/image",
                 files={"file": ("test.png", io.BytesIO(b"fake"), "image/png")},
@@ -221,7 +239,9 @@ class TestImportImage:
 class TestImportWeb:
     def test_import_web_missing_dependency(self, client):
         cli, store, _ = client
-        with patch("src.ingestion.web_parser.parse_web_clip", side_effect=ImportError("No requests")):
+        with patch(
+            "src.ingestion.web_parser.parse_web_clip", side_effect=ImportError("No requests")
+        ):
             response = cli.post("/api/import/web?url=https%3A%2F%2Fexample.com")
         assert response.status_code == 503
 
@@ -235,11 +255,7 @@ class TestImportWeb:
 class TestImportEmail:
     def test_import_email_success(self, client):
         cli, store, _ = client
-        raw = (
-            b"Subject: Hello\r\n"
-            b"\r\n"
-            b"Body text"
-        )
+        raw = b"Subject: Hello\r\n\r\nBody text"
         response = cli.post(
             "/api/import/email",
             files={"file": ("test.eml", io.BytesIO(raw), "message/rfc822")},
@@ -319,9 +335,12 @@ class TestImportRoam:
             }
         ]
         import json as _json
+
         response = cli.post(
             "/api/import/roam",
-            files={"file": ("roam.json", io.BytesIO(_json.dumps(payload).encode()), "application/json")},
+            files={
+                "file": ("roam.json", io.BytesIO(_json.dumps(payload).encode()), "application/json")
+            },
         )
         assert response.status_code == 200
         data = response.json()
@@ -330,6 +349,7 @@ class TestImportRoam:
     def test_import_roam_zip(self, client):
         cli, store, _ = client
         import json as _json
+
         payload = [{"title": "Zipped Roam", "children": [{"string": "Hello"}]}]
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w") as zf:
@@ -370,7 +390,10 @@ class TestExportAnki:
     def test_export_anki_with_notes(self, client):
         cli, store, _ = client
         from src.models.note import Note
-        store.create(Note(title="Note 1", content="Body 1", path="n1.md", frontmatter={"tags": ["a", "b"]}))
+
+        store.create(
+            Note(title="Note 1", content="Body 1", path="n1.md", frontmatter={"tags": ["a", "b"]})
+        )
         store.create(Note(title="Note 2", content="Body 2", path="n2.md"))
         response = cli.get("/api/export/anki")
         data = response.json()
@@ -389,7 +412,15 @@ class TestExportBibtex:
     def test_export_bibtex_with_notes(self, client):
         cli, store, _ = client
         from src.models.note import Note
-        store.create(Note(title="Bib Note", content="Abstract here", path="n.md", frontmatter={"tags": ["tag1"]}))
+
+        store.create(
+            Note(
+                title="Bib Note",
+                content="Abstract here",
+                path="n.md",
+                frontmatter={"tags": ["tag1"]},
+            )
+        )
         response = cli.get("/api/export/bibtex")
         assert response.status_code == 200
         assert "@misc" in response.text
@@ -453,6 +484,7 @@ class TestNoteVersioning:
     def test_note_history(self, client):
         cli, store, tmpdir = client
         from src.models.note import Note
+
         note = Note(title="Versioned", content="v1", path="v.md")
         created = store.create(note)
         # Simulate a modification and commit
@@ -468,6 +500,7 @@ class TestNoteVersioning:
     def test_note_diff(self, client):
         cli, store, tmpdir = client
         from src.models.note import Note
+
         note = Note(title="Versioned", content="v1", path="v.md")
         created = store.create(note)
         created.content = "v2"
@@ -482,6 +515,7 @@ class TestNoteVersioning:
     def test_note_diff_custom_commits(self, client):
         cli, store, tmpdir = client
         from src.models.note import Note
+
         note = Note(title="Versioned", content="v1", path="v.md")
         created = store.create(note)
         gs = cli.app.state.git_sync
@@ -514,8 +548,10 @@ class TestNoteVersioning:
 class TestImportTriggersExtraction:
     def test_markdown_import_triggers_entities_and_embeddings(self, client):
         cli, store, _ = client
-        with patch("src.api.import_export._extract_and_store_entities") as mock_extract, \
-             patch("src.api.import_export._store_note_embeddings") as mock_embed:
+        with (
+            patch("src.api.import_export._extract_and_store_entities") as mock_extract,
+            patch("src.api.import_export._store_note_embeddings") as mock_embed,
+        ):
             response = cli.post(
                 "/api/import/markdown",
                 files={"file": ("test.md", io.BytesIO(b"# Hello\n\nBody"), "text/markdown")},
@@ -530,8 +566,10 @@ class TestImportTriggersExtraction:
         with zipfile.ZipFile(buf, "w") as zf:
             zf.writestr("n.md", "# Hello")
         buf.seek(0)
-        with patch("src.api.import_export._extract_and_store_entities") as mock_extract, \
-             patch("src.api.import_export._store_note_embeddings") as mock_embed:
+        with (
+            patch("src.api.import_export._extract_and_store_entities") as mock_extract,
+            patch("src.api.import_export._store_note_embeddings") as mock_embed,
+        ):
             response = cli.post(
                 "/api/import/obsidian",
                 files={"file": ("vault.zip", buf, "application/zip")},
@@ -542,8 +580,10 @@ class TestImportTriggersExtraction:
 
     def test_bulk_import_triggers_entities_and_embeddings(self, client):
         cli, store, _ = client
-        with patch("src.api.import_export._extract_and_store_entities") as mock_extract, \
-             patch("src.api.import_export._store_note_embeddings") as mock_embed:
+        with (
+            patch("src.api.import_export._extract_and_store_entities") as mock_extract,
+            patch("src.api.import_export._store_note_embeddings") as mock_embed,
+        ):
             response = cli.post(
                 "/api/import/bulk",
                 files=[

@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import sqlite3
 from datetime import datetime, timedelta
+from typing import Any, cast
 
 from src.llm.base import LLMProvider
 from src.llm.json_parse import parse_llm_json
@@ -94,7 +95,7 @@ class SpacedRepetition:
         )
         # Propagates LLMOutputParseError when the model returns unparseable output;
         # the API layer maps that to a 502.
-        raw_cards = parse_llm_json(response, expect="list")
+        raw_cards = cast("list[Any]", parse_llm_json(response, expect="list"))
 
         cards: list[Card] = []
         now = datetime.utcnow()
@@ -224,7 +225,7 @@ class SpacedRepetition:
 
         return card
 
-    async def get_stats(self) -> dict:
+    async def get_stats(self) -> dict[str, int]:
         """Return statistics about the card collection.
 
         Returns:
@@ -234,9 +235,9 @@ class SpacedRepetition:
         now = datetime.utcnow().isoformat()
 
         total = conn.execute("SELECT COUNT(*) FROM cards").fetchone()[0]
-        due = conn.execute(
-            "SELECT COUNT(*) FROM cards WHERE next_review <= ?", (now,)
-        ).fetchone()[0]
+        due = conn.execute("SELECT COUNT(*) FROM cards WHERE next_review <= ?", (now,)).fetchone()[
+            0
+        ]
         new_count = conn.execute(
             "SELECT COUNT(*) FROM cards WHERE status = ?", (CardStatus.new,)
         ).fetchone()[0]
@@ -256,7 +257,7 @@ class SpacedRepetition:
             "review": review,
         }
 
-    def _card_to_row(self, card: Card) -> dict:
+    def _card_to_row(self, card: Card) -> dict[str, str | int | float]:
         """Serialize a Card to a SQLite-compatible dictionary.
 
         Args:
@@ -278,7 +279,7 @@ class SpacedRepetition:
             "status": card.status.value,
         }
 
-    def _row_to_card(self, row: dict) -> Card:
+    def _row_to_card(self, row: dict[str, Any]) -> Card:
         """Deserialize a SQLite row into a Card.
 
         Args:

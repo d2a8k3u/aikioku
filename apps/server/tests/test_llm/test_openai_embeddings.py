@@ -1,4 +1,5 @@
 """Tests for OpenAIEmbeddingProvider + factory.build_embedding_provider routing."""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -50,11 +51,15 @@ class TestBuildEmbeddingProviderRouting:
     def test_openai_provider_selected(self):
         from src.llm import factory
 
-        with patch("src.runtime_config.embedding_provider", return_value="openai"), \
-             patch("src.runtime_config.openai_api_key", return_value="sk"), \
-             patch("src.runtime_config.openai_embedding_model", return_value="text-embedding-3-large"), \
-             patch("src.runtime_config.embedding_strict", return_value=True), \
-             patch("src.runtime_config.embedding_dimension", return_value=3072):
+        with (
+            patch("src.runtime_config.embedding_provider", return_value="openai"),
+            patch("src.runtime_config.openai_api_key", return_value="sk"),
+            patch(
+                "src.runtime_config.openai_embedding_model", return_value="text-embedding-3-large"
+            ),
+            patch("src.runtime_config.embedding_strict", return_value=True),
+            patch("src.runtime_config.embedding_dimension", return_value=3072),
+        ):
             emb = factory.build_embedding_provider()
         assert isinstance(emb, OpenAIEmbeddingProvider)
         assert emb.model == "text-embedding-3-large"
@@ -62,11 +67,13 @@ class TestBuildEmbeddingProviderRouting:
     def test_ollama_provider_uses_ollama_embedding_model(self):
         from src.llm import factory
 
-        with patch("src.runtime_config.embedding_provider", return_value="ollama"), \
-             patch("src.runtime_config.ollama_embedding_model", return_value="mxbai-embed-large"), \
-             patch("src.runtime_config.ollama_embedding_base_url", return_value="http://host:11434"), \
-             patch("src.runtime_config.embedding_strict", return_value=False), \
-             patch("src.runtime_config.embedding_dimension", return_value=1024):
+        with (
+            patch("src.runtime_config.embedding_provider", return_value="ollama"),
+            patch("src.runtime_config.ollama_embedding_model", return_value="mxbai-embed-large"),
+            patch("src.runtime_config.ollama_embedding_base_url", return_value="http://host:11434"),
+            patch("src.runtime_config.embedding_strict", return_value=False),
+            patch("src.runtime_config.embedding_dimension", return_value=1024),
+        ):
             emb = factory.build_embedding_provider()
         assert isinstance(emb, OllamaRemoteProvider)
         assert emb.embedding_model == "mxbai-embed-large"
@@ -75,12 +82,17 @@ class TestBuildEmbeddingProviderRouting:
     def test_ollama_remote_passes_embedding_api_key(self):
         from src.llm import factory
 
-        with patch("src.runtime_config.embedding_provider", return_value="ollama_remote"), \
-             patch("src.runtime_config.ollama_embedding_model", return_value="mxbai-embed-large"), \
-             patch("src.runtime_config.ollama_embedding_base_url", return_value="https://api.ollama.com"), \
-             patch("src.runtime_config.ollama_api_key", return_value="ollama-secret"), \
-             patch("src.runtime_config.embedding_strict", return_value=False), \
-             patch("src.runtime_config.embedding_dimension", return_value=1024):
+        with (
+            patch("src.runtime_config.embedding_provider", return_value="ollama_remote"),
+            patch("src.runtime_config.ollama_embedding_model", return_value="mxbai-embed-large"),
+            patch(
+                "src.runtime_config.ollama_embedding_base_url",
+                return_value="https://api.ollama.com",
+            ),
+            patch("src.runtime_config.ollama_api_key", return_value="ollama-secret"),
+            patch("src.runtime_config.embedding_strict", return_value=False),
+            patch("src.runtime_config.embedding_dimension", return_value=1024),
+        ):
             emb = factory.build_embedding_provider()
         assert isinstance(emb, OllamaRemoteProvider)
         assert emb.embedding_provider == "ollama"  # native /api/embed routing
@@ -89,12 +101,14 @@ class TestBuildEmbeddingProviderRouting:
     def test_hf_provider_uses_hf_embedding_model(self):
         from src.llm import factory
 
-        with patch("src.runtime_config.embedding_provider", return_value="huggingface"), \
-             patch("src.runtime_config.hf_embedding_model", return_value="BAAI/bge-m3"), \
-             patch("src.runtime_config.hf_api_key", return_value="hf-x"), \
-             patch("src.runtime_config.ollama_embedding_base_url", return_value="http://host:11434"), \
-             patch("src.runtime_config.embedding_strict", return_value=False), \
-             patch("src.runtime_config.embedding_dimension", return_value=1024):
+        with (
+            patch("src.runtime_config.embedding_provider", return_value="huggingface"),
+            patch("src.runtime_config.hf_embedding_model", return_value="BAAI/bge-m3"),
+            patch("src.runtime_config.hf_api_key", return_value="hf-x"),
+            patch("src.runtime_config.ollama_embedding_base_url", return_value="http://host:11434"),
+            patch("src.runtime_config.embedding_strict", return_value=False),
+            patch("src.runtime_config.embedding_dimension", return_value=1024),
+        ):
             emb = factory.build_embedding_provider()
         assert isinstance(emb, OllamaRemoteProvider)
         assert emb.embedding_model == "BAAI/bge-m3"

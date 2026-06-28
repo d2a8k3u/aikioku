@@ -15,6 +15,7 @@ subsequent requests with the same prefix.
 from __future__ import annotations
 
 import os
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Environment toggle
@@ -38,7 +39,7 @@ def _is_enabled() -> bool:
 # ---------------------------------------------------------------------------
 
 
-def build_cacheable_system_prompt(full_system_prompt: str) -> list[dict]:
+def build_cacheable_system_prompt(full_system_prompt: str) -> list[dict[str, Any]]:
     """Split the system prompt at ``\\nContext:\\n`` and mark the static prefix as cacheable.
 
     Returns a list of content blocks suitable for an OpenAI-compatible
@@ -59,7 +60,7 @@ def build_cacheable_system_prompt(full_system_prompt: str) -> list[dict]:
         static_prefix = full_system_prompt
         dynamic_suffix = ""
 
-    blocks: list[dict] = [
+    blocks: list[dict[str, Any]] = [
         {
             "type": "text",
             "text": static_prefix,
@@ -76,7 +77,7 @@ def build_cacheable_system_prompt(full_system_prompt: str) -> list[dict]:
     return blocks
 
 
-def build_messages_with_cache(system_prompt: str, user_prompt: str) -> list[dict]:
+def build_messages_with_cache(system_prompt: str, user_prompt: str) -> list[dict[str, Any]]:
     """Build a messages list with prompt-caching support.
 
     When ``PROMPT_CACHE_ENABLED`` is true (the default), the system message
@@ -88,7 +89,7 @@ def build_messages_with_cache(system_prompt: str, user_prompt: str) -> list[dict
     """
     if not _is_enabled():
         # Backward-compatible path: plain text system message.
-        msgs: list[dict] = []
+        msgs: list[dict[str, Any]] = []
         if system_prompt:
             msgs.append({"role": "system", "content": system_prompt})
         msgs.append({"role": "user", "content": user_prompt})

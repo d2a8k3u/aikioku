@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 
 class PluginManager:
     """Manages plugin registration, activation, and deactivation."""
 
     def __init__(self) -> None:
-        self._plugins: dict[str, dict] = {}
+        self._plugins: dict[str, dict[str, Any]] = {}
 
-    def register_plugin(self, name: str, manifest: dict) -> None:
+    def register_plugin(self, name: str, manifest: dict[str, Any]) -> None:
         """Register a plugin with its manifest metadata."""
         self._plugins[name] = {"name": name, "manifest": manifest, "active": False}
 

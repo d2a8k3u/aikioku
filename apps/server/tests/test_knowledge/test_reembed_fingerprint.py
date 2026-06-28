@@ -1,4 +1,5 @@
 """Tests for the effective embedding fingerprint."""
+
 from __future__ import annotations
 
 from src import runtime_config

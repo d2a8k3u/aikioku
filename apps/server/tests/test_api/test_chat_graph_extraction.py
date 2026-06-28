@@ -4,6 +4,7 @@ Covers the reusable text-based extraction core (``extract_entities_from_text``)
 and the chat wiring (``_extract_graph_entities``) that feeds the graph from chat
 turns the same way notes do — the graph is the project's source of truth.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -18,10 +19,12 @@ import pytest
 from src.knowledge.graph import KnowledgeGraph
 from src.llm.base import LLMProvider
 
-_ENT_JSON = json.dumps([
-    {"name": "Aiwen", "type": "Project", "aliases": [], "confidence": 0.9},
-    {"name": "Apple Silicon", "type": "Concept", "aliases": [], "confidence": 0.8},
-])
+_ENT_JSON = json.dumps(
+    [
+        {"name": "Aiwen", "type": "Project", "aliases": [], "confidence": 0.9},
+        {"name": "Apple Silicon", "type": "Concept", "aliases": [], "confidence": 0.8},
+    ]
+)
 
 
 @pytest.fixture
@@ -38,6 +41,7 @@ def mock_llm():
 
 
 # --- text-based extraction core --------------------------------------------------
+
 
 async def test_extract_from_text_note_records_source_note_id(graph, mock_llm):
     mock_llm.complete.return_value = _ENT_JSON
@@ -101,13 +105,15 @@ async def test_extract_from_note_delegates_to_text(graph, mock_llm):
 
 # --- chat wiring -----------------------------------------------------------------
 
+
 async def test_chat_schedules_graph_extraction(monkeypatch):
     from src.api import chat
 
     fake = AsyncMock(return_value=[])
     monkeypatch.setattr("src.knowledge.pipeline.extract_entities_from_text", fake)
-    req = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(
-        llm_provider=object(), knowledge_graph=object())))
+    req = SimpleNamespace(
+        app=SimpleNamespace(state=SimpleNamespace(llm_provider=object(), knowledge_graph=object()))
+    )
 
     chat._extract_graph_entities(req, "turn-1", "who is aiwen", "aiwen is a project")
     await asyncio.sleep(0.05)  # let the fire-and-forget task run
@@ -124,8 +130,9 @@ async def test_chat_extraction_skips_when_unconfigured(monkeypatch):
 
     fake = AsyncMock(return_value=[])
     monkeypatch.setattr("src.knowledge.pipeline.extract_entities_from_text", fake)
-    req = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(
-        llm_provider=None, knowledge_graph=None)))
+    req = SimpleNamespace(
+        app=SimpleNamespace(state=SimpleNamespace(llm_provider=None, knowledge_graph=None))
+    )
 
     chat._extract_graph_entities(req, "turn-2", "q", "a")
     await asyncio.sleep(0.05)

@@ -5,11 +5,13 @@ KG storage, relation creation, and embedding storage.
 
 Follows the MemoryExtractor pattern: build prompt -> call LLM -> parse response.
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import re
+from typing import Any
 
 from src.knowledge.embeddings import EmbeddingStore
 from src.knowledge.entity_resolution import EntityResolver
@@ -224,9 +226,7 @@ async def extract_entities_from_text(
 
     # Step 3: Parse entities with format validation. Only seed source_note_ids
     # when the source is a real note — a chat turn id must not enter that field.
-    raw_entities = _parse_entities_from_llm(
-        response, note_id=source_id if source_is_note else ""
-    )
+    raw_entities = _parse_entities_from_llm(response, note_id=source_id if source_is_note else "")
 
     if not raw_entities:
         logger.info("No entities extracted from source %s", source_id)
@@ -311,9 +311,7 @@ def _create_cooccurrence_relations(
 # --------------------------------------------------------------------------- #
 
 
-def sub_window_chunk(
-    text: str, window_size: int = 256, stride: int = 128
-) -> list[dict]:
+def sub_window_chunk(text: str, window_size: int = 256, stride: int = 128) -> list[dict[str, Any]]:
     """Split text into overlapping sub-windows using word-based tokenization.
 
     Each window is ``window_size`` words; windows slide by ``stride`` words
@@ -329,16 +327,18 @@ def sub_window_chunk(
     if len(words) <= window_size:
         return [{"text": text, "start_word": 0, "end_word": len(words)}]
 
-    windows: list[dict] = []
+    windows: list[dict[str, Any]] = []
     start = 0
     while start < len(words):
         end = min(start + window_size, len(words))
         window_text = " ".join(words[start:end])
-        windows.append({
-            "text": window_text,
-            "start_word": start,
-            "end_word": end,
-        })
+        windows.append(
+            {
+                "text": window_text,
+                "start_word": start,
+                "end_word": end,
+            }
+        )
         if end >= len(words):
             break
         start += stride

@@ -1,4 +1,5 @@
 """Tests for GET /api/export/json endpoint."""
+
 from __future__ import annotations
 
 import os
@@ -13,6 +14,7 @@ from fastapi.testclient import TestClient
 def client():
     """Create a FastAPI TestClient with mocked note store."""
     from src.main import app
+
     yield TestClient(app)
 
 
@@ -58,6 +60,7 @@ class TestExportJson:
 
     def test_notes_included(self, client):
         from datetime import datetime
+
         note = MagicMock()
         note.id = "note-1"
         note.title = "My Note"

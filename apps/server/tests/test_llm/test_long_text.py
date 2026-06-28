@@ -1,4 +1,5 @@
 """Tests for non-truncating long-text processing helpers."""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock

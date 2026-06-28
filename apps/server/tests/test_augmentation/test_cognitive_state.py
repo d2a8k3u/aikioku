@@ -1,4 +1,5 @@
 """Tests for CognitiveStateTracker."""
+
 import os
 import tempfile
 from datetime import datetime, timedelta, timezone

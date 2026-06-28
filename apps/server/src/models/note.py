@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -27,7 +27,7 @@ class Note(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     title: str = Field(min_length=1)
     content: str = ""
-    frontmatter: dict = Field(default_factory=dict)
+    frontmatter: dict[str, Any] = Field(default_factory=dict)
     links: list[str] = Field(default_factory=list)
     path: str = Field(min_length=1)
     source_type: str = "note"
@@ -44,10 +44,9 @@ class NoteUpdate(BaseModel):
     id: Optional[str] = None
     title: Optional[str] = None
     content: Optional[str] = None
-    frontmatter: Optional[dict] = None
+    frontmatter: Optional[dict[str, Any]] = None
     links: Optional[list[str]] = None
     path: Optional[str] = None
     source_type: Optional[str] = None
     created: Optional[datetime] = None
     modified: Optional[datetime] = None
-

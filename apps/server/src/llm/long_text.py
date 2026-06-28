@@ -115,15 +115,9 @@ async def condense_for_prompt(
     async def _fold() -> str:
         chunks = chunk_for_llm(text, target_chars)
         # Concurrent chunk summarization — all chunks processed in parallel.
-        summaries = await asyncio.gather(
-            *(_summarize_chunk(llm, chunk) for chunk in chunks)
-        )
+        summaries = await asyncio.gather(*(_summarize_chunk(llm, chunk) for chunk in chunks))
         combined = "\n\n".join(s.strip() for s in summaries).strip()
-        if (
-            len(combined) <= target_chars
-            or _depth >= _MAX_FOLD_DEPTH
-            or combined == text
-        ):
+        if len(combined) <= target_chars or _depth >= _MAX_FOLD_DEPTH or combined == text:
             return combined
         return await condense_for_prompt(
             llm, combined, target_chars=target_chars, _depth=_depth + 1
@@ -140,4 +134,4 @@ async def condense_for_prompt(
         # This is a degradation, not a truncation — the full note is still
         # available via the note store, and the LLM can still answer from
         # the retrieval snippet.
-        return text[:target_chars * 2]
+        return text[: target_chars * 2]

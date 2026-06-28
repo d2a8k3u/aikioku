@@ -1,4 +1,5 @@
 """Tests for base-URL normalization + endpoint joining."""
+
 from __future__ import annotations
 
 import pytest
@@ -23,7 +24,10 @@ class TestNormalizeOllama:
         assert urls.normalize_base(raw, dialect="ollama") == "https://api.ollama.com"
 
     def test_local_root_unchanged(self):
-        assert urls.normalize_base("http://localhost:11434", dialect="ollama") == "http://localhost:11434"
+        assert (
+            urls.normalize_base("http://localhost:11434", dialect="ollama")
+            == "http://localhost:11434"
+        )
 
     def test_messy_slashes(self):
         assert urls.normalize_base("https://host//api//", dialect="ollama") == "https://host"
@@ -81,7 +85,9 @@ class TestJoinOllama:
         ["https://api.ollama.com", "https://api.ollama.com/api", "https://api.ollama.com/v1"],
     )
     def test_tags(self, raw):
-        assert urls.join(raw, urls.OLLAMA_TAGS, dialect="ollama") == "https://api.ollama.com/api/tags"
+        assert (
+            urls.join(raw, urls.OLLAMA_TAGS, dialect="ollama") == "https://api.ollama.com/api/tags"
+        )
 
     def test_generate(self):
         assert (
@@ -108,7 +114,10 @@ class TestJoinOpenRouter:
         ["https://openrouter.ai", "https://openrouter.ai/api/v1", "https://openrouter.ai/v1"],
     )
     def test_models(self, raw):
-        assert urls.join(raw, urls.OPENROUTER_MODELS, dialect="openrouter") == "https://openrouter.ai/api/v1/models"
+        assert (
+            urls.join(raw, urls.OPENROUTER_MODELS, dialect="openrouter")
+            == "https://openrouter.ai/api/v1/models"
+        )
 
     def test_chat(self):
         assert (

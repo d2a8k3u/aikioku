@@ -22,8 +22,9 @@ import asyncio
 import json
 import logging
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Coroutine
 from datetime import datetime
+from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, Request
 from fastapi.responses import StreamingResponse
@@ -36,6 +37,12 @@ from src.config import settings
 from src.limiter import limiter
 from src.storage.note_store import NoteStore
 from src.api.websocket import get_broadcaster
+
+if TYPE_CHECKING:
+    from src.models.memory import Memory
+    from src.reasoning.multi_hop import MultiHopReasoner
+    from src.reasoning.rag import RAGGenerator
+    from src.retrieval.search_result import SearchResult
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +57,7 @@ _HISTORY_LIMIT = 10
 _CONTEXT_BUILD_TIMEOUT_S = 10.0
 
 
-def _spawn_background(app: FastAPI, coro) -> None:
+def _spawn_background(app: FastAPI, coro: Coroutine[Any, Any, Any]) -> asyncio.Task[Any]:
     """Spawn a fire-and-forget background task with strong reference.
 
     Python 3.12+ holds only weak references to asyncio tasks, so
@@ -65,7 +72,7 @@ def _spawn_background(app: FastAPI, coro) -> None:
     return task
 
 
-def _persist_memories(memories: list) -> None:
+def _persist_memories(memories: list[Memory]) -> None:
     """Persist chat-extracted memories to SQLite (best-effort).
 
     A failure here (e.g. a locked DB) must never surface to the client, so all
@@ -103,9 +110,9 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     response: str
-    citations: list
+    citations: list[dict[str, Any]]
     mode: str
-    sub_questions: list = []
+    sub_questions: list[str] = []
 
 
 def _get_note_store(request: Request) -> NoteStore:
@@ -117,12 +124,12 @@ def _get_note_store(request: Request) -> NoteStore:
     return store
 
 
-def _build_rag_generator(request: Request):
+def _build_rag_generator(request: Request) -> RAGGenerator:
     """Return the singleton RAGGenerator from app.state."""
-    return request.app.state.rag_generator
+    return cast("RAGGenerator", request.app.state.rag_generator)
 
 
-def _build_multi_hop_reasoner(request: Request):
+def _build_multi_hop_reasoner(request: Request) -> MultiHopReasoner:
     """Build and return a MultiHopReasoner instance using app.state singletons."""
     from src.memory.extraction import MemoryExtractor
     from src.reasoning.multi_hop import MultiHopReasoner
@@ -162,7 +169,7 @@ async def _embed_turn(
         logger.warning("Failed to embed conversation turn.", exc_info=True)
 
 
-async def _extract_factual(request: Request, user_q: str, assistant_a: str) -> list:
+async def _extract_factual(request: Request, user_q: str, assistant_a: str) -> list[Memory]:
     """Extract factual memory triples from a turn (best-effort)."""
     llm = getattr(request.app.state, "llm_provider", None)
     if llm is None:
@@ -222,9 +229,9 @@ async def _capture_turn(
     user_q: str,
     assistant_a: str,
     turn_id: str,
-    citations: list,
-    sub_questions: list,
-    memories: list | None = None,
+    citations: list[dict[str, Any]],
+    sub_questions: list[str],
+    memories: list[Memory] | None = None,
 ) -> None:
     """Persist + index a completed turn. Runs in the background; never fails the chat.
 
@@ -327,7 +334,7 @@ def _begin_turn(user_id: str, query: str) -> str:
     return turn_id
 
 
-def _load_history(user_id: str) -> list[dict]:
+def _load_history(user_id: str) -> list[dict[str, Any]]:
     """Load the user's recent history (chronological) for short-term grounding."""
     try:
         from src.api.conversations import recent_history
@@ -348,7 +355,7 @@ async def chat(
     body: ChatRequest,
     background_tasks: BackgroundTasks,
     user: UserInDB = Depends(require_auth),
-) -> dict:
+) -> dict[str, Any]:
     """Process a chat query using RAG or multi-hop reasoning.
 
     The turn is persisted and captured into memory in a background task (after
@@ -398,7 +405,7 @@ async def chat_stream_get(
     mode: str = "simple",
     tone: str = "warm",
     user: UserInDB = Depends(require_auth),
-):
+) -> StreamingResponse:
     """Stream a chat response via Server-Sent Events (GET)."""
     if mode not in ("simple", "multi_hop"):
         mode = "simple"
@@ -413,7 +420,7 @@ async def chat_stream(
     request: Request,
     body: ChatRequest,
     user: UserInDB = Depends(require_auth),
-):
+) -> StreamingResponse:
     """Stream a chat response via Server-Sent Events (POST)."""
     return await _stream_chat(request, body.query, body.mode, user.username, body.tone)
 
@@ -423,7 +430,7 @@ async def chat_stream(
 _STREAM_CHUNK_SIZE = 256
 
 
-def _sse(event: str, data: dict | list) -> str:
+def _sse(event: str, data: dict[str, Any] | list[Any]) -> str:
     """Format a single Server-Sent Event frame."""
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
@@ -432,12 +439,12 @@ def _sse(event: str, data: dict | list) -> str:
 
 
 async def _build_context_progressive(
-    rag,
+    rag: RAGGenerator,
     query: str,
     note_store: NoteStore,
-    history: list[dict] | None,
-    pre_fetched: list | None = None,
-) -> tuple[str, list[dict]]:
+    history: list[dict[str, Any]] | None,
+    pre_fetched: list[SearchResult] | None = None,
+) -> tuple[str, list[dict[str, Any]]]:
     """Build grounding context with a hard timeout.
 
     When ``pre_fetched`` is provided (fusion results from the citations step),
@@ -462,7 +469,7 @@ async def _build_context_progressive(
         # Fast path: retrieve only, skip condensation. Build a minimal
         # system prompt from raw snippets. Reuse pre_fetched if available.
         results = pre_fetched if pre_fetched is not None else await rag._fusion.search(query)
-        context_entries: list[dict] = []
+        context_entries: list[dict[str, Any]] = []
         for r in results[:5]:
             note = note_store.get(r.note_id)
             title = note.title if note else None
@@ -792,14 +799,14 @@ def _delete_turn_placeholder(turn_id: str) -> None:
 # ------------------------------------------------------------------ stop generation
 
 # Active generation tasks keyed by user_id for cancellation.
-_active_generations: dict[str, "asyncio.Task"] = {}
+_active_generations: dict[str, asyncio.Task[Any]] = {}
 
 
 @router.post("/stop")
 async def stop_generation(
     request: Request,
     user: UserInDB = Depends(require_auth),
-) -> dict:
+) -> dict[str, str]:
     """Cancel the authenticated user's active chat generation."""
 
     task = _active_generations.pop(user.username, None)

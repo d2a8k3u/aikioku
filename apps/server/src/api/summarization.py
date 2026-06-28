@@ -1,6 +1,8 @@
 """Summarization API endpoint for notes."""
+
 from __future__ import annotations
 
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request
@@ -21,7 +23,7 @@ def _get_summarizer(request: Request) -> ProgressiveSummarizer:
 
 
 @router.post("/{note_id}/summarize")
-async def summarize_note(request: Request, note_id: UUID) -> dict:
+async def summarize_note(request: Request, note_id: UUID) -> dict[str, Any]:
     """Generate a multi-level summary for a note."""
     from src.storage.note_store import NoteStore
     from src.config import settings

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+from typing import Any, cast
 
 # Matches a leading ```json / ``` fence and the trailing ``` fence.
 _FENCE_RE = re.compile(
@@ -49,7 +50,7 @@ def _extract_balanced(text: str, open_ch: str, close_ch: str) -> str | None:
     return text[start : end + 1]
 
 
-def parse_llm_json(text: str, expect: str | None = None) -> list | dict:
+def parse_llm_json(text: str, expect: str | None = None) -> list[Any] | dict[str, Any]:
     """Parse JSON from a (possibly messy) LLM response.
 
     Args:
@@ -64,9 +65,7 @@ def parse_llm_json(text: str, expect: str | None = None) -> list | dict:
         LLMOutputParseError: If nothing parses to the expected type.
     """
     if not isinstance(text, str):
-        raise LLMOutputParseError(
-            f"Expected str, got {type(text).__name__}"
-        )
+        raise LLMOutputParseError(f"Expected str, got {type(text).__name__}")
 
     stripped = _strip_fence(text.strip())
 
@@ -90,7 +89,7 @@ def parse_llm_json(text: str, expect: str | None = None) -> list | dict:
         except (json.JSONDecodeError, ValueError):
             continue
         if _type_matches(parsed, expect):
-            return parsed
+            return cast("list[Any] | dict[str, Any]", parsed)
 
     snippet = text.strip()[:_SNIPPET_LEN]
     expected_desc = expect if expect is not None else "list or dict"

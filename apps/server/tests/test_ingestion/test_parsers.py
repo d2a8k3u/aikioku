@@ -15,6 +15,7 @@ from src.models.note import Note
 # Helpers to generate real file bytes inside Docker where deps are installed
 # ---------------------------------------------------------------------------
 
+
 def _make_pdf_bytes(title: str = "PDF Title", body: str = "PDF body text.") -> bytes:
     import fitz
 
@@ -111,6 +112,7 @@ class TestAudioParser:
     def test_parse_audio_returns_fallback_note(self):
         """parse_audio no longer uses OpenAI Whisper — returns fallback note."""
         from src.ingestion.audio_parser import parse_audio
+
         note = parse_audio(b"fake audio", "test.mp3")
         assert note.title == "Test"
         assert "Transcription unavailable" in note.content

@@ -1,10 +1,15 @@
 """Admin / maintenance endpoints."""
+
 from __future__ import annotations
 
 import asyncio
 import logging
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Request
+
+if TYPE_CHECKING:
+    from src.models.note import Note
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 logger = logging.getLogger(__name__)
@@ -13,11 +18,17 @@ logger = logging.getLogger(__name__)
 _REEXTRACT_CONCURRENCY = 4
 
 # Module-level progress so the status endpoint can report on an in-flight run.
-_reextract_state: dict = {"running": False, "processed": 0, "total": 0, "entities": 0, "errors": 0}
+_reextract_state: dict[str, int | bool] = {
+    "running": False,
+    "processed": 0,
+    "total": 0,
+    "entities": 0,
+    "errors": 0,
+}
 
 
 @router.post("/reextract")
-async def reextract_entities(request: Request) -> dict:
+async def reextract_entities(request: Request) -> dict[str, Any]:
     """Re-run entity extraction over all notes into the shared knowledge graph.
 
     Runs in the background with bounded concurrency and returns immediately.
@@ -39,7 +50,7 @@ async def reextract_entities(request: Request) -> dict:
     async def _run() -> None:
         sem = asyncio.Semaphore(_REEXTRACT_CONCURRENCY)
 
-        async def _one(note) -> None:
+        async def _one(note: Note) -> None:
             async with sem:
                 try:
                     # The LLM call is the only await; the Kuzu writes that follow
@@ -49,7 +60,9 @@ async def reextract_entities(request: Request) -> dict:
                     _reextract_state["entities"] += len(ents)
                 except Exception as exc:  # noqa: BLE001
                     _reextract_state["errors"] += 1
-                    logger.warning("reextract failed for note %s: %s", getattr(note, "id", "?"), exc)
+                    logger.warning(
+                        "reextract failed for note %s: %s", getattr(note, "id", "?"), exc
+                    )
                 finally:
                     _reextract_state["processed"] += 1
 
@@ -62,6 +75,6 @@ async def reextract_entities(request: Request) -> dict:
 
 
 @router.get("/reextract/status")
-async def reextract_status() -> dict:
+async def reextract_status() -> dict[str, int | bool]:
     """Return progress of the most recent re-extraction run."""
     return dict(_reextract_state)

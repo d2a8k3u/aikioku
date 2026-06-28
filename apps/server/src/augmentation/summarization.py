@@ -5,6 +5,7 @@ Generates multi-level summaries of notes:
 - detailed: 1-2 paragraph summary
 - one-liner: single sentence summary
 """
+
 from __future__ import annotations
 
 from src.llm.base import LLMProvider
@@ -17,7 +18,7 @@ class ProgressiveSummarizer:
     def __init__(self, llm_provider: LLMProvider) -> None:
         self.llm = llm_provider
 
-    async def summarize(self, note: Note) -> dict:
+    async def summarize(self, note: Note) -> dict[str, str]:
         """Return all three summary levels for a given note.
 
         Returns:

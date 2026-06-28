@@ -1,4 +1,5 @@
 """Mock LLM provider tests — avoid needing a real Ollama server."""
+
 from __future__ import annotations
 
 import json
@@ -22,7 +23,9 @@ class TestOllamaProviderMocked:
         mock_resp.json.return_value = {"response": "hello back"}
         mock_resp.raise_for_status = MagicMock()
 
-        with patch.object(provider._client, "post", new=AsyncMock(return_value=mock_resp)) as mock_post:
+        with patch.object(
+            provider._client, "post", new=AsyncMock(return_value=mock_resp)
+        ) as mock_post:
             result = await provider.complete("hi", system="be nice")
             assert result == "hello back"
             mock_post.assert_awaited_once()
@@ -85,6 +88,7 @@ class TestOllamaProviderMocked:
             json.dumps({"response": "chunk2"}),
             json.dumps({"done": True}),
         ]
+
         # Build an async iterator that yields lines
         async def _aiter_lines():
             for line in raw_lines:
@@ -120,7 +124,9 @@ class TestOllamaRemoteProviderMocked:
         mock_resp.json.return_value = {"response": "remote hello"}
         mock_resp.raise_for_status = MagicMock()
 
-        with patch.object(provider._client, "post", new=AsyncMock(return_value=mock_resp)) as mock_post:
+        with patch.object(
+            provider._client, "post", new=AsyncMock(return_value=mock_resp)
+        ) as mock_post:
             result = await provider.complete("hi")
             assert result == "remote hello"
             _, kwargs = mock_post.call_args
@@ -161,6 +167,7 @@ class TestOllamaRemoteProviderMocked:
             json.dumps({"response": "A"}),
             json.dumps({"response": "B"}),
         ]
+
         async def _aiter_lines():
             for line in raw_lines:
                 yield line
@@ -195,7 +202,9 @@ class TestBaseUrlNormalizationResolvesEndpoints:
         mock_resp.json.return_value = {"response": "ok"}
         mock_resp.raise_for_status = MagicMock()
 
-        with patch.object(provider._client, "post", new=AsyncMock(return_value=mock_resp)) as mock_post:
+        with patch.object(
+            provider._client, "post", new=AsyncMock(return_value=mock_resp)
+        ) as mock_post:
             await provider.complete("hi")
 
         args, kwargs = mock_post.call_args
@@ -204,12 +213,16 @@ class TestBaseUrlNormalizationResolvesEndpoints:
 
     @pytest.mark.asyncio
     async def test_ollama_remote_complete_strips_trailing_api(self):
-        provider = OllamaRemoteProvider(base_url="https://api.ollama.com/api", model="r", api_key="k")
+        provider = OllamaRemoteProvider(
+            base_url="https://api.ollama.com/api", model="r", api_key="k"
+        )
         mock_resp = MagicMock()
         mock_resp.json.return_value = {"response": "ok"}
         mock_resp.raise_for_status = MagicMock()
 
-        with patch.object(provider._client, "post", new=AsyncMock(return_value=mock_resp)) as mock_post:
+        with patch.object(
+            provider._client, "post", new=AsyncMock(return_value=mock_resp)
+        ) as mock_post:
             await provider.complete("hi")
 
         args, kwargs = mock_post.call_args
@@ -223,7 +236,9 @@ class TestBaseUrlNormalizationResolvesEndpoints:
         mock_resp.json.return_value = {"choices": [{"message": {"content": "hi"}}]}
         mock_resp.raise_for_status = MagicMock()
 
-        with patch.object(provider._client, "post", new=AsyncMock(return_value=mock_resp)) as mock_post:
+        with patch.object(
+            provider._client, "post", new=AsyncMock(return_value=mock_resp)
+        ) as mock_post:
             await provider.complete("hi")
 
         args, kwargs = mock_post.call_args

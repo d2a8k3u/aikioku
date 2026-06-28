@@ -54,9 +54,7 @@ class TestListEndpointPaginates:
     def test_list_returns_at_most_limit(self, wired_client):
         client, store = wired_client
         for i in range(1, 11):
-            store.create(
-                _make_note(str(i), modified=datetime(2026, 6, i, tzinfo=timezone.utc))
-            )
+            store.create(_make_note(str(i), modified=datetime(2026, 6, i, tzinfo=timezone.utc)))
         resp = client.get("/api/notes/?limit=5")
         assert resp.status_code == 200
         body = resp.json()
@@ -86,9 +84,7 @@ class TestListEndpointPaginates:
     def test_list_skip_and_limit(self, wired_client):
         client, store = wired_client
         for i in range(1, 11):
-            store.create(
-                _make_note(str(i), modified=datetime(2026, 6, i, tzinfo=timezone.utc))
-            )
+            store.create(_make_note(str(i), modified=datetime(2026, 6, i, tzinfo=timezone.utc)))
         resp = client.get("/api/notes/?skip=2&limit=2")
         assert resp.status_code == 200
         titles = [n["title"] for n in resp.json()]

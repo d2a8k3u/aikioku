@@ -36,8 +36,7 @@ def parse_image(content: bytes, filename: str = "imported.png") -> Note:
         import pytesseract  # type: ignore[import-not-found]
     except ImportError as exc:
         raise ImportError(
-            "OCR dependencies are not installed. Install them with: "
-            "pip install pytesseract Pillow"
+            "OCR dependencies are not installed. Install them with: pip install pytesseract Pillow"
         ) from exc
 
     import io

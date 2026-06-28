@@ -1,4 +1,5 @@
 """Tests for flat Entities API endpoints at /api/entities."""
+
 from __future__ import annotations
 
 import os
@@ -34,9 +35,13 @@ def client(tmp_db_path):
     kg.create_entity(e2)
     kg.create_entity(e3)
 
-    kg.create_relation(Relation(
-        source_entity_id=e1.id, target_entity_id=e2.id, type=RelationType.works_at,
-    ))
+    kg.create_relation(
+        Relation(
+            source_entity_id=e1.id,
+            target_entity_id=e2.id,
+            type=RelationType.works_at,
+        )
+    )
 
     yield TestClient(app), kg, e1, e2, e3
 

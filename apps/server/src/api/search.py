@@ -1,4 +1,5 @@
 """Search API endpoints."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Query
@@ -13,6 +14,7 @@ def get_note_store() -> NoteStore:
     global _store
     if _store is None:
         from src.config import settings
+
         _store = NoteStore(settings.notes_dir)
     return _store
 

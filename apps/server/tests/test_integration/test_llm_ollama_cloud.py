@@ -2,6 +2,7 @@
 
 Run with: pytest -m integration
 """
+
 from __future__ import annotations
 
 import os
@@ -16,6 +17,7 @@ class TestOllamaRemoteProviderReal:
     @pytest.fixture
     async def provider(self):
         from src.llm.ollama_remote import OllamaRemoteProvider
+
         prov = OllamaRemoteProvider(
             base_url=os.environ.get("OLLAMA_BASE_URL", "https://api.ollama.com"),
             model=os.environ.get("OLLAMA_MODEL", "kimi-k2.6:cloud"),
@@ -126,9 +128,7 @@ class TestEntityExtractionReal:
             # design — skip rather than hard-fail (the deterministic JSON-parsing
             # coverage lives in tests/test_knowledge/test_pipeline.py).
             if not entities:
-                pytest.skip(
-                    "remote LLM returned no parseable entities (timeout/unavailable)"
-                )
+                pytest.skip("remote LLM returned no parseable entities (timeout/unavailable)")
             assert len(entities) >= 1
             assert all(e.name for e in entities)
         finally:
@@ -157,9 +157,19 @@ class TestMemoryConsolidationReal:
             consolidator = MemoryConsolidator(graph, event_bus)
 
             memories = [
-                Memory(subject="Alice", predicate="knows", object="Bob", confidence=0.9, source="note1"),
-                Memory(subject="Alice", predicate="knows", object="Charlie", confidence=0.8, source="note2"),
-                Memory(subject="Alice", predicate="knows", object="Bob", confidence=0.7, source="note3"),
+                Memory(
+                    subject="Alice", predicate="knows", object="Bob", confidence=0.9, source="note1"
+                ),
+                Memory(
+                    subject="Alice",
+                    predicate="knows",
+                    object="Charlie",
+                    confidence=0.8,
+                    source="note2",
+                ),
+                Memory(
+                    subject="Alice", predicate="knows", object="Bob", confidence=0.7, source="note3"
+                ),
             ]
             summary = await consolidator.run(memories)
             print(f"Consolidation summary: {summary}")

@@ -1,4 +1,5 @@
 """Tests for EmbeddingStore class using ChromaDB with semantic chunking."""
+
 from __future__ import annotations
 
 import os
@@ -16,12 +17,14 @@ def tmp_db_path():
 @pytest.fixture
 def store(tmp_db_path):
     from src.knowledge.embeddings import EmbeddingStore
+
     return EmbeddingStore(db_path=tmp_db_path)
 
 
 class TestEmbeddingStoreInit:
     def test_init_creates_store(self, tmp_db_path):
         from src.knowledge.embeddings import EmbeddingStore
+
         s = EmbeddingStore(db_path=tmp_db_path)
         assert s is not None
         assert s.count() == 0

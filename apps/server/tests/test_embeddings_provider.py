@@ -5,6 +5,7 @@ via a DEDICATED embedding base url, separate from the cloud chat ``base_url``.
 The deterministic-hash fallback must become a surfaced/hard failure in strict
 mode instead of a silent steady state.
 """
+
 from __future__ import annotations
 
 import math
@@ -118,7 +119,9 @@ class TestEmbedUsesDedicatedEndpoint:
         headers = kwargs.get("headers")
         # Either no headers passed, or headers without a cloud bearer.
         if headers:
-            assert "Authorization" not in headers or "cloud-secret" not in headers.get("Authorization", "")
+            assert "Authorization" not in headers or "cloud-secret" not in headers.get(
+                "Authorization", ""
+            )
 
 
 class TestStrictModeRaises:
@@ -168,11 +171,12 @@ class TestStrictModeRaises:
             strict_embeddings=True,
             hf_api_key="hf-token-set",  # would normally trigger HF fallback
         )
-        with patch.object(
-            provider, "_hf_embed", new=AsyncMock(return_value=[0.0] * 384)
-        ) as mock_hf, patch(
-            "httpx.AsyncClient.post",
-            new=AsyncMock(side_effect=httpx.ConnectError("down")),
+        with (
+            patch.object(provider, "_hf_embed", new=AsyncMock(return_value=[0.0] * 384)) as mock_hf,
+            patch(
+                "httpx.AsyncClient.post",
+                new=AsyncMock(side_effect=httpx.ConnectError("down")),
+            ),
         ):
             with pytest.raises(EmbeddingUnavailableError):
                 await provider.embed("x")

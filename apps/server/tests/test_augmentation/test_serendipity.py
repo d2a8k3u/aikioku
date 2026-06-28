@@ -1,4 +1,5 @@
 """Tests for SerendipityEngine."""
+
 from __future__ import annotations
 
 import os
@@ -26,11 +27,46 @@ def tmp_graph():
         for e in (e1, e2, e3, e4, e5):
             kg.create_entity(e)
 
-        kg.create_relation(Relation(source_entity_id=e1.id, target_entity_id=e2.id, type=RelationType.related_to, confidence=0.9))
-        kg.create_relation(Relation(source_entity_id=e2.id, target_entity_id=e3.id, type=RelationType.works_at, confidence=0.8))
-        kg.create_relation(Relation(source_entity_id=e3.id, target_entity_id=e4.id, type=RelationType.created, confidence=0.7))
-        kg.create_relation(Relation(source_entity_id=e1.id, target_entity_id=e5.id, type=RelationType.related_to, confidence=0.6))
-        kg.create_relation(Relation(source_entity_id=e5.id, target_entity_id=e4.id, type=RelationType.depends_on, confidence=0.5))
+        kg.create_relation(
+            Relation(
+                source_entity_id=e1.id,
+                target_entity_id=e2.id,
+                type=RelationType.related_to,
+                confidence=0.9,
+            )
+        )
+        kg.create_relation(
+            Relation(
+                source_entity_id=e2.id,
+                target_entity_id=e3.id,
+                type=RelationType.works_at,
+                confidence=0.8,
+            )
+        )
+        kg.create_relation(
+            Relation(
+                source_entity_id=e3.id,
+                target_entity_id=e4.id,
+                type=RelationType.created,
+                confidence=0.7,
+            )
+        )
+        kg.create_relation(
+            Relation(
+                source_entity_id=e1.id,
+                target_entity_id=e5.id,
+                type=RelationType.related_to,
+                confidence=0.6,
+            )
+        )
+        kg.create_relation(
+            Relation(
+                source_entity_id=e5.id,
+                target_entity_id=e4.id,
+                type=RelationType.depends_on,
+                confidence=0.5,
+            )
+        )
 
         yield kg, e1, e2, e3, e4, e5
 

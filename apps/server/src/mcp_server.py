@@ -21,9 +21,12 @@ from typing import Any
 import httpx
 from fastapi import FastAPI
 from mcp.server.fastmcp import Context, FastMCP
+from mcp.server.session import ServerSession
 
 from src import access_tokens
 from src.auth import create_access_token
+
+_Ctx = Context[ServerSession, Any]
 
 _INTERNAL_BASE = "http://mcp.internal"
 
@@ -57,7 +60,7 @@ def build_mcp(app: FastAPI) -> FastMCP:
 
     # --- auth + internal proxy helpers --------------------------------------
 
-    def _token_from_ctx(ctx: Context) -> str:
+    def _token_from_ctx(ctx: _Ctx) -> str:
         try:
             request = ctx.request_context.request
             header = request.headers.get("authorization", "") if request else ""
@@ -67,7 +70,7 @@ def build_mcp(app: FastAPI) -> FastMCP:
             return header[7:]
         return ""
 
-    def _authorize(ctx: Context, write: bool) -> access_tokens.AccessToken:
+    def _authorize(ctx: _Ctx, write: bool) -> access_tokens.AccessToken:
         record = access_tokens.verify_token(_token_from_ctx(ctx))
         if record is None:
             raise ValueError("Unauthorized: missing or invalid access token.")
@@ -108,13 +111,13 @@ def build_mcp(app: FastAPI) -> FastMCP:
     # --- read tools ---------------------------------------------------------
 
     @mcp.tool()
-    async def search_notes(ctx: Context, q: str, limit: int = 20) -> Any:
+    async def search_notes(ctx: _Ctx, q: str, limit: int = 20) -> Any:
         """Full-text search across all notes. Returns matching notes."""
         rec = _authorize(ctx, write=False)
         return await _call(rec, "GET", "/api/search/", params={"q": q, "limit": limit})
 
     @mcp.tool()
-    async def hybrid_search(ctx: Context, query: str, limit: int = 20) -> Any:
+    async def hybrid_search(ctx: _Ctx, query: str, limit: int = 20) -> Any:
         """Hybrid semantic+keyword+graph search (RRF fusion). Best general recall."""
         rec = _authorize(ctx, write=False)
         return await _call(
@@ -123,7 +126,7 @@ def build_mcp(app: FastAPI) -> FastMCP:
 
     @mcp.tool()
     async def list_notes(
-        ctx: Context,
+        ctx: _Ctx,
         tag: str | None = None,
         search: str | None = None,
         skip: int = 0,
@@ -139,14 +142,14 @@ def build_mcp(app: FastAPI) -> FastMCP:
         )
 
     @mcp.tool()
-    async def get_note(ctx: Context, note_id: str) -> Any:
+    async def get_note(ctx: _Ctx, note_id: str) -> Any:
         """Fetch a single note by its id."""
         rec = _authorize(ctx, write=False)
         return await _call(rec, "GET", f"/api/notes/{note_id}")
 
     @mcp.tool()
     async def list_entities(
-        ctx: Context,
+        ctx: _Ctx,
         type: str | None = None,
         search: str | None = None,
         limit: int = 50,
@@ -161,13 +164,13 @@ def build_mcp(app: FastAPI) -> FastMCP:
         )
 
     @mcp.tool()
-    async def get_entity(ctx: Context, entity_id: str) -> Any:
+    async def get_entity(ctx: _Ctx, entity_id: str) -> Any:
         """Fetch a single entity (with properties and source notes) by id."""
         rec = _authorize(ctx, write=False)
         return await _call(rec, "GET", f"/api/entities/{entity_id}")
 
     @mcp.tool()
-    async def get_entity_subgraph(ctx: Context, entity_id: str, depth: int = 2) -> Any:
+    async def get_entity_subgraph(ctx: _Ctx, entity_id: str, depth: int = 2) -> Any:
         """Get the BFS neighbourhood subgraph around an entity (depth 1-5)."""
         rec = _authorize(ctx, write=False)
         return await _call(
@@ -175,7 +178,7 @@ def build_mcp(app: FastAPI) -> FastMCP:
         )
 
     @mcp.tool()
-    async def graph_paths(ctx: Context, source: str, target: str, max_depth: int = 3) -> Any:
+    async def graph_paths(ctx: _Ctx, source: str, target: str, max_depth: int = 3) -> Any:
         """Find paths between two entities in the knowledge graph."""
         rec = _authorize(ctx, write=False)
         return await _call(
@@ -186,31 +189,31 @@ def build_mcp(app: FastAPI) -> FastMCP:
         )
 
     @mcp.tool()
-    async def graph_stats(ctx: Context) -> Any:
+    async def graph_stats(ctx: _Ctx) -> Any:
         """Entity/relation counts and entity types in the knowledge graph."""
         rec = _authorize(ctx, write=False)
         return await _call(rec, "GET", "/api/graph/stats")
 
     @mcp.tool()
-    async def list_memories(ctx: Context, entity: str | None = None) -> Any:
+    async def list_memories(ctx: _Ctx, entity: str | None = None) -> Any:
         """List stored memories, optionally filtered by entity."""
         rec = _authorize(ctx, write=False)
         return await _call(rec, "GET", "/api/memory/", params={"entity": entity})
 
     @mcp.tool()
-    async def memory_stats(ctx: Context) -> Any:
+    async def memory_stats(ctx: _Ctx) -> Any:
         """Memory statistics: total and tier (hot/warm/cold) counts."""
         rec = _authorize(ctx, write=False)
         return await _call(rec, "GET", "/api/memory/stats")
 
     @mcp.tool()
-    async def stats(ctx: Context) -> Any:
+    async def stats(ctx: _Ctx) -> Any:
         """System-wide counts: notes, entities, relations, memories, cards."""
         rec = _authorize(ctx, write=False)
         return await _call(rec, "GET", "/api/stats/")
 
     @mcp.tool()
-    async def discover_connections(ctx: Context, entity_id: str, max_distance: int = 3) -> Any:
+    async def discover_connections(ctx: _Ctx, entity_id: str, max_distance: int = 3) -> Any:
         """Discover indirect connections from an entity (graph + embedding similarity)."""
         rec = _authorize(ctx, write=False)
         return await _call(
@@ -221,13 +224,13 @@ def build_mcp(app: FastAPI) -> FastMCP:
         )
 
     @mcp.tool()
-    async def ask(ctx: Context, query: str, mode: str = "simple") -> Any:
+    async def ask(ctx: _Ctx, query: str, mode: str = "simple") -> Any:
         """Ask the brain a question (RAG). mode: 'simple' or 'multi_hop'. Returns a grounded answer with citations."""
         rec = _authorize(ctx, write=False)
         return await _call(rec, "POST", "/api/chat/", json={"query": query, "mode": mode})
 
     @mcp.tool()
-    async def list_due_cards(ctx: Context, limit: int = 20) -> Any:
+    async def list_due_cards(ctx: _Ctx, limit: int = 20) -> Any:
         """List flashcards due for review (next_review <= now). Returns up to `limit` cards."""
         rec = _authorize(ctx, write=False)
         result = await _call(rec, "GET", "/api/review/due")
@@ -236,7 +239,7 @@ def build_mcp(app: FastAPI) -> FastMCP:
         return result
 
     @mcp.tool()
-    async def serendipity_walk(ctx: Context, start_entity_id: str, steps: int = 5) -> Any:
+    async def serendipity_walk(ctx: _Ctx, start_entity_id: str, steps: int = 5) -> Any:
         """Perform a random walk through the knowledge graph from a starting entity. Returns the path of entities visited."""
         rec = _authorize(ctx, write=False)
         return await _call(
@@ -247,43 +250,43 @@ def build_mcp(app: FastAPI) -> FastMCP:
         )
 
     @mcp.tool()
-    async def export_json(ctx: Context) -> Any:
+    async def export_json(ctx: _Ctx) -> Any:
         """Export all system data (notes, entities, relations, memories, cards, settings) as JSON."""
         rec = _authorize(ctx, write=False)
         return await _call(rec, "GET", "/api/export/json")
 
     @mcp.tool()
-    async def get_note_summary(ctx: Context, note_id: str) -> Any:
+    async def get_note_summary(ctx: _Ctx, note_id: str) -> Any:
         """Get a multi-level progressive summary for a note (generated by the LLM)."""
         rec = _authorize(ctx, write=False)
         return await _call(rec, "POST", f"/api/notes/{note_id}/summarize")
 
     @mcp.tool()
-    async def get_review_stats(ctx: Context) -> Any:
+    async def get_review_stats(ctx: _Ctx) -> Any:
         """Get spaced-repetition card collection statistics (total, due, new, learning, review, suspended)."""
         rec = _authorize(ctx, write=False)
         return await _call(rec, "GET", "/api/review/stats")
 
     @mcp.tool()
-    async def search_memories(ctx: Context, q: str, limit: int = 20) -> Any:
+    async def search_memories(ctx: _Ctx, q: str, limit: int = 20) -> Any:
         """Semantic search over stored memory triples (subject-predicate-object). Returns memories ranked by embedding similarity, each with a score."""
         rec = _authorize(ctx, write=False)
         return await _call(rec, "GET", "/api/memory/search", params={"q": q, "limit": limit})
 
     @mcp.tool()
-    async def get_memory(ctx: Context, memory_id: str) -> Any:
+    async def get_memory(ctx: _Ctx, memory_id: str) -> Any:
         """Fetch a single memory triple by its id."""
         rec = _authorize(ctx, write=False)
         return await _call(rec, "GET", f"/api/memory/{memory_id}")
 
     @mcp.tool()
-    async def generate_questions(ctx: Context, note_id: str, count: int = 5) -> Any:
+    async def generate_questions(ctx: _Ctx, note_id: str, count: int = 5) -> Any:
         """Generate review questions from a note (count 1-20)."""
         rec = _authorize(ctx, write=False)
         return await _call(rec, "GET", f"/api/notes/{note_id}/questions", params={"count": count})
 
     @mcp.tool()
-    async def list_conversations(ctx: Context, limit: int = 50, before: str | None = None) -> Any:
+    async def list_conversations(ctx: _Ctx, limit: int = 50, before: str | None = None) -> Any:
         """Load chat history, newest-first. Pass the oldest loaded message's `created` timestamp as `before` to page further back."""
         rec = _authorize(ctx, write=False)
         return await _call(
@@ -291,7 +294,7 @@ def build_mcp(app: FastAPI) -> FastMCP:
         )
 
     @mcp.tool()
-    async def git_history(ctx: Context, limit: int = 20) -> Any:
+    async def git_history(ctx: _Ctx, limit: int = 20) -> Any:
         """Get the git commit history of the notes vault."""
         rec = _authorize(ctx, write=False)
         return await _call(rec, "GET", "/api/sync/git/history", params={"limit": limit})
@@ -300,7 +303,7 @@ def build_mcp(app: FastAPI) -> FastMCP:
 
     @mcp.tool()
     async def create_note(
-        ctx: Context,
+        ctx: _Ctx,
         title: str,
         content: str = "",
         path: str | None = None,
@@ -322,7 +325,7 @@ def build_mcp(app: FastAPI) -> FastMCP:
 
     @mcp.tool()
     async def update_note(
-        ctx: Context,
+        ctx: _Ctx,
         note_id: str,
         title: str | None = None,
         content: str | None = None,
@@ -337,31 +340,31 @@ def build_mcp(app: FastAPI) -> FastMCP:
         return await _call(rec, "PUT", f"/api/notes/{note_id}", json=body)
 
     @mcp.tool()
-    async def delete_note(ctx: Context, note_id: str) -> Any:
+    async def delete_note(ctx: _Ctx, note_id: str) -> Any:
         """Delete a note by id. Requires a full-scope token."""
         rec = _authorize(ctx, write=True)
         return await _call(rec, "DELETE", f"/api/notes/{note_id}")
 
     @mcp.tool()
-    async def extract_memories(ctx: Context, note_id: str) -> Any:
+    async def extract_memories(ctx: _Ctx, note_id: str) -> Any:
         """Extract memories from a note via the LLM. Requires a full-scope token."""
         rec = _authorize(ctx, write=True)
         return await _call(rec, "POST", "/api/memory/extract", json={"note_id": note_id})
 
     @mcp.tool()
-    async def summarize_note(ctx: Context, note_id: str) -> Any:
+    async def summarize_note(ctx: _Ctx, note_id: str) -> Any:
         """Generate a multi-level summary for a note. Requires a full-scope token."""
         rec = _authorize(ctx, write=True)
         return await _call(rec, "POST", f"/api/notes/{note_id}/summarize")
 
     @mcp.tool()
-    async def generate_cards(ctx: Context, note_id: str) -> Any:
+    async def generate_cards(ctx: _Ctx, note_id: str) -> Any:
         """Generate spaced-repetition flashcards from a note. Requires a full-scope token."""
         rec = _authorize(ctx, write=True)
         return await _call(rec, "POST", "/api/review/cards", json={"note_id": note_id})
 
     @mcp.tool()
-    async def review_card(ctx: Context, card_id: str, rating: int) -> Any:
+    async def review_card(ctx: _Ctx, card_id: str, rating: int) -> Any:
         """Review a flashcard with a rating (1=again, 2=hard, 3=good, 4=easy). Returns the updated card. Requires a full-scope token."""
         rec = _authorize(ctx, write=True)
         return await _call(
@@ -370,7 +373,7 @@ def build_mcp(app: FastAPI) -> FastMCP:
 
     @mcp.tool()
     async def import_markdown(
-        ctx: Context,
+        ctx: _Ctx,
         content: str,
         title: str,
         path: str | None = None,
@@ -389,7 +392,7 @@ def build_mcp(app: FastAPI) -> FastMCP:
         return await _call(rec, "POST", "/api/notes/", json=body)
 
     @mcp.tool()
-    async def create_memory(ctx: Context, text: str, source: str = "user") -> Any:
+    async def create_memory(ctx: _Ctx, text: str, source: str = "user") -> Any:
         """Store a memory. The text is saved as a hidden note that is fully
         processed (entity extraction, embeddings, knowledge graph), so it is
         retrievable in chat the same way notes are — but it never appears in the
@@ -407,7 +410,7 @@ def build_mcp(app: FastAPI) -> FastMCP:
 
     @mcp.tool()
     async def update_memory(
-        ctx: Context,
+        ctx: _Ctx,
         memory_id: str,
         subject: str | None = None,
         predicate: str | None = None,
@@ -431,37 +434,37 @@ def build_mcp(app: FastAPI) -> FastMCP:
         return await _call(rec, "PUT", f"/api/memory/{memory_id}", json=body)
 
     @mcp.tool()
-    async def delete_memory(ctx: Context, memory_id: str) -> Any:
+    async def delete_memory(ctx: _Ctx, memory_id: str) -> Any:
         """Delete a memory triple by id. Requires a full-scope token."""
         rec = _authorize(ctx, write=True)
         return await _call(rec, "DELETE", f"/api/memory/{memory_id}")
 
     @mcp.tool()
-    async def consolidate_memories(ctx: Context) -> Any:
+    async def consolidate_memories(ctx: _Ctx) -> Any:
         """Run the memory consolidation pipeline (dedup, merge, tiering). Requires a full-scope token."""
         rec = _authorize(ctx, write=True)
         return await _call(rec, "POST", "/api/memory/consolidate")
 
     @mcp.tool()
-    async def auto_tag_note(ctx: Context, note_id: str) -> Any:
+    async def auto_tag_note(ctx: _Ctx, note_id: str) -> Any:
         """Auto-generate tags for a note using the LLM. Requires a full-scope token."""
         rec = _authorize(ctx, write=True)
         return await _call(rec, "POST", f"/api/tags/auto/{note_id}")
 
     @mcp.tool()
-    async def clear_conversations(ctx: Context) -> Any:
+    async def clear_conversations(ctx: _Ctx) -> Any:
         """Delete the entire chat history for the token's owner. Requires a full-scope token."""
         rec = _authorize(ctx, write=True)
         return await _call(rec, "DELETE", "/api/conversations/messages")
 
     @mcp.tool()
-    async def git_commit(ctx: Context, message: str) -> Any:
+    async def git_commit(ctx: _Ctx, message: str) -> Any:
         """Stage all changes in the notes vault and commit them. Requires a full-scope token."""
         rec = _authorize(ctx, write=True)
         return await _call(rec, "POST", "/api/sync/git/commit", params={"message": message})
 
     @mcp.tool()
-    async def scan_anomalies(ctx: Context) -> Any:
+    async def scan_anomalies(ctx: _Ctx) -> Any:
         """Run all knowledge-base anomaly detection checks and return the results. Requires a full-scope token."""
         rec = _authorize(ctx, write=True)
         return await _call(rec, "POST", "/api/anomaly/scan")
@@ -470,7 +473,7 @@ def build_mcp(app: FastAPI) -> FastMCP:
 
     @mcp.tool()
     async def call_api(
-        ctx: Context,
+        ctx: _Ctx,
         method: str,
         path: str,
         query: dict[str, Any] | None = None,

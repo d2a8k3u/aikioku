@@ -1,4 +1,5 @@
 """Shared rate limiter instance for Aikioku."""
+
 from __future__ import annotations
 
 from slowapi import Limiter

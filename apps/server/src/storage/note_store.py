@@ -19,11 +19,14 @@ import sqlite3
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, cast
 
 import yaml
 
 from src.models.note import Note
+
+# A note_index row: (id, path, title, tags_json, source_type, created, modified, mtime).
+_IndexRow = tuple[str, str, str, str, str, str, str, float]
 
 # source_type values whose notes are fully processed + retrievable (graph,
 # embeddings, BM25) but hidden from the user-facing list/search/count — e.g.
@@ -186,7 +189,7 @@ class NoteStore:
     def _md_files(self) -> list[Path]:
         return sorted(Path(self.notes_dir).glob("*.md"))
 
-    def _row_from_note(self, note: Note) -> tuple:
+    def _row_from_note(self, note: Note) -> _IndexRow:
         try:
             mtime = self._file_path(note.id).stat().st_mtime
         except OSError:
@@ -236,7 +239,7 @@ class NoteStore:
     def _index_count(self) -> int:
         conn = self._connect()
         try:
-            return conn.execute("SELECT COUNT(*) FROM note_index").fetchone()[0]
+            return cast(int, conn.execute("SELECT COUNT(*) FROM note_index").fetchone()[0])
         finally:
             conn.close()
 
@@ -263,7 +266,7 @@ class NoteStore:
         """
         self._ensure_table()
         disk_ids: set[str] = set()
-        rows: list[tuple] = []
+        rows: list[_IndexRow] = []
         for md_file in self._md_files():
             try:
                 content = md_file.read_text(encoding="utf-8")
@@ -348,9 +351,12 @@ class NoteStore:
         clause, hidden_params = _hidden_exclusion()
         conn = self._connect()
         try:
-            return conn.execute(
-                f"SELECT COUNT(*) FROM note_index WHERE {clause}", hidden_params
-            ).fetchone()[0]
+            return cast(
+                int,
+                conn.execute(
+                    f"SELECT COUNT(*) FROM note_index WHERE {clause}", hidden_params
+                ).fetchone()[0],
+            )
         finally:
             conn.close()
 

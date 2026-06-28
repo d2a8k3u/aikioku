@@ -1,4 +1,5 @@
 """Tests for the observability wiring (Prometheus /metrics + structured logging)."""
+
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
@@ -8,6 +9,7 @@ from src import observability
 
 def test_metrics_endpoint_returns_prometheus_payload():
     from src.main import app
+
     with TestClient(app) as client:
         resp = client.get("/metrics")
     assert resp.status_code == 200
@@ -19,6 +21,7 @@ def test_metrics_endpoint_returns_prometheus_payload():
 
 def test_request_counter_increments():
     from src.main import app
+
     with TestClient(app) as client:
         before = _counter_value()
         client.get("/health")

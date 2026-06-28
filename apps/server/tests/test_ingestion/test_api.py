@@ -54,10 +54,18 @@ class TestImportPdfEndpoint:
 class TestImportDocxEndpoint:
     def test_import_docx_missing_dependency(self, client):
         cli, store, _ = client
-        with patch("src.ingestion.docx_parser.parse_docx", side_effect=ImportError("No python-docx")):
+        with patch(
+            "src.ingestion.docx_parser.parse_docx", side_effect=ImportError("No python-docx")
+        ):
             response = cli.post(
                 "/api/import/docx",
-                files={"file": ("test.docx", io.BytesIO(b"fake"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+                files={
+                    "file": (
+                        "test.docx",
+                        io.BytesIO(b"fake"),
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    )
+                },
             )
         assert response.status_code == 503
 
@@ -66,7 +74,13 @@ class TestImportDocxEndpoint:
         with patch("src.ingestion.docx_parser.parse_docx", side_effect=ValueError("bad docx")):
             response = cli.post(
                 "/api/import/docx",
-                files={"file": ("test.docx", io.BytesIO(b"fake"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+                files={
+                    "file": (
+                        "test.docx",
+                        io.BytesIO(b"fake"),
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    )
+                },
             )
         assert response.status_code == 400
 
@@ -83,7 +97,10 @@ class TestImportAudioEndpoint:
 
     def test_import_audio_transcription_fails(self, client):
         cli, store, _ = client
-        with patch("src.ingestion.audio_parser.parse_audio", side_effect=RuntimeError("transcription failed")):
+        with patch(
+            "src.ingestion.audio_parser.parse_audio",
+            side_effect=RuntimeError("transcription failed"),
+        ):
             response = cli.post(
                 "/api/import/audio",
                 files={"file": ("test.mp3", io.BytesIO(b"fake"), "audio/mpeg")},
@@ -94,7 +111,9 @@ class TestImportAudioEndpoint:
 class TestImportImageEndpoint:
     def test_import_image_missing_dependency(self, client):
         cli, store, _ = client
-        with patch("src.ingestion.image_parser.parse_image", side_effect=ImportError("No tesseract")):
+        with patch(
+            "src.ingestion.image_parser.parse_image", side_effect=ImportError("No tesseract")
+        ):
             response = cli.post(
                 "/api/import/image",
                 files={"file": ("test.png", io.BytesIO(b"fake"), "image/png")},
@@ -103,7 +122,9 @@ class TestImportImageEndpoint:
 
     def test_import_image_ocr_fails(self, client):
         cli, store, _ = client
-        with patch("src.ingestion.image_parser.parse_image", side_effect=RuntimeError("OCR failed")):
+        with patch(
+            "src.ingestion.image_parser.parse_image", side_effect=RuntimeError("OCR failed")
+        ):
             response = cli.post(
                 "/api/import/image",
                 files={"file": ("test.png", io.BytesIO(b"fake"), "image/png")},
@@ -114,7 +135,9 @@ class TestImportImageEndpoint:
 class TestImportWebEndpoint:
     def test_import_web_missing_dependency(self, client):
         cli, store, _ = client
-        with patch("src.ingestion.web_parser.parse_web_clip", side_effect=ImportError("No requests")):
+        with patch(
+            "src.ingestion.web_parser.parse_web_clip", side_effect=ImportError("No requests")
+        ):
             response = cli.post("/api/import/web?url=https%3A%2F%2Fexample.com")
         assert response.status_code == 503
 
@@ -128,11 +151,7 @@ class TestImportWebEndpoint:
 class TestImportEmailEndpoint:
     def test_import_email_success(self, client):
         cli, store, _ = client
-        raw = (
-            b"Subject: Hello\r\n"
-            b"\r\n"
-            b"Body text"
-        )
+        raw = b"Subject: Hello\r\n\r\nBody text"
         response = cli.post(
             "/api/import/email",
             files={"file": ("test.eml", io.BytesIO(raw), "message/rfc822")},

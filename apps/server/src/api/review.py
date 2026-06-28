@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import httpx
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, field_validator
@@ -9,6 +11,7 @@ from pydantic import BaseModel, field_validator
 from src.config import settings
 from src.llm.json_parse import LLMOutputParseError
 from src.api.websocket import get_broadcaster
+from src.models.card import Card
 from src.storage.note_store import NoteStore
 
 # Module-level import for test mocking (lazy usage in _get_spaced_repetition)
@@ -41,14 +44,14 @@ def _get_note_store(request: Request) -> NoteStore:
     return store
 
 
-def _get_spaced_repetition(request: Request):
+def _get_spaced_repetition(request: Request) -> SpacedRepetition:
     """Get or create a SpacedRepetition instance from app state.
 
     Uses the app's configured LLM provider (app.state.llm_provider), which is the
     router wrapping Ollama Cloud chat + host embeddings. A bare OllamaProvider()
     would point at localhost:11434, unreachable inside the backend container.
     """
-    sr = getattr(request.app.state, "spaced_repetition", None)
+    sr: SpacedRepetition | None = getattr(request.app.state, "spaced_repetition", None)
     if sr is None:
         llm = getattr(request.app.state, "llm_provider", None)
         if llm is None:
@@ -66,7 +69,7 @@ def _get_spaced_repetition(request: Request):
     return sr
 
 
-def _card_to_dict(card) -> dict:
+def _card_to_dict(card: Card) -> dict[str, Any]:
     """Serialize a Card to a JSON-compatible dictionary."""
     return {
         "id": card.id,
@@ -83,7 +86,7 @@ def _card_to_dict(card) -> dict:
 
 
 @router.get("/due")
-async def get_due_cards(request: Request) -> list[dict]:
+async def get_due_cards(request: Request) -> list[dict[str, Any]]:
     """Return cards that are due for review (next_review <= now)."""
     sr = _get_spaced_repetition(request)
     cards = await sr.get_due_cards()
@@ -91,7 +94,7 @@ async def get_due_cards(request: Request) -> list[dict]:
 
 
 @router.post("/cards")
-async def generate_cards(request: Request, body: GenerateCardsRequest) -> list[dict]:
+async def generate_cards(request: Request, body: GenerateCardsRequest) -> list[dict[str, Any]]:
     """Generate flashcards from a note and return the created cards."""
     note_store = _get_note_store(request)
     sr = _get_spaced_repetition(request)
@@ -106,8 +109,7 @@ async def generate_cards(request: Request, body: GenerateCardsRequest) -> list[d
         raise HTTPException(
             status_code=502,
             detail=(
-                "Card generation failed: the language model returned invalid "
-                "output. Please retry."
+                "Card generation failed: the language model returned invalid output. Please retry."
             ),
         )
     except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPError):
@@ -117,7 +119,7 @@ async def generate_cards(request: Request, body: GenerateCardsRequest) -> list[d
 
 
 @router.post("/cards/{card_id}/review")
-async def review_card(request: Request, card_id: str, body: ReviewRequest) -> dict:
+async def review_card(request: Request, card_id: str, body: ReviewRequest) -> dict[str, Any]:
     """Review a card with a rating (1-4) and return the updated card."""
     sr = _get_spaced_repetition(request)
     card = await sr.review_card(card_id, body.rating)
@@ -125,18 +127,22 @@ async def review_card(request: Request, card_id: str, body: ReviewRequest) -> di
     broadcaster = get_broadcaster()
     if broadcaster:
         import asyncio
+
         stats = await sr.get_stats()
         asyncio.ensure_future(
-            broadcaster.broadcast("review.due_changed", {
-                "due_count": stats.get("due", 0),
-                "total": stats.get("total", 0),
-            })
+            broadcaster.broadcast(
+                "review.due_changed",
+                {
+                    "due_count": stats.get("due", 0),
+                    "total": stats.get("total", 0),
+                },
+            )
         )
     return _card_to_dict(card)
 
 
 @router.get("/stats")
-async def get_stats(request: Request) -> dict:
+async def get_stats(request: Request) -> dict[str, int]:
     """Return card collection statistics."""
     sr = _get_spaced_repetition(request)
     stats = await sr.get_stats()

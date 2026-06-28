@@ -7,6 +7,7 @@ returned; only their key names are listed.
 """
 
 import logging
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel
@@ -67,13 +68,13 @@ class SecretUpdate(BaseModel):
     value: str
 
 
-def _to_str(value) -> str:
+def _to_str(value: object) -> str:
     if isinstance(value, bool):
         return "true" if value else "false"
     return str(value)
 
 
-def _settings_to_dict() -> dict:
+def _settings_to_dict() -> dict[str, Any]:
     """Return current effective settings (no secret values, only their names)."""
     return {
         "llm_provider": runtime_config.llm_provider(),
@@ -141,7 +142,7 @@ async def _apply_budget_change(request: Request) -> None:
 
 
 @router.get("/")
-async def get_settings(_user: UserInDB = Depends(require_auth)) -> dict:
+async def get_settings(_user: UserInDB = Depends(require_auth)) -> dict[str, Any]:
     """Return current application settings."""
     return _settings_to_dict()
 
@@ -151,7 +152,7 @@ async def update_settings(
     body: SettingsUpdate,
     request: Request,
     _user: UserInDB = Depends(require_auth),
-) -> dict:
+) -> dict[str, Any]:
     """Update application settings and persist to the database."""
     update_data = body.model_dump(exclude_unset=True)
     rebuild = False
@@ -169,7 +170,7 @@ async def update_settings(
 
 
 @router.get("/secrets")
-async def list_secrets(_user: UserInDB = Depends(require_auth)) -> dict:
+async def list_secrets(_user: UserInDB = Depends(require_auth)) -> dict[str, list[str]]:
     """Return the names of stored secrets (never the values)."""
     return {"keys": secrets_store.list_secret_keys()}
 
@@ -179,7 +180,7 @@ async def set_secret(
     body: SecretUpdate,
     request: Request,
     _user: UserInDB = Depends(require_auth),
-) -> dict:
+) -> dict[str, list[str]]:
     """Set or rotate an encrypted secret."""
     if body.key not in _SECRET_KEYS:
         from fastapi import HTTPException, status
@@ -198,7 +199,7 @@ async def delete_secret(
     key: str,
     request: Request,
     _user: UserInDB = Depends(require_auth),
-) -> dict:
+) -> dict[str, list[str]]:
     """Remove an encrypted secret."""
     secrets_store.delete_secret(key)
     _maybe_rebuild(request)
@@ -210,7 +211,7 @@ async def delete_secret(
 # ---------------------------------------------------------------------------
 
 
-def _filter_models(models: list[dict], q: str | None) -> list[dict]:
+def _filter_models(models: list[dict[str, Any]], q: str | None) -> list[dict[str, Any]]:
     """Case-insensitive substring filter on model id/name (search-as-you-type)."""
     if not q:
         return models
@@ -229,7 +230,7 @@ async def list_models(
     ),
     q: str | None = Query(None, description="Case-insensitive substring filter on model id/name"),
     _user: UserInDB = Depends(require_auth),
-) -> dict:
+) -> dict[str, Any]:
     """Return available chat/embedding models for the given provider.
 
     Fetches live from ``base_url``/``api_key`` when supplied, else the saved
@@ -270,7 +271,7 @@ async def list_models(
 # Embedding model listing — per provider, live where possible (mirrors /models)
 # ---------------------------------------------------------------------------
 
-_OLLAMA_KNOWN_EMBEDDING_MODELS: list[dict] = [
+_OLLAMA_KNOWN_EMBEDDING_MODELS: list[dict[str, Any]] = [
     {
         "id": "mxbai-embed-large",
         "name": "mxbai-embed-large",
@@ -301,7 +302,7 @@ _OLLAMA_KNOWN_EMBEDDING_MODELS: list[dict] = [
     },
 ]
 
-_OPENAI_EMBEDDING_MODELS: list[dict] = [
+_OPENAI_EMBEDDING_MODELS: list[dict[str, Any]] = [
     {
         "id": "text-embedding-3-small",
         "name": "text-embedding-3-small",
@@ -334,7 +335,7 @@ async def list_embedding_models(
     ),
     q: str | None = Query(None, description="Case-insensitive substring filter on model id/name"),
     _user: UserInDB = Depends(require_auth),
-) -> dict:
+) -> dict[str, Any]:
     """Return selectable embedding models for the given provider.
 
     - ``ollama`` → live ``/api/tags`` (embedding-family) merged with a curated

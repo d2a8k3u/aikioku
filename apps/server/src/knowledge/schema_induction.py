@@ -84,9 +84,7 @@ class SchemaInducer:
     # Entity analysis
     # ------------------------------------------------------------------ #
 
-    async def analyze_entities(
-        self, entities: list[Entity] | None = None
-    ) -> list[dict[str, Any]]:
+    async def analyze_entities(self, entities: list[Entity] | None = None) -> list[dict[str, Any]]:
         """Analyze unclassified/low-confidence entities and suggest new types.
 
         Args:
@@ -102,8 +100,7 @@ class SchemaInducer:
 
         # Filter to entities worth analyzing: unknown type or low confidence.
         candidates = [
-            e for e in entities
-            if e.type.value not in _KNOWN_ENTITY_TYPES or e.confidence < 0.5
+            e for e in entities if e.type.value not in _KNOWN_ENTITY_TYPES or e.confidence < 0.5
         ]
 
         if not candidates:
@@ -164,15 +161,18 @@ class SchemaInducer:
         for item in suggestions:
             if not isinstance(item, dict) or not item.get("name"):
                 continue
-            result.append({
-                "name": str(item["name"]).strip(),
-                "description": str(item.get("description", "")).strip(),
-                "parent_type": item.get("parent_type"),
-            })
+            result.append(
+                {
+                    "name": str(item["name"]).strip(),
+                    "description": str(item.get("description", "")).strip(),
+                    "parent_type": item.get("parent_type"),
+                }
+            )
 
         logger.info(
             "Schema induction: entity analysis produced %d suggestions from %d candidates",
-            len(result), len(candidates),
+            len(result),
+            len(candidates),
         )
         return result
 
@@ -207,11 +207,13 @@ class SchemaInducer:
             t = r.type.value
             type_counts[t] = type_counts.get(t, 0) + 1
             if len(type_examples.get(t, [])) < 3:
-                type_examples.setdefault(t, []).append({
-                    "source": r.source_entity_id,
-                    "target": r.target_entity_id,
-                    "confidence": r.confidence,
-                })
+                type_examples.setdefault(t, []).append(
+                    {
+                        "source": r.source_entity_id,
+                        "target": r.target_entity_id,
+                        "confidence": r.confidence,
+                    }
+                )
 
         relation_summary = {
             "type_counts": type_counts,
@@ -258,11 +260,13 @@ class SchemaInducer:
         for item in suggestions:
             if not isinstance(item, dict) or not item.get("name"):
                 continue
-            result.append({
-                "name": str(item["name"]).strip(),
-                "description": str(item.get("description", "")).strip(),
-                "inverse_name": item.get("inverse_name"),
-            })
+            result.append(
+                {
+                    "name": str(item["name"]).strip(),
+                    "description": str(item.get("description", "")).strip(),
+                    "inverse_name": item.get("inverse_name"),
+                }
+            )
 
         logger.info(
             "Schema induction: relation analysis produced %d suggestions",

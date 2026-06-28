@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any, cast
 
 from src.events import EventBus
 from src.llm.base import LLMProvider
@@ -67,7 +68,7 @@ class MemoryExtractor:
         response = await self._llm.complete(prompt=prompt)
         return self._parse_memories(response, source=source)
 
-    async def extract_from_conversation(self, messages: list[dict]) -> list[Memory]:
+    async def extract_from_conversation(self, messages: list[dict[str, Any]]) -> list[Memory]:
         """Extract memories from a conversation."""
         lines = []
         for msg in messages:
@@ -94,7 +95,7 @@ class MemoryExtractor:
     def _parse_memories(self, response: str, source: str) -> list[Memory]:
         """Parse the LLM response into a list of Memory objects."""
         try:
-            data = parse_llm_json(response, expect="list")
+            data = cast("list[Any]", parse_llm_json(response, expect="list"))
         except LLMOutputParseError:
             return []
 

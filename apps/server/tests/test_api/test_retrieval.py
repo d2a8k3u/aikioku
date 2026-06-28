@@ -1,4 +1,5 @@
 """Tests for Retrieval API endpoints."""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
@@ -10,6 +11,7 @@ from fastapi.testclient import TestClient
 @pytest.fixture
 def client():
     from src.main import app
+
     yield TestClient(app)
 
 
@@ -18,8 +20,20 @@ class TestHybridRetrieval:
 
     def test_returns_fused_results(self, client):
         mock_results = [
-            {"note_id": "note-1", "score": 0.95, "source": "fusion", "snippet": "Snippet A", "metadata": {"title": "Note 1"}},
-            {"note_id": "note-2", "score": 0.88, "source": "fusion", "snippet": "Snippet B", "metadata": {"title": "Note 2"}},
+            {
+                "note_id": "note-1",
+                "score": 0.95,
+                "source": "fusion",
+                "snippet": "Snippet A",
+                "metadata": {"title": "Note 1"},
+            },
+            {
+                "note_id": "note-2",
+                "score": 0.88,
+                "source": "fusion",
+                "snippet": "Snippet B",
+                "metadata": {"title": "Note 2"},
+            },
         ]
 
         with patch("src.api.retrieval._hybrid_search", new_callable=AsyncMock) as mock_search:

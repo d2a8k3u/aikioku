@@ -1,4 +1,5 @@
 """Tests for QuestionGenerator."""
+
 from __future__ import annotations
 
 import pytest
@@ -60,13 +61,20 @@ class TestQuestionGenerator:
         questions = qg.generate_from_note(sample_note, count=5)
         conn = [q for q in questions if q.type == "connection"]
         for q in conn:
-            assert "connection" in q.question.lower() or "link" in q.question.lower() or "relate" in q.question.lower()
+            assert (
+                "connection" in q.question.lower()
+                or "link" in q.question.lower()
+                or "relate" in q.question.lower()
+            )
 
     def test_note_title_used_in_questions(self, sample_note):
         qg = QuestionGenerator()
         questions = qg.generate_from_note(sample_note, count=5)
         for q in questions:
-            assert sample_note.title.lower() in q.question.lower() or sample_note.title.lower() in q.answer.lower()
+            assert (
+                sample_note.title.lower() in q.question.lower()
+                or sample_note.title.lower() in q.answer.lower()
+            )
 
     def test_short_note_fallback(self):
         note = Note(title="Short", content="Hi.", path="short.md")

@@ -1,5 +1,8 @@
 """Git sync API endpoints for version control."""
+
 from __future__ import annotations
+
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
@@ -13,13 +16,14 @@ def _get_git_sync(request: Request) -> GitSync:
     gs = getattr(request.app.state, "git_sync", None)
     if gs is None:
         from src.config import settings
+
         gs = GitSync(settings.notes_dir)
         request.app.state.git_sync = gs
     return gs
 
 
 @router.post("/commit")
-async def git_commit(request: Request, message: str) -> dict:
+async def git_commit(request: Request, message: str) -> dict[str, str | bool]:
     """Stage all changes and commit with the given message."""
     gs = _get_git_sync(request)
     try:
@@ -33,7 +37,7 @@ async def git_commit(request: Request, message: str) -> dict:
 async def git_history(
     request: Request,
     limit: int = Query(50, ge=1, le=200),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Get commit history."""
     gs = _get_git_sync(request)
     try:
@@ -44,7 +48,7 @@ async def git_history(
 
 
 @router.get("/diff/{note_id}")
-async def git_diff(request: Request, note_id: str) -> dict:
+async def git_diff(request: Request, note_id: str) -> dict[str, str]:
     """Get the latest diff for a specific note file."""
     gs = _get_git_sync(request)
     try:

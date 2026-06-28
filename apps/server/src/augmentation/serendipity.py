@@ -1,4 +1,5 @@
 """SerendipityEngine: random walks and surprise scoring for serendipitous discovery."""
+
 from __future__ import annotations
 
 import logging

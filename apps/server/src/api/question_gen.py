@@ -1,6 +1,8 @@
 """Question generation API endpoint for notes."""
+
 from __future__ import annotations
 
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -20,7 +22,7 @@ async def generate_questions(
     request: Request,
     note_id: UUID,
     count: int = Query(5, ge=1, le=20),
-) -> dict:
+) -> dict[str, Any]:
     """Generate review questions from a note."""
     from src.storage.note_store import NoteStore
     from src.config import settings
@@ -43,7 +45,6 @@ async def generate_questions(
     return {
         "note_id": str(note_id),
         "questions": [
-            {"type": q.type, "question": q.question, "answer": q.answer}
-            for q in questions
+            {"type": q.type, "question": q.question, "answer": q.answer} for q in questions
         ],
     }

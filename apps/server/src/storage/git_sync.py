@@ -1,4 +1,5 @@
 """GitSync: Git-based version control for notes."""
+
 from __future__ import annotations
 
 import subprocess
@@ -44,9 +45,7 @@ class GitSync:
         gitignore = self.repo_dir / ".gitignore"
         try:
             existing = (
-                gitignore.read_text(encoding="utf-8").splitlines()
-                if gitignore.exists()
-                else []
+                gitignore.read_text(encoding="utf-8").splitlines() if gitignore.exists() else []
             )
         except OSError:
             return
@@ -80,7 +79,7 @@ class GitSync:
         except subprocess.CalledProcessError:
             return False
 
-    def get_history(self, limit: int = 50) -> list[dict]:
+    def get_history(self, limit: int = 50) -> list[dict[str, str]]:
         """Get commit history. Returns list of {hash, date, message}."""
         try:
             result = self._run_git(
@@ -94,11 +93,13 @@ class GitSync:
                     continue
                 parts = line.split("|", 2)
                 if len(parts) == 3:
-                    history.append({
-                        "hash": parts[0],
-                        "date": parts[1],
-                        "message": parts[2],
-                    })
+                    history.append(
+                        {
+                            "hash": parts[0],
+                            "date": parts[1],
+                            "message": parts[2],
+                        }
+                    )
             return history
         except subprocess.CalledProcessError:
             return []
@@ -112,7 +113,7 @@ class GitSync:
         except subprocess.CalledProcessError:
             return ""
 
-    def get_note_history(self, note_id: str, limit: int = 50) -> list[dict]:
+    def get_note_history(self, note_id: str, limit: int = 50) -> list[dict[str, str]]:
         """Get commit history that touched a specific note file."""
         file_path = f"{note_id}.md"
         try:
@@ -129,16 +130,18 @@ class GitSync:
                     continue
                 parts = line.split("|", 2)
                 if len(parts) == 3:
-                    history.append({
-                        "hash": parts[0],
-                        "date": parts[1],
-                        "message": parts[2],
-                    })
+                    history.append(
+                        {
+                            "hash": parts[0],
+                            "date": parts[1],
+                            "message": parts[2],
+                        }
+                    )
             return history
         except subprocess.CalledProcessError:
             return []
 
-    def get_note_versions(self, note_id: str, limit: int = 50) -> list[dict]:
+    def get_note_versions(self, note_id: str, limit: int = 50) -> list[dict[str, str]]:
         """Return the content of a note at each commit (HEAD, HEAD~1, ...).
         This is expensive; use with small limits."""
         file_path = f"{note_id}.md"
@@ -156,10 +159,12 @@ class GitSync:
             for commit_hash in hashes:
                 try:
                     show_result = self._run_git("show", f"{commit_hash}:{file_path}")
-                    versions.append({
-                        "commit": commit_hash,
-                        "content": show_result.stdout,
-                    })
+                    versions.append(
+                        {
+                            "commit": commit_hash,
+                            "content": show_result.stdout,
+                        }
+                    )
                 except subprocess.CalledProcessError:
                     continue
             return versions

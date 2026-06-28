@@ -41,9 +41,7 @@ class TestSchemaRegistry:
         from src.knowledge.schema import SchemaRegistry
 
         reg = SchemaRegistry()
-        reg.register_relation_type(
-            "knows", "A knows B", domain="Person", range="Person"
-        )
+        reg.register_relation_type("knows", "A knows B", domain="Person", range="Person")
         info = reg.get_type("knows")
         assert info == {
             "name": "knows",

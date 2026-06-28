@@ -16,9 +16,7 @@ class MockEmbeddingStore:
         self.last_query_embedding: list[float] | None = None
         self.last_limit: int | None = None
 
-    def search(
-        self, query_embedding: list[float], limit: int = 20
-    ) -> list[dict]:
+    def search(self, query_embedding: list[float], limit: int = 20) -> list[dict]:
         self.last_query_embedding = query_embedding
         self.last_limit = limit
         return self._results[:limit]
@@ -143,9 +141,7 @@ async def test_search_carries_chunk_text_as_snippet(
     mock_llm: MockLLMProvider,
 ) -> None:
     """The matched chunk text from the store must flow into SearchResult.snippet."""
-    store = MockEmbeddingStore(
-        results=[{"note_id": "x", "text": "real chunk", "score": 0.9}]
-    )
+    store = MockEmbeddingStore(results=[{"note_id": "x", "text": "real chunk", "score": 0.9}])
     retriever = DenseRetriever(embedding_store=store, llm_provider=mock_llm)
 
     results = await retriever.search("query")

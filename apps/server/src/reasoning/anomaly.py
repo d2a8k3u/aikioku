@@ -1,10 +1,15 @@
 """Anomaly detection for knowledge quality and system behavior."""
+
 from __future__ import annotations
 
 import logging
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from src.knowledge.graph import KnowledgeGraph
 
 logger = logging.getLogger(__name__)
 
@@ -47,12 +52,8 @@ class AnomalyDetector:
                 )
                 """
             )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_anomalies_type ON anomalies(type)"
-            )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_anomalies_resolved ON anomalies(resolved)"
-            )
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_anomalies_type ON anomalies(type)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_anomalies_resolved ON anomalies(resolved)")
 
     def record(self, result: AnomalyResult) -> None:
         """Persist an anomaly to the database."""
@@ -78,7 +79,7 @@ class AnomalyDetector:
                 ),
             )
 
-    def get_recent(self, hours: int = 24, limit: int = 100) -> list[dict]:
+    def get_recent(self, hours: int = 24, limit: int = 100) -> list[dict[str, Any]]:
         """Return recent unresolved anomalies."""
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
         with sqlite3.connect(self._db_path) as conn:
@@ -92,11 +93,9 @@ class AnomalyDetector:
     def resolve(self, anomaly_id: str) -> None:
         """Mark an anomaly as resolved."""
         with sqlite3.connect(self._db_path) as conn:
-            conn.execute(
-                "UPDATE anomalies SET resolved = 1 WHERE id = ?", (anomaly_id,)
-            )
+            conn.execute("UPDATE anomalies SET resolved = 1 WHERE id = ?", (anomaly_id,))
 
-    def detect_low_confidence_entities(self, graph) -> list[AnomalyResult]:
+    def detect_low_confidence_entities(self, graph: KnowledgeGraph) -> list[AnomalyResult]:
         """Find entities with very low confidence scores."""
         results: list[AnomalyResult] = []
         try:
@@ -117,7 +116,7 @@ class AnomalyDetector:
                 )
         return results
 
-    def detect_isolated_entities(self, graph) -> list[AnomalyResult]:
+    def detect_isolated_entities(self, graph: KnowledgeGraph) -> list[AnomalyResult]:
         """Find entities with no relations."""
         results: list[AnomalyResult] = []
         try:
@@ -198,7 +197,7 @@ class AnomalyDetector:
             )
         return results
 
-    def run_all(self, graph, db_path: str | None = None) -> list[AnomalyResult]:
+    def run_all(self, graph: KnowledgeGraph, db_path: str | None = None) -> list[AnomalyResult]:
         """Run all anomaly detection checks and persist results."""
         db = db_path or self._db_path
         all_results: list[AnomalyResult] = []

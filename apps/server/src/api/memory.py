@@ -7,7 +7,7 @@ import logging
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
@@ -20,6 +20,10 @@ from src.memory.graph_sync import remove_memory_from_graph
 from src.memory.extraction import MemoryExtractor
 from src.models.memory import Memory, MemoryTier
 from src.storage.note_store import NoteStore
+
+if TYPE_CHECKING:
+    from src.knowledge.embeddings import EmbeddingStore
+    from src.llm.base import LLMProvider
 
 # Amount by which an entity-scoped load reinforces a memory's vitality, capped
 # at 1.0. Models a light spaced-repetition signal: recall keeps a memory alive.
@@ -49,13 +53,13 @@ CREATE TABLE IF NOT EXISTS memories (
 """
 
 
-def _ensure_table():
+def _ensure_table() -> None:
     Path(settings.sqlite_db_path).parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(settings.sqlite_db_path) as conn:
         conn.execute(_DB_SCHEMA)
 
 
-def _db_memory_to_dict(row: tuple) -> dict:
+def _db_memory_to_dict(row: tuple[Any, ...]) -> dict[str, Any]:
     return {
         "id": row[0],
         "subject": row[1],
@@ -93,7 +97,7 @@ def _store_memories(memories: list[Memory]) -> None:
             )
 
 
-def _load_memories(entity: str | None = None) -> list[dict]:
+def _load_memories(entity: str | None = None) -> list[dict[str, Any]]:
     _ensure_table()
     with sqlite3.connect(settings.sqlite_db_path) as conn:
         if entity:
@@ -147,7 +151,7 @@ def _persist_consolidation(input_memories: list[Memory], processed: list[Memory]
     _store_memories(processed)
 
 
-def _get_extractor(llm=None) -> MemoryExtractor:
+def _get_extractor(llm: LLMProvider | None = None) -> MemoryExtractor:
     """Build a MemoryExtractor.
 
     A module-level override (``_extractor``, set by tests) takes precedence.
@@ -166,7 +170,9 @@ def _get_extractor(llm=None) -> MemoryExtractor:
     return MemoryExtractor(llm, event_bus)
 
 
-def _get_consolidator(graph=None, llm=None) -> MemoryConsolidator:
+def _get_consolidator(
+    graph: KnowledgeGraph | None = None, llm: LLMProvider | None = None
+) -> MemoryConsolidator:
     """Build a MemoryConsolidator.
 
     A module-level override (``_consolidator``, set by tests) takes precedence.
@@ -203,7 +209,13 @@ class UpdateMemoryRequest(BaseModel):
 # ------------------------------------------------------------------ public helpers (for test patching)
 
 
-async def _extract_memories(note_id: str, llm=None, *, provider=None, store=None) -> list[dict]:
+async def _extract_memories(
+    note_id: str,
+    llm: LLMProvider | None = None,
+    *,
+    provider: LLMProvider | None = None,
+    store: EmbeddingStore | None = None,
+) -> list[dict[str, Any]]:
     """Extract memories from a note. Returns list of memory dicts.
 
     Args:
@@ -239,7 +251,7 @@ def _memory_from_dict(data: dict[str, Any]) -> Memory:
     )
 
 
-def _memory_to_dict(memory: Memory) -> dict:
+def _memory_to_dict(memory: Memory) -> dict[str, Any]:
     return {
         "id": memory.id,
         "subject": memory.subject,
@@ -254,7 +266,7 @@ def _memory_to_dict(memory: Memory) -> dict:
     }
 
 
-def _memories_from_rows(rows: list[dict]) -> list[Memory]:
+def _memories_from_rows(rows: list[dict[str, Any]]) -> list[Memory]:
     """Reconstruct Memory objects from SQLite rows."""
     from datetime import datetime, timezone
 
@@ -275,7 +287,13 @@ def _memories_from_rows(rows: list[dict]) -> list[Memory]:
     ]
 
 
-async def _run_consolidation(graph=None, llm=None, *, provider=None, store=None) -> dict:
+async def _run_consolidation(
+    graph: KnowledgeGraph | None = None,
+    llm: LLMProvider | None = None,
+    *,
+    provider: LLMProvider | None = None,
+    store: EmbeddingStore | None = None,
+) -> dict[str, Any]:
     """Run the consolidation pipeline on all stored memories and persist results.
 
     Loads persisted memories, runs the consolidator (using the SHARED graph and
@@ -300,12 +318,12 @@ async def _run_consolidation(graph=None, llm=None, *, provider=None, store=None)
     return {k: v for k, v in summary.items() if k != "memories"}
 
 
-async def _list_memories(entity: str | None = None) -> list[dict]:
+async def _list_memories(entity: str | None = None) -> list[dict[str, Any]]:
     """List stored memories, optionally filtered by entity."""
     return _load_memories(entity)
 
 
-async def _get_stats() -> dict:
+async def _get_stats() -> dict[str, int]:
     """Return memory counts by tier."""
     _ensure_table()
     with sqlite3.connect(settings.sqlite_db_path) as conn:
@@ -323,7 +341,7 @@ async def _get_stats() -> dict:
 _UPDATABLE_FIELDS = ("subject", "predicate", "object", "confidence", "tier")
 
 # Backfill progress so the status endpoint can report on an in-flight run.
-_backfill_state: dict = {"running": False, "processed": 0, "total": 0, "errors": 0}
+_backfill_state: dict[str, Any] = {"running": False, "processed": 0, "total": 0, "errors": 0}
 
 
 async def _embed_one(
@@ -333,8 +351,8 @@ async def _embed_one(
     object_: str,
     tier: str,
     source: str | None,
-    provider,
-    store,
+    provider: LLMProvider | None,
+    store: EmbeddingStore | None,
 ) -> None:
     """Write-through a single memory triple into the vector store (best-effort).
 
@@ -366,7 +384,9 @@ async def _embed_one(
         logger.warning("memory embed failed for %s", memory_id, exc_info=True)
 
 
-async def _embed_memories(memories: list[Memory], provider, store) -> None:
+async def _embed_memories(
+    memories: list[Memory], provider: LLMProvider | None, store: EmbeddingStore | None
+) -> None:
     """Write-through a batch of Memory objects into the vector store."""
     for m in memories:
         await _embed_one(
@@ -374,7 +394,7 @@ async def _embed_memories(memories: list[Memory], provider, store) -> None:
         )
 
 
-def _get_memory(memory_id: str) -> dict | None:
+def _get_memory(memory_id: str) -> dict[str, Any] | None:
     """Fetch a single memory by id, or None if absent."""
     _ensure_table()
     with sqlite3.connect(settings.sqlite_db_path) as conn:
@@ -382,7 +402,13 @@ def _get_memory(memory_id: str) -> dict | None:
     return _db_memory_to_dict(row) if row else None
 
 
-async def _update_memory(memory_id: str, fields: dict, *, provider=None, store=None) -> dict | None:
+async def _update_memory(
+    memory_id: str,
+    fields: dict[str, Any],
+    *,
+    provider: LLMProvider | None = None,
+    store: EmbeddingStore | None = None,
+) -> dict[str, Any] | None:
     """Update whitelisted fields of a memory, bump ``modified``, re-embed on triple change.
 
     Returns the updated row, or None if the memory does not exist.
@@ -417,7 +443,9 @@ async def _update_memory(memory_id: str, fields: dict, *, provider=None, store=N
     return updated
 
 
-def _delete_memory(memory_id: str, *, store=None, graph=None) -> bool:
+def _delete_memory(
+    memory_id: str, *, store: EmbeddingStore | None = None, graph: KnowledgeGraph | None = None
+) -> bool:
     """Delete a memory and its vector + graph contribution.
 
     Returns False if the id was not found. The memory is fetched before the row is
@@ -444,7 +472,9 @@ def _delete_memory(memory_id: str, *, store=None, graph=None) -> bool:
     return True
 
 
-async def _search_memories_semantic(query: str, limit: int, provider, store) -> list[dict]:
+async def _search_memories_semantic(
+    query: str, limit: int, provider: LLMProvider | None, store: EmbeddingStore | None
+) -> list[dict[str, Any]]:
     """Semantic search over memory triples. Returns memory dicts with a ``score`` field.
 
     Hits are hydrated from SQLite (the source of truth); vectors orphaned by an
@@ -453,7 +483,7 @@ async def _search_memories_semantic(query: str, limit: int, provider, store) -> 
     if provider is None or store is None:
         return []
     embedding = await provider.embed(query)
-    results: list[dict] = []
+    results: list[dict[str, Any]] = []
     for hit in store.search(embedding, limit=limit):
         mem = _get_memory(hit["note_id"])
         if mem is not None:
@@ -463,8 +493,13 @@ async def _search_memories_semantic(query: str, limit: int, provider, store) -> 
 
 
 async def _create_memory_from_text(
-    text: str, source: str = "user", *, llm=None, provider=None, store=None
-) -> list[dict]:
+    text: str,
+    source: str = "user",
+    *,
+    llm: LLMProvider | None = None,
+    provider: LLMProvider | None = None,
+    store: EmbeddingStore | None = None,
+) -> list[dict[str, Any]]:
     """Create memory triples from free text via the LLM, persist + embed them."""
     extractor = _get_extractor(llm=llm)
     memories = await extractor.extract_from_text(text, source=source)
@@ -474,7 +509,10 @@ async def _create_memory_from_text(
 
 
 async def _persist_consolidation_vectors(
-    removed_ids: list[str], processed: list[Memory], provider, store
+    removed_ids: list[str],
+    processed: list[Memory],
+    provider: LLMProvider | None,
+    store: EmbeddingStore | None,
 ) -> None:
     """Mirror a consolidation run into the vector store: drop removed, re-embed survivors.
 
@@ -491,7 +529,9 @@ async def _persist_consolidation_vectors(
     await _embed_memories(processed, provider, store)
 
 
-async def _backfill_memory_embeddings(provider, store) -> None:
+async def _backfill_memory_embeddings(
+    provider: LLMProvider | None, store: EmbeddingStore | None
+) -> None:
     """Embed every stored memory (one-shot maintenance after first deploy / a reembed)."""
     mems = _memories_from_rows(_load_memories())
     _backfill_state.update(running=True, processed=0, total=len(mems), errors=0)
@@ -512,7 +552,7 @@ async def _backfill_memory_embeddings(provider, store) -> None:
 
 
 @router.post("/extract")
-async def extract_memories(request: Request, body: ExtractRequest) -> list[dict]:
+async def extract_memories(request: Request, body: ExtractRequest) -> list[dict[str, Any]]:
     """Extract memories from a note and return the list.
 
     Uses the app's shared LLM provider (``app.state.llm_provider``). When the
@@ -532,7 +572,7 @@ async def extract_memories(request: Request, body: ExtractRequest) -> list[dict]
 
 
 @router.post("/consolidate")
-async def consolidate_memories(request: Request) -> dict:
+async def consolidate_memories(request: Request) -> dict[str, Any]:
     """Trigger the memory consolidation pipeline and return a summary.
 
     Reuses the app's shared Kuzu handle (``app.state.knowledge_graph``) and LLM
@@ -548,19 +588,19 @@ async def consolidate_memories(request: Request) -> dict:
 @router.get("/")
 async def list_memories(
     entity: str | None = None,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """List memories with optional entity filter."""
     return await _list_memories(entity)
 
 
 @router.get("/stats")
-async def memory_stats() -> dict:
+async def memory_stats() -> dict[str, int]:
     """Return memory statistics: total and tier counts."""
     return await _get_stats()
 
 
 @router.post("/")
-async def create_memory(request: Request, body: CreateMemoryRequest) -> list[dict]:
+async def create_memory(request: Request, body: CreateMemoryRequest) -> list[dict[str, Any]]:
     """Create memory triples from free text. The LLM parses the text into
     subject-predicate-object triples, which are persisted and embedded. When the
     daily LLM budget is exhausted the text is queued and processed after the
@@ -585,7 +625,7 @@ async def search_memories(
     request: Request,
     q: str = Query(..., min_length=1),
     limit: int = Query(20, ge=1, le=100),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Semantic search over stored memories. Returns memory dicts with a ``score``."""
     provider = getattr(request.app.state, "embedding_provider", None)
     store = getattr(request.app.state, "memory_embedding_store", None)
@@ -593,7 +633,7 @@ async def search_memories(
 
 
 @router.post("/backfill-embeddings")
-async def backfill_memory_embeddings(request: Request) -> dict:
+async def backfill_memory_embeddings(request: Request) -> dict[str, Any]:
     """Embed every stored memory in the background (run after first deploy or a reembed).
 
     Returns immediately; poll GET /api/memory/backfill-embeddings/status.
@@ -610,13 +650,13 @@ async def backfill_memory_embeddings(request: Request) -> dict:
 
 
 @router.get("/backfill-embeddings/status")
-async def backfill_memory_embeddings_status() -> dict:
+async def backfill_memory_embeddings_status() -> dict[str, Any]:
     """Return progress of the most recent memory embedding backfill run."""
     return dict(_backfill_state)
 
 
 @router.get("/{memory_id}")
-async def get_memory(memory_id: str) -> dict:
+async def get_memory(memory_id: str) -> dict[str, Any]:
     """Fetch a single memory by id."""
     mem = _get_memory(memory_id)
     if mem is None:
@@ -625,7 +665,9 @@ async def get_memory(memory_id: str) -> dict:
 
 
 @router.put("/{memory_id}")
-async def update_memory(request: Request, memory_id: str, body: UpdateMemoryRequest) -> dict:
+async def update_memory(
+    request: Request, memory_id: str, body: UpdateMemoryRequest
+) -> dict[str, Any]:
     """Update a memory's subject/predicate/object/confidence/tier."""
     fields = body.model_dump(exclude_none=True)
     if not fields:
@@ -639,7 +681,7 @@ async def update_memory(request: Request, memory_id: str, body: UpdateMemoryRequ
 
 
 @router.delete("/{memory_id}")
-async def delete_memory(request: Request, memory_id: str) -> dict:
+async def delete_memory(request: Request, memory_id: str) -> dict[str, Any]:
     """Delete a memory by id."""
     store = getattr(request.app.state, "memory_embedding_store", None)
     graph = getattr(request.app.state, "knowledge_graph", None)

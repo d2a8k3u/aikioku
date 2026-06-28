@@ -10,8 +10,8 @@ class SchemaRegistry:
     """Manages entity and relation type definitions, seeded from existing enums."""
 
     def __init__(self) -> None:
-        self._entity_types: dict[str, dict] = {}
-        self._relation_types: dict[str, dict] = {}
+        self._entity_types: dict[str, dict[str, str]] = {}
+        self._relation_types: dict[str, dict[str, str]] = {}
         # Seed with existing enums
         for et in EntityType:
             self._entity_types[et.value] = {"name": et.value}
@@ -22,9 +22,7 @@ class SchemaRegistry:
         """Register a new entity type."""
         self._entity_types[name] = {"name": name, "description": description}
 
-    def register_relation_type(
-        self, name: str, description: str, domain: str, range: str
-    ) -> None:
+    def register_relation_type(self, name: str, description: str, domain: str, range: str) -> None:
         """Register a new relation type."""
         self._relation_types[name] = {
             "name": name,
@@ -33,14 +31,14 @@ class SchemaRegistry:
             "range": range,
         }
 
-    def list_types(self) -> dict:
+    def list_types(self) -> dict[str, dict[str, dict[str, str]]]:
         """Return a dict with keys entity_types and relation_types."""
         return {
             "entity_types": dict(self._entity_types),
             "relation_types": dict(self._relation_types),
         }
 
-    def get_type(self, name: str) -> dict | None:
+    def get_type(self, name: str) -> dict[str, str] | None:
         """Return type info for name if it exists in either entity or relation types."""
         if name in self._entity_types:
             return dict(self._entity_types[name])

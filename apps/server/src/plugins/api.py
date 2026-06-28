@@ -1,4 +1,5 @@
 """Plugin API surface with EventBus integration."""
+
 from __future__ import annotations
 
 import asyncio
@@ -17,10 +18,10 @@ class PluginAPI:
     _VALID_HOOKS: set[str] = {"onNoteSave", "onQuery", "onReview"}
 
     def __init__(self, event_bus: EventBus | None = None) -> None:
-        self._hooks: dict[str, list[Callable]] = {}
+        self._hooks: dict[str, list[Callable[..., Any]]] = {}
         self._event_bus = event_bus
 
-    def register(self, hook_name: str, handler: Callable) -> None:
+    def register(self, hook_name: str, handler: Callable[..., Any]) -> None:
         """Register a handler for a named hook.
 
         Valid hooks: onNoteSave, onQuery, onReview.
@@ -43,9 +44,7 @@ class PluginAPI:
             try:
                 if asyncio.iscoroutinefunction(handler):
                     # For sync call, we can't await — log warning
-                    logger.warning(
-                        "async_handler_called_in_sync_context: %s", hook_name
-                    )
+                    logger.warning("async_handler_called_in_sync_context: %s", hook_name)
                     results.append(None)
                 else:
                     results.append(handler(*args, **kwargs))

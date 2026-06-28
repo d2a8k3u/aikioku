@@ -52,14 +52,10 @@ class TestRun:
     """Test run() returns summary with counts."""
 
     @pytest.mark.asyncio
-    async def test_run_returns_summary_with_counts(
-        self, mock_graph, mock_event_bus
-    ):
+    async def test_run_returns_summary_with_counts(self, mock_graph, mock_event_bus):
         from src.memory.consolidation import MemoryConsolidator
 
-        consolidator = MemoryConsolidator(
-            graph=mock_graph, event_bus=mock_event_bus
-        )
+        consolidator = MemoryConsolidator(graph=mock_graph, event_bus=mock_event_bus)
 
         memories = [
             _make_memory(subject="Alice", predicate="knows", object="Bob"),
@@ -81,9 +77,7 @@ class TestRun:
     async def test_run_empty_list(self, mock_graph, mock_event_bus):
         from src.memory.consolidation import MemoryConsolidator
 
-        consolidator = MemoryConsolidator(
-            graph=mock_graph, event_bus=mock_event_bus
-        )
+        consolidator = MemoryConsolidator(graph=mock_graph, event_bus=mock_event_bus)
 
         summary = await consolidator.run([])
 
@@ -96,9 +90,7 @@ class TestRun:
         persist tier/confidence updates and dedup/merge results back."""
         from src.memory.consolidation import MemoryConsolidator
 
-        consolidator = MemoryConsolidator(
-            graph=mock_graph, event_bus=mock_event_bus
-        )
+        consolidator = MemoryConsolidator(graph=mock_graph, event_bus=mock_event_bus)
 
         # Two exact duplicates (merge removes one) + one distinct memory.
         memories = [
@@ -128,9 +120,7 @@ class TestStageDeduplicate:
     async def test_removes_exact_duplicates(self, mock_graph, mock_event_bus):
         from src.memory.consolidation import MemoryConsolidator
 
-        consolidator = MemoryConsolidator(
-            graph=mock_graph, event_bus=mock_event_bus
-        )
+        consolidator = MemoryConsolidator(graph=mock_graph, event_bus=mock_event_bus)
 
         m1 = _make_memory(subject="Alice", predicate="knows", object="Bob", confidence=0.9)
         m2 = _make_memory(subject="Alice", predicate="knows", object="Bob", confidence=0.7)
@@ -147,9 +137,7 @@ class TestStageDeduplicate:
     async def test_no_duplicates_intact(self, mock_graph, mock_event_bus):
         from src.memory.consolidation import MemoryConsolidator
 
-        consolidator = MemoryConsolidator(
-            graph=mock_graph, event_bus=mock_event_bus
-        )
+        consolidator = MemoryConsolidator(graph=mock_graph, event_bus=mock_event_bus)
 
         m1 = _make_memory(subject="Alice", predicate="knows", object="Bob")
         m2 = _make_memory(subject="Alice", predicate="likes", object="Bob")
@@ -167,9 +155,7 @@ class TestStageMerge:
     async def test_keeps_highest_confidence(self, mock_graph, mock_event_bus):
         from src.memory.consolidation import MemoryConsolidator
 
-        consolidator = MemoryConsolidator(
-            graph=mock_graph, event_bus=mock_event_bus
-        )
+        consolidator = MemoryConsolidator(graph=mock_graph, event_bus=mock_event_bus)
 
         m1 = _make_memory(confidence=0.5)
         m2 = _make_memory(confidence=0.9)
@@ -185,9 +171,7 @@ class TestStageMerge:
     async def test_single_memory_unchanged(self, mock_graph, mock_event_bus):
         from src.memory.consolidation import MemoryConsolidator
 
-        consolidator = MemoryConsolidator(
-            graph=mock_graph, event_bus=mock_event_bus
-        )
+        consolidator = MemoryConsolidator(graph=mock_graph, event_bus=mock_event_bus)
 
         m1 = _make_memory(confidence=0.6)
 
@@ -205,9 +189,7 @@ class TestStageConflictResolution:
     async def test_detects_contradictions(self, mock_graph, mock_event_bus):
         from src.memory.consolidation import MemoryConsolidator
 
-        consolidator = MemoryConsolidator(
-            graph=mock_graph, event_bus=mock_event_bus
-        )
+        consolidator = MemoryConsolidator(graph=mock_graph, event_bus=mock_event_bus)
 
         # Same subject+predicate, different objects → contradiction
         m1 = _make_memory(subject="Alice", predicate="knows", object="Bob", confidence=0.9)
@@ -225,9 +207,7 @@ class TestStageConflictResolution:
     async def test_no_conflict_when_same_object(self, mock_graph, mock_event_bus):
         from src.memory.consolidation import MemoryConsolidator
 
-        consolidator = MemoryConsolidator(
-            graph=mock_graph, event_bus=mock_event_bus
-        )
+        consolidator = MemoryConsolidator(graph=mock_graph, event_bus=mock_event_bus)
 
         m1 = _make_memory(subject="Alice", predicate="knows", object="Bob", confidence=0.9)
         m2 = _make_memory(subject="Alice", predicate="knows", object="Bob", confidence=0.8)
@@ -244,9 +224,7 @@ class TestStageSummarize:
     """Test stage_summarize uses the injected provider or skips when None."""
 
     @pytest.mark.asyncio
-    async def test_injected_provider_produces_guideline(
-        self, mock_graph, mock_event_bus
-    ):
+    async def test_injected_provider_produces_guideline(self, mock_graph, mock_event_bus):
         from src.memory.consolidation import MemoryConsolidator
 
         provider = AsyncMock()
@@ -269,15 +247,11 @@ class TestStageSummarize:
         assert guidelines[0].object == "Alice has many connections."
 
     @pytest.mark.asyncio
-    async def test_no_provider_skips_gracefully(
-        self, mock_graph, mock_event_bus
-    ):
+    async def test_no_provider_skips_gracefully(self, mock_graph, mock_event_bus):
         from src.memory.consolidation import MemoryConsolidator
 
         # No llm_provider → must skip LLM summarization without network/errors.
-        consolidator = MemoryConsolidator(
-            graph=mock_graph, event_bus=mock_event_bus
-        )
+        consolidator = MemoryConsolidator(graph=mock_graph, event_bus=mock_event_bus)
 
         merged = [
             _make_memory(subject="Alice", predicate="knows", object="Bob"),
@@ -298,19 +272,13 @@ class TestStageForgetting:
     async def test_marks_low_confidence(self, mock_graph, mock_event_bus):
         from src.memory.consolidation import MemoryConsolidator
 
-        consolidator = MemoryConsolidator(
-            graph=mock_graph, event_bus=mock_event_bus
-        )
+        consolidator = MemoryConsolidator(graph=mock_graph, event_bus=mock_event_bus)
 
         old_date = datetime.now(timezone.utc) - timedelta(days=400)
         recent_date = datetime.now(timezone.utc) - timedelta(days=10)
 
-        m_old_low = _make_memory(
-            confidence=0.2, created=old_date, vitality_score=0.1
-        )
-        m_recent_high = _make_memory(
-            confidence=0.9, created=recent_date, vitality_score=0.9
-        )
+        m_old_low = _make_memory(confidence=0.2, created=old_date, vitality_score=0.1)
+        m_recent_high = _make_memory(confidence=0.9, created=recent_date, vitality_score=0.9)
 
         result = await consolidator.stage_forgetting([m_old_low, m_recent_high])
 
@@ -323,9 +291,7 @@ class TestStageForgetting:
     async def test_marks_old_memories(self, mock_graph, mock_event_bus):
         from src.memory.consolidation import MemoryConsolidator
 
-        consolidator = MemoryConsolidator(
-            graph=mock_graph, event_bus=mock_event_bus
-        )
+        consolidator = MemoryConsolidator(graph=mock_graph, event_bus=mock_event_bus)
 
         old_date = datetime.now(timezone.utc) - timedelta(days=500)
         m_old = _make_memory(confidence=0.5, created=old_date, vitality_score=0.3)

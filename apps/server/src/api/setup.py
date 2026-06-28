@@ -94,14 +94,14 @@ class TestPayload(BaseModel):
     openrouter_api_key: str | None = None
 
 
-def _to_str(value) -> str:
+def _to_str(value: object) -> str:
     if isinstance(value, bool):
         return "true" if value else "false"
     return str(value)
 
 
 @router.get("/status")
-async def setup_status() -> dict:
+async def setup_status() -> dict[str, bool]:
     """Report first-run setup state (unauthenticated; used by the frontend gate)."""
     return {
         "configured": runtime_config.is_configured(),
@@ -111,7 +111,7 @@ async def setup_status() -> dict:
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 @router.post("/", status_code=status.HTTP_201_CREATED)
-async def run_setup(payload: SetupPayload, request: Request) -> dict:
+async def run_setup(payload: SetupPayload, request: Request) -> dict[str, bool]:
     """Persist first-run configuration, create the admin account, and go live."""
     if runtime_config.is_configured():
         raise HTTPException(
@@ -163,7 +163,7 @@ async def run_setup(payload: SetupPayload, request: Request) -> dict:
 
 
 @router.post("/test")
-async def test_connection(payload: TestPayload) -> dict:
+async def test_connection(payload: TestPayload) -> dict[str, str | bool]:
     """Best-effort reachability check for the chosen LLM provider."""
     if payload.llm_provider == "openrouter":
         headers = {}

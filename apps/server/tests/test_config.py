@@ -5,7 +5,6 @@ from __future__ import annotations
 import warnings
 
 
-
 class TestConfigStructure:
     """Ensure Settings uses modern Pydantic v2 ConfigDict, not deprecated class Config."""
 
@@ -24,9 +23,7 @@ class TestConfigStructure:
             from src.config import Settings  # noqa: F401
 
             pydantic_warnings = [
-                warning
-                for warning in w
-                if "PydanticDeprecatedSince20" in str(warning.category)
+                warning for warning in w if "PydanticDeprecatedSince20" in str(warning.category)
             ]
             assert len(pydantic_warnings) == 0, "Deprecated class Config triggers warning"
 

@@ -22,8 +22,7 @@ def parse_web_clip(url: str) -> Note:
         import requests
     except ImportError as exc:
         raise ImportError(
-            "Web clip dependencies are not installed. Install them with: "
-            "pip install requests"
+            "Web clip dependencies are not installed. Install them with: pip install requests"
         ) from exc
 
     try:
@@ -37,12 +36,14 @@ def parse_web_clip(url: str) -> Note:
     # Try readability-lxml first, then fall back to lxml.html / html.parser
     try:
         from readability import Document  # type: ignore[import-untyped]
+
         doc = Document(html_text)
         title = doc.short_title() or url
         summary = doc.summary()
     except ImportError:
         try:
             from lxml import html as lh
+
             tree = lh.fromstring(html_text.encode("utf-8"))
             title_elem = tree.find(".//title")
             title = (title_elem.text if title_elem is not None else "") or url
@@ -53,7 +54,9 @@ def parse_web_clip(url: str) -> Note:
                     parent.remove(bad)
             body_elem = tree.find(".//body")
             if body_elem is not None:
-                paragraphs = body_elem.iter("p", "h1", "h2", "h3", "h4", "h5", "h6", "article", "section")
+                paragraphs = body_elem.iter(
+                    "p", "h1", "h2", "h3", "h4", "h5", "h6", "article", "section"
+                )
                 parts: list[str] = []
                 for el in paragraphs:
                     text = " ".join(str(t) for t in el.itertext()).strip()
@@ -65,6 +68,7 @@ def parse_web_clip(url: str) -> Note:
         except Exception:
             # Last resort: strip tags with a regex
             import re
+
             summary = re.sub(r"<[^>]+>", "", html_text)
             title = url
 

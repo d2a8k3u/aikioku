@@ -28,34 +28,26 @@ class TestMemoryCreation:
     def test_confidence_defaults_to_zero(self):
         from src.models.memory import Memory
 
-        memory = Memory(
-            subject="A", predicate="relates_to", object="B", source="src"
-        )
+        memory = Memory(subject="A", predicate="relates_to", object="B", source="src")
         assert memory.confidence == 0.0
 
     def test_vitality_score_defaults_to_zero(self):
         from src.models.memory import Memory
 
-        memory = Memory(
-            subject="A", predicate="relates_to", object="B", source="src"
-        )
+        memory = Memory(subject="A", predicate="relates_to", object="B", source="src")
         assert memory.vitality_score == 0.0
 
     def test_tier_defaults_to_hot(self):
         from src.models.memory import Memory, MemoryTier
 
-        memory = Memory(
-            subject="A", predicate="relates_to", object="B", source="src"
-        )
+        memory = Memory(subject="A", predicate="relates_to", object="B", source="src")
         assert memory.tier == MemoryTier.hot
 
     def test_created_and_modified_default_to_utcnow(self):
         from src.models.memory import Memory
 
         before = datetime.utcnow()
-        memory = Memory(
-            subject="A", predicate="relates_to", object="B", source="src"
-        )
+        memory = Memory(subject="A", predicate="relates_to", object="B", source="src")
         after = datetime.utcnow()
         assert before <= memory.created <= after
         assert before <= memory.modified <= after
@@ -64,9 +56,7 @@ class TestMemoryCreation:
 class TestMemoryWithAllFields:
     """Test Memory creation with all fields."""
 
-    def test_create_memory_with_all_fields(
-        self, fixed_uuid, fixed_datetime, fixed_datetime_later
-    ):
+    def test_create_memory_with_all_fields(self, fixed_uuid, fixed_datetime, fixed_datetime_later):
         from src.models.memory import Memory, MemoryTier
 
         memory = Memory(
@@ -132,8 +122,11 @@ class TestMemoryValidation:
 
         with pytest.raises(ValidationError):
             Memory(
-                subject="A", predicate="is", object="B",
-                source="src", confidence=-0.1,
+                subject="A",
+                predicate="is",
+                object="B",
+                source="src",
+                confidence=-0.1,
             )
 
     def test_confidence_above_one_raises_error(self):
@@ -141,20 +134,29 @@ class TestMemoryValidation:
 
         with pytest.raises(ValidationError):
             Memory(
-                subject="A", predicate="is", object="B",
-                source="src", confidence=1.5,
+                subject="A",
+                predicate="is",
+                object="B",
+                source="src",
+                confidence=1.5,
             )
 
     def test_confidence_at_boundaries_is_valid(self):
         from src.models.memory import Memory
 
         m1 = Memory(
-            subject="A", predicate="is", object="B",
-            source="src", confidence=0.0,
+            subject="A",
+            predicate="is",
+            object="B",
+            source="src",
+            confidence=0.0,
         )
         m2 = Memory(
-            subject="A", predicate="is", object="B",
-            source="src", confidence=1.0,
+            subject="A",
+            predicate="is",
+            object="B",
+            source="src",
+            confidence=1.0,
         )
         assert m1.confidence == 0.0
         assert m2.confidence == 1.0

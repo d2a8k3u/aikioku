@@ -143,7 +143,7 @@ class CostTracker:
         """True in the near-limit band: ``threshold`` <= fraction < 1.0."""
         return self.daily_budget > 0 and threshold <= self.fraction() < 1.0
 
-    def get_stats(self, days: int = 7) -> dict:
+    def get_stats(self, days: int = 7) -> dict[str, Any]:
         """Return cost stats for the last N days."""
         cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
         with sqlite3.connect(self._db_path) as conn:
@@ -372,7 +372,7 @@ class LLMRouter(LLMProvider):
         )
         self._cost_tracker.record(record)
 
-    def get_circuit_states(self) -> list[dict]:
+    def get_circuit_states(self) -> list[dict[str, Any]]:
         """Return current circuit breaker states."""
         return [
             {

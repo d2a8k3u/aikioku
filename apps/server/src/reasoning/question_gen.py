@@ -1,4 +1,5 @@
 """QuestionGenerator: generate review questions from a note."""
+
 from __future__ import annotations
 
 import re
@@ -18,6 +19,7 @@ class GeneratedQuestion:
         question: The question or prompt text.
         answer: The expected answer.
     """
+
     type: str
     question: str
     answer: str
@@ -66,25 +68,27 @@ class QuestionGenerator:
 
         # Fallback for short notes
         if not questions:
-            questions.append(GeneratedQuestion(
-                type="qa",
-                question=f"What is the main topic of '{note.title}'?",
-                answer=note.content.strip() or note.title,
-            ))
+            questions.append(
+                GeneratedQuestion(
+                    type="qa",
+                    question=f"What is the main topic of '{note.title}'?",
+                    answer=note.content.strip() or note.title,
+                )
+            )
 
         return questions[:count]
 
     @staticmethod
     def _split_sentences(text: str) -> list[str]:
         """Split text into sentences."""
-        sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+        sentences = re.split(r"(?<=[.!?])\s+", text.strip())
         return [s.strip() for s in sentences if len(s.strip()) > 10]
 
     @staticmethod
     def _extract_keywords(text: str) -> list[str]:
         """Extract potential keywords from text (capitalized words or quoted terms)."""
         # Find capitalized words longer than 3 chars
-        found = re.findall(r'\b[A-Z][a-zA-Z]{3,}\b', text)
+        found = re.findall(r"\b[A-Z][a-zA-Z]{3,}\b", text)
         # Deduplicate preserving order
         seen: set[str] = set()
         result: list[str] = []
@@ -128,7 +132,7 @@ class QuestionGenerator:
         # Simple heuristic: ask "What does X do/support/enable?" using first noun phrase
         # or generic: "What is stated in the following sentence?"
         # Use a more targeted pattern if the sentence defines something
-        match = re.match(r'^([A-Z][a-zA-Z\s]+) is (.*?)\.?$', sentence)
+        match = re.match(r"^([A-Z][a-zA-Z\s]+) is (.*?)\.?$", sentence)
         if match:
             subject = match.group(1).strip()
             rest = match.group(2).strip()

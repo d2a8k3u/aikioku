@@ -1,4 +1,5 @@
 """EmbeddingStore: ChromaDB-backed vector storage for note embeddings with semantic chunking."""
+
 from __future__ import annotations
 
 import logging
@@ -125,8 +126,7 @@ class EmbeddingStore:
         ids = [f"{note_id}#{i}" for i in range(len(chunks))]
         embeddings = [embedding] * len(chunks)
         metadatas: list[dict[str, Any]] = [
-            {"note_id": note_id, "chunk_index": i, "text": chunk}
-            for i, chunk in enumerate(chunks)
+            {"note_id": note_id, "chunk_index": i, "text": chunk} for i, chunk in enumerate(chunks)
         ]
         self._coll.add(
             ids=ids,
@@ -161,7 +161,7 @@ class EmbeddingStore:
         self._coll.add(
             ids=[doc_id],
             embeddings=[embedding],  # type: ignore[arg-type]
-            metadatas=[meta],  # type: ignore[arg-type]
+            metadatas=[meta],
         )
 
     def search(self, query_embedding: list[float], limit: int = 20) -> list[dict[str, Any]]:
@@ -181,9 +181,9 @@ class EmbeddingStore:
             n_results=n_results,
             include=["metadatas", "distances"],
         )
-        ids_list: list[str] = list(raw["ids"][0])  # type: ignore[index]
+        ids_list: list[str] = list(raw["ids"][0])
         dists_list: list[float] = list(raw["distances"][0])  # type: ignore[index]
-        metas_list: list[dict[str, Any]] = list(raw["metadatas"][0])  # type: ignore[index,assignment,arg-type]
+        metas_list: list[dict[str, Any]] = list(raw["metadatas"][0])  # type: ignore[index,arg-type]
 
         # Group by note_id, keeping max score and best text.
         best: dict[str, tuple[float, str]] = {}  # note_id -> (max_score, best_text)
@@ -199,13 +199,15 @@ class EmbeddingStore:
 
         # Sort by max score descending, then take top `limit`.
         sorted_notes = sorted(best.items(), key=lambda kv: kv[1][0], reverse=True)
-        results: list[dict] = []
+        results: list[dict[str, Any]] = []
         for note_id, (score, text) in sorted_notes[:limit]:
-            results.append({
-                "note_id": note_id,
-                "text": text,
-                "score": max(score, 0.0),
-            })
+            results.append(
+                {
+                    "note_id": note_id,
+                    "text": text,
+                    "score": max(score, 0.0),
+                }
+            )
         return results
 
     def delete(self, note_id: str) -> None:
