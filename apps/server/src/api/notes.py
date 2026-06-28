@@ -128,7 +128,7 @@ async def list_notes(
     """
     store = _get_note_store_from_request(request)
     if tag:
-        notes = store.get_by_tag(tag)
+        notes: list[Note] = store.get_by_tag(tag)
         return notes[skip : skip + limit]
     if search:
         notes = store.search(search)
@@ -321,7 +321,8 @@ async def get_backlinks(request: Request, note_id: UUID) -> list[dict]:
     backlinks: list[dict] = []
     wikilink_pattern = f"[[{target_id}]]"
 
-    for note in store.list_all():
+    all_notes: list[Note] = store.list_all()
+    for note in all_notes:
         if note.id == target_id:
             continue
         is_backlink = False

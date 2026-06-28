@@ -180,7 +180,7 @@ async def test_connection(payload: TestPayload) -> dict:
         headers = {}
         if payload.ollama_api_key:
             headers["Authorization"] = f"Bearer {payload.ollama_api_key}"
-        url = join(payload.ollama_base_url, OLLAMA_TAGS, dialect="ollama")
+        url = join(payload.ollama_base_url or "", OLLAMA_TAGS, dialect="ollama")
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
             resp = await client.get(url, headers=headers)

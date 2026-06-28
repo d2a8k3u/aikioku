@@ -36,9 +36,9 @@ class PluginAPI:
                 self._event_bus.subscribe(event_type, handler)
                 logger.debug("plugin_hook_subscribed: %s -> %s", hook_name, event_type)
 
-    def call(self, hook_name: str, *args, **kwargs) -> list[Any]:
+    def call(self, hook_name: str, *args: Any, **kwargs: Any) -> list[Any]:
         """Invoke all handlers registered for a hook and return results."""
-        results = []
+        results: list[Any] = []
         for handler in self._hooks.get(hook_name, []):
             try:
                 if asyncio.iscoroutinefunction(handler):
@@ -54,9 +54,9 @@ class PluginAPI:
                 results.append(None)
         return results
 
-    async def call_async(self, hook_name: str, *args, **kwargs) -> list[Any]:
+    async def call_async(self, hook_name: str, *args: Any, **kwargs: Any) -> list[Any]:
         """Invoke all handlers asynchronously and return results."""
-        results = []
+        results: list[Any] = []
         for handler in self._hooks.get(hook_name, []):
             try:
                 if asyncio.iscoroutinefunction(handler):

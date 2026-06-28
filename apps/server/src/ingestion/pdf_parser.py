@@ -21,7 +21,7 @@ def parse_pdf(content: bytes, filename: str = "imported.pdf") -> Note:
         ValueError: If the PDF cannot be parsed.
     """
     try:
-        import fitz  # PyMuPDF
+        import fitz  # type: ignore[import-untyped]  # PyMuPDF
     except ImportError as exc:
         raise ImportError(
             "PyMuPDF is not installed. Install it with: pip install PyMuPDF"

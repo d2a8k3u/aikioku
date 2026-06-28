@@ -13,7 +13,7 @@ completions.
 from __future__ import annotations
 
 import json
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
 
 import httpx
 
@@ -61,14 +61,14 @@ class OpenRouterProvider(LLMProvider):
         )
 
     @staticmethod
-    def _messages(prompt: str, system: str) -> list[dict]:
-        msgs: list[dict] = []
+    def _messages(prompt: str, system: str) -> list[dict[str, Any]]:
+        msgs: list[dict[str, Any]] = []
         if system:
             msgs.append({"role": "system", "content": system})
         msgs.append({"role": "user", "content": prompt})
         return msgs
 
-    async def complete(self, prompt: str, system: str = "", **kwargs) -> str:
+    async def complete(self, prompt: str, system: str = "", **kwargs: Any) -> str:
         payload = {
             "model": self.model,
             "messages": build_messages_with_cache(system, prompt),
@@ -92,7 +92,7 @@ class OpenRouterProvider(LLMProvider):
             return ""
         return choices[0].get("message", {}).get("content", "") or ""
 
-    async def stream(self, prompt: str, system: str = "", **kwargs) -> AsyncIterator[str]:
+    async def stream(self, prompt: str, system: str = "", **kwargs: Any) -> AsyncIterator[str]:
         payload = {
             "model": self.model,
             "messages": build_messages_with_cache(system, prompt),

@@ -9,7 +9,7 @@ import sqlite3
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
 
 from src.llm.base import LLMProvider
 
@@ -242,7 +242,7 @@ class LLMRouter(LLMProvider):
         self._circuits[idx].record_failure()
         self._avail_cache.pop(idx, None)
 
-    async def complete(self, prompt: str, system: str = "", **kwargs) -> str:
+    async def complete(self, prompt: str, system: str = "", **kwargs: Any) -> str:
         if self._cost_tracker is not None:
             estimated = self._cost_tracker.estimate_cost(
                 type(self._providers[0]).__name__,
@@ -282,7 +282,7 @@ class LLMRouter(LLMProvider):
                         )
             raise
 
-    async def stream(self, prompt: str, system: str = "", **kwargs) -> AsyncIterator[str]:
+    async def stream(self, prompt: str, system: str = "", **kwargs: Any) -> AsyncIterator[str]:
         if self._cost_tracker is not None:
             estimated = self._cost_tracker.estimate_cost(
                 type(self._providers[0]).__name__,

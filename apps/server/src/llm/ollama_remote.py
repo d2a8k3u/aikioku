@@ -6,7 +6,7 @@ import asyncio
 import hashlib
 import json
 import logging
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
 
 import httpx
 
@@ -77,7 +77,7 @@ class OllamaRemoteProvider(LLMProvider):
             headers={"Authorization": f"Bearer {embedding_api_key}"} if embedding_api_key else {},
         )
 
-    async def complete(self, prompt: str, system: str = "", **kwargs) -> str:
+    async def complete(self, prompt: str, system: str = "", **kwargs: Any) -> str:
         payload = {
             "model": self.model,
             "prompt": prompt,
@@ -91,7 +91,7 @@ class OllamaRemoteProvider(LLMProvider):
         resp.raise_for_status()
         return resp.json().get("response", "")
 
-    async def stream(self, prompt: str, system: str = "", **kwargs) -> AsyncIterator[str]:
+    async def stream(self, prompt: str, system: str = "", **kwargs: Any) -> AsyncIterator[str]:
         payload = {
             "model": self.model,
             "prompt": prompt,

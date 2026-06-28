@@ -2,19 +2,19 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
 
 
 class LLMProvider(ABC):
     """Abstract base class for LLM providers."""
 
     @abstractmethod
-    async def complete(self, prompt: str, system: str = "", **kwargs) -> str:
+    async def complete(self, prompt: str, system: str = "", **kwargs: Any) -> str:
         """Generate a completion. Returns the response text."""
         ...
 
     @abstractmethod
-    async def stream(self, prompt: str, system: str = "", **kwargs) -> AsyncIterator[str]:
+    def stream(self, prompt: str, system: str = "", **kwargs: Any) -> AsyncIterator[str]:
         """Generate a streaming completion. Yields text chunks."""
         ...
 

@@ -76,8 +76,10 @@ def _patch_onnx_for_transformers_v5() -> None:
     """
     try:
         import numpy as np
-        from gptcache.embedding.onnx import Onnx as OnnxEmbed
-        from gptcache.similarity_evaluation.onnx import OnnxModelEvaluation as OnnxEval
+        from gptcache.embedding.onnx import Onnx as OnnxEmbed  # type: ignore[import-untyped]
+        from gptcache.similarity_evaluation.onnx import (  # type: ignore[import-untyped]
+            OnnxModelEvaluation as OnnxEval,
+        )
 
         # --- Patch Onnx.to_embeddings ---
         _original_to_emb = OnnxEmbed.to_embeddings
@@ -180,9 +182,15 @@ async def _init_cache() -> tuple[Any, Any, Any] | None:
             return None
 
         try:
-            from gptcache.embedding import Onnx
-            from gptcache.manager import CacheBase, VectorBase, get_data_manager
-            from gptcache.similarity_evaluation import OnnxModelEvaluation
+            from gptcache.embedding import Onnx  # type: ignore[import-untyped]
+            from gptcache.manager import (  # type: ignore[import-untyped]
+                CacheBase,
+                VectorBase,
+                get_data_manager,
+            )
+            from gptcache.similarity_evaluation import (  # type: ignore[import-untyped]
+                OnnxModelEvaluation,
+            )
 
             # Patch for transformers 5.x compatibility before creating instances
             _patch_onnx_for_transformers_v5()

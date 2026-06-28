@@ -7,7 +7,7 @@ OpenAI's ``POST /v1/embeddings``. Strict/fallback behavior mirrors
 from __future__ import annotations
 
 import logging
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
 
 import httpx
 
@@ -71,10 +71,10 @@ class OpenAIEmbeddingProvider(LLMProvider):
         )
         return _deterministic_embedding(text, self._embedding_fallback_dim)
 
-    async def complete(self, prompt: str, system: str = "", **kwargs) -> str:
+    async def complete(self, prompt: str, system: str = "", **kwargs: Any) -> str:
         raise NotImplementedError("OpenAIEmbeddingProvider does not serve completions")
 
-    async def stream(self, prompt: str, system: str = "", **kwargs) -> AsyncIterator[str]:
+    async def stream(self, prompt: str, system: str = "", **kwargs: Any) -> AsyncIterator[str]:
         raise NotImplementedError("OpenAIEmbeddingProvider does not serve completions")
         yield ""  # pragma: no cover — makes this an async generator
 

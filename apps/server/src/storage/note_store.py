@@ -19,7 +19,7 @@ import sqlite3
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 import yaml
 
@@ -365,7 +365,7 @@ class NoteStore:
         except (ValueError, OSError):
             return None
 
-    def list(self, skip: int = 0, limit: int = 50, source_type: str | None = None) -> list[Note]:
+    def list(self, skip: int = 0, limit: int = 50, source_type: str | None = None) -> List[Note]:
         """Return a page of notes ordered by ``modified`` DESC.
 
         Reads ONLY the page's files (at most ``limit``), using the index to pick
@@ -405,7 +405,7 @@ class NoteStore:
                 notes.append(note)
         return notes
 
-    def list_all(self) -> list[Note]:
+    def list_all(self) -> List[Note]:
         """List all notes in the storage directory (full scan, for back-fill/compat).
 
         Skips files that fail to parse — e.g. an empty/truncated .md left by an
@@ -422,7 +422,7 @@ class NoteStore:
             notes.append(note)
         return notes
 
-    def search(self, query: str) -> list[Note]:
+    def search(self, query: str) -> List[Note]:
         """Full-text search across note titles and content (case-insensitive).
 
         Hidden notes (e.g. agent-written memories) are excluded — they are
@@ -439,7 +439,7 @@ class NoteStore:
             if query_lower in note.title.lower() or query_lower in note.content.lower()
         ]
 
-    def get_by_tag(self, tag: str) -> list[Note]:
+    def get_by_tag(self, tag: str) -> List[Note]:
         """Return all notes that have the given tag (case-insensitive).
 
         Uses the index to find matching ids, then reads ONLY those files.

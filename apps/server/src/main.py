@@ -310,7 +310,7 @@ async def lifespan(app: FastAPI):
     # Strong-reference set for fire-and-forget background tasks (Python 3.12+
     # holds only weak references to tasks, so ensure_future/create_task can be
     # silently GC'd). Populated by _spawn_background() in chat.py.
-    app.state._bg_tasks: set = set()
+    app.state._bg_tasks: set = set()  # type: ignore[misc]
 
     # Embedding fingerprint: adopt the on-disk collections as the baseline on
     # first run (no wipe), then auto-reembed in the background if the effective

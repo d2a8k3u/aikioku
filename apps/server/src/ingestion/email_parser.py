@@ -43,7 +43,10 @@ def parse_email(raw_bytes: bytes, filename: str = "imported.eml") -> Note:
             payload = part.get_payload(decode=True)
             if payload is None:
                 continue
-            text = payload.decode("utf-8", errors="replace")
+            if isinstance(payload, bytes):
+                text = payload.decode("utf-8", errors="replace")
+            else:
+                text = str(payload)
             if ctype == "text/plain":
                 body_parts.append(text)
             elif ctype == "text/html":
@@ -52,7 +55,10 @@ def parse_email(raw_bytes: bytes, filename: str = "imported.eml") -> Note:
     else:
         payload = msg.get_payload(decode=True)
         if payload is not None:
-            body_parts.append(payload.decode("utf-8", errors="replace"))
+            if isinstance(payload, bytes):
+                body_parts.append(payload.decode("utf-8", errors="replace"))
+            else:
+                body_parts.append(str(payload))
 
     full_text = "\n\n".join(body_parts)
     note = Note(
