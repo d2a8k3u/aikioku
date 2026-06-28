@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS app_settings (
 # In-memory cache for app_settings. Invalidated on set_app_setting.
 _settings_cache: dict[str, str] | None = None
 _settings_cache_ts: float = 0.0
+_settings_cache_path: str | None = None
 _SETTINGS_CACHE_TTL = 5.0  # seconds
 
 
@@ -45,14 +46,20 @@ def _ensure_table() -> None:
 
 
 def load_app_settings() -> dict[str, str]:
-    global _settings_cache, _settings_cache_ts
-    if _settings_cache is not None and (time.monotonic() - _settings_cache_ts) < _SETTINGS_CACHE_TTL:
+    global _settings_cache, _settings_cache_ts, _settings_cache_path
+    db_path = settings.sqlite_db_path
+    if (
+        _settings_cache is not None
+        and _settings_cache_path == db_path
+        and (time.monotonic() - _settings_cache_ts) < _SETTINGS_CACHE_TTL
+    ):
         return _settings_cache
     _ensure_table()
-    with sqlite3.connect(settings.sqlite_db_path) as conn:
+    with sqlite3.connect(db_path) as conn:
         cursor = conn.execute("SELECT key, value FROM app_settings")
         _settings_cache = {row[0]: row[1] for row in cursor.fetchall()}
         _settings_cache_ts = time.monotonic()
+        _settings_cache_path = db_path
         return _settings_cache
 
 
