@@ -195,6 +195,23 @@ def build_runtime(app: FastAPI) -> None:
     graph = GraphRetriever(app.state.knowledge_graph)
     app.state.hybrid_fusion = HybridFusion(dense, sparse, graph)
 
+    from src.memory.extraction import MemoryExtractor
+    from src.reasoning.rag import RAGGenerator
+    from src.retrieval.conversation_retrieval import ConversationRetriever
+
+    memory_extractor = MemoryExtractor(app.state.llm_provider, app.state.event_bus)
+    conversation_retriever = ConversationRetriever(
+        app.state.conversation_embedding_store,
+        app.state.embedding_provider,
+    ) if getattr(app.state, "conversation_embedding_store", None) is not None else None
+    app.state.memory_extractor = memory_extractor
+    app.state.rag_generator = RAGGenerator(
+        fusion=app.state.hybrid_fusion,
+        llm_provider=app.state.llm_provider,
+        memory_extractor=memory_extractor,
+        conversation_retriever=conversation_retriever,
+    )
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
