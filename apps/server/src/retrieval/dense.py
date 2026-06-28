@@ -38,7 +38,7 @@ class DenseRetriever:
             embedding = await asyncio.wait_for(self._llm.embed(query), timeout=5.0)
         except asyncio.TimeoutError:
             return []
-        raw_results = self._store.search(embedding, limit=limit)
+        raw_results = await asyncio.to_thread(self._store.search, embedding, limit=limit)
 
         return [
             SearchResult(

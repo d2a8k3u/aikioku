@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
+
 from typing import TYPE_CHECKING
 
 from src.retrieval.search_result import SearchResult
@@ -69,31 +69,26 @@ class HybridFusion:
         Returns:
             A list of fused SearchResult objects ordered by descending score.
         """
-        loop = asyncio.get_event_loop()
-        with ThreadPoolExecutor() as executor:
-            dense_task = self._with_timeout(self.dense.search(query, limit=20), self._DENSE_TIMEOUT)
-            sparse_future = loop.run_in_executor(
-                executor, lambda: self.sparse.search(query, limit=20)
-            )
-            graph_future = loop.run_in_executor(
-                executor, lambda: self.graph.search(query, limit=20)
-            )
+        dense_task = self._with_timeout(self.dense.search(query, limit=20), self._DENSE_TIMEOUT)
+        sparse_future = self._with_timeout(
+            asyncio.to_thread(self.sparse.search, query, limit=20), self._SPARSE_TIMEOUT
+        )
+        graph_future = self._with_timeout(
+            asyncio.to_thread(self.graph.search, query, limit=20), self._GRAPH_TIMEOUT
+        )
 
-            sparse_task = self._with_timeout(sparse_future, self._SPARSE_TIMEOUT)
-            graph_task = self._with_timeout(graph_future, self._GRAPH_TIMEOUT)
-
-            try:
-                dense_results, sparse_results, graph_results = await asyncio.wait_for(
-                    asyncio.gather(dense_task, sparse_task, graph_task),
-                    timeout=self._FUSION_TIMEOUT,
-                )
-            except asyncio.TimeoutError:
-                # Total fusion timeout — return whatever partial results we have.
-                # Each individual task may have already completed or timed out;
-                # gather what we can from the completed tasks.
-                dense_results = await self._collect(dense_task)
-                sparse_results = await self._collect(sparse_task)
-                graph_results = await self._collect(graph_task)
+        try:
+            dense_results, sparse_results, graph_results = await asyncio.wait_for(
+                asyncio.gather(dense_task, sparse_future, graph_future),
+                timeout=self._FUSION_TIMEOUT,
+            )
+        except asyncio.TimeoutError:
+            # Total fusion timeout — return whatever partial results we have.
+            # Each individual task may have already completed or timed out;
+            # gather what we can from the completed tasks.
+            dense_results = await self._collect(dense_task)
+            sparse_results = await self._collect(sparse_future)
+            graph_results = await self._collect(graph_future)
 
         results = {
             "dense": dense_results,
