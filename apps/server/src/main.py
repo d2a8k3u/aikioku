@@ -112,6 +112,13 @@ async def _consolidation_worker(app: FastAPI, interval_hours: int = 24):
                 # Unconfigured: nothing to consolidate yet.
                 await asyncio.sleep(interval_hours * 3600)
                 continue
+            from src import runtime_config
+
+            if not runtime_config.auto_consolidation():
+                # Disabled in Settings: skip the LLM-heavy pass (re-read each
+                # iteration so the wizard/Settings can toggle without a restart).
+                await asyncio.sleep(interval_hours * 3600)
+                continue
             cost_tracker = getattr(app.state, "cost_tracker", None)
             if cost_tracker is not None and cost_tracker.is_exhausted():
                 # Daily budget reached: pause LLM-heavy consolidation until the
