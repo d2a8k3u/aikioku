@@ -43,7 +43,7 @@ class ConversationRetriever:
         """
         try:
             embedding = await asyncio.wait_for(self._llm.embed(query), timeout=3.0)
-            return self._store.search(embedding, limit=limit)
+            return await asyncio.to_thread(self._store.search, embedding, limit=limit)
         except asyncio.TimeoutError:
             logger.warning("Conversation recall timed out; continuing without it.")
             return []
