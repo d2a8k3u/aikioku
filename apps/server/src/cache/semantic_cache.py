@@ -123,7 +123,6 @@ def _patch_onnx_for_transformers_v5() -> None:
 
             # Pad sequences to the same length
             max_len = max(len(ids) for ids in input_ids_list)
-            pad_id = self.tokenizer.pad_token_id or 0
 
             def _pad(arr, length):
                 padded = np.zeros(length, dtype=arr.dtype)
