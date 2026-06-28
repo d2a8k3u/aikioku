@@ -260,13 +260,16 @@ async def _capture_turn(
             # without polling.
             broadcaster = get_broadcaster()
             if broadcaster:
-                await broadcaster.broadcast("chat.message_updated", {
-                    "message_id": turn_id,
-                    "content": assistant_a,
-                    "citations": citations,
-                    "sub_questions": sub_questions,
-                    "in_progress": False,
-                })
+                await broadcaster.broadcast(
+                    "chat.message_updated",
+                    {
+                        "message_id": turn_id,
+                        "content": assistant_a,
+                        "citations": citations,
+                        "sub_questions": sub_questions,
+                        "in_progress": False,
+                    },
+                )
         except Exception:
             logger.warning("Failed to update assistant placeholder %s.", turn_id, exc_info=True)
 
@@ -427,6 +430,7 @@ def _sse(event: str, data: dict | list) -> str:
 
 # ── Progressive context builder (used by simple-mode streaming) ──────────
 
+
 async def _build_context_progressive(
     rag,
     query: str,
@@ -464,13 +468,15 @@ async def _build_context_progressive(
             title = note.title if note else None
             raw = r.snippet or (note.content if note else "")
             content = raw
-            context_entries.append({
-                "note_id": r.note_id,
-                "snippet": r.snippet or "",
-                "content": content,
-                "score": r.score,
-                "title": title,
-            })
+            context_entries.append(
+                {
+                    "note_id": r.note_id,
+                    "snippet": r.snippet or "",
+                    "content": content,
+                    "score": r.score,
+                    "title": title,
+                }
+            )
         system_prompt = rag._build_system_prompt(context_entries, None, history)
         citations = rag._extract_citations("", context_entries)
         return system_prompt, citations
@@ -496,6 +502,9 @@ async def _stream_chat(
 
     note_store = _get_note_store(request)
     llm = request.app.state.llm_provider
+    # Cache entries are model-specific: a different provider/model produces a
+    # different answer, so the active model is validated on hit (see cache_get).
+    model_id = f"{runtime_config.llm_provider()}:{runtime_config.llm_model()}"
 
     history = _load_history(user_id)
     turn_id = _begin_turn(user_id, query)
@@ -507,7 +516,7 @@ async def _stream_chat(
         await broadcaster.broadcast("chat.streaming", {"active": True})
 
     # ── Semantic cache check ──────────────────────────────────────────────
-    cached = await cache_get(query, mode, tone)
+    cached = await cache_get(query, mode, tone, model_id)
     if cached is not None:
         # Cache hit: stream the cached answer immediately in SSE format.
         # The turn placeholder is already created; we persist the cached
@@ -544,7 +553,7 @@ async def _stream_chat(
                         citations_data,
                         sub_qs,
                         None,
-                    )
+                    ),
                 )
                 if broadcaster:
                     await broadcaster.broadcast("buddy.state", {"state": "listening"})
@@ -588,16 +597,19 @@ async def _stream_chat(
                 # Step 1: Retrieve immediately, send citations right away.
                 # The user sees note chips before the answer starts — instant feedback.
                 results = await rag._fusion.search(query)
-                raw_citations = rag._extract_citations("", [
-                    {
-                        "note_id": r.note_id,
-                        "snippet": r.snippet,
-                        "content": r.snippet,
-                        "score": r.score,
-                        "title": None,
-                    }
-                    for r in results[:5]
-                ])
+                raw_citations = rag._extract_citations(
+                    "",
+                    [
+                        {
+                            "note_id": r.note_id,
+                            "snippet": r.snippet,
+                            "content": r.snippet,
+                            "score": r.score,
+                            "title": None,
+                        }
+                        for r in results[:5]
+                    ],
+                )
                 yield _sse("citations", raw_citations)
 
                 # Step 1.5: Stream raw note snippets immediately for instant preview.
@@ -606,11 +618,14 @@ async def _stream_chat(
                     note = note_store.get(r.note_id)
                     if note and note.content:
                         snippet_text = note.content[:500]
-                        yield _sse("snippet", {
-                            "note_id": r.note_id,
-                            "title": note.title,
-                            "snippet": snippet_text,
-                        })
+                        yield _sse(
+                            "snippet",
+                            {
+                                "note_id": r.note_id,
+                                "title": note.title,
+                                "snippet": snippet_text,
+                            },
+                        )
 
                 # Step 2: Build context with timeout, reusing pre-fetched results.
                 # If slow, fall back to snippets.
@@ -636,7 +651,9 @@ async def _stream_chat(
                         if remaining <= 0:
                             raise asyncio.TimeoutError("Stream total timeout exceeded")
                         try:
-                            chunk = await asyncio.wait_for(stream.__anext__(), timeout=min(remaining, 30.0))
+                            chunk = await asyncio.wait_for(
+                                stream.__anext__(), timeout=min(remaining, 30.0)
+                            )
                             answer_parts.append(chunk)
                             yield _sse("message", {"chunk": chunk})
                         except StopAsyncIteration:
@@ -655,7 +672,10 @@ async def _stream_chat(
                     if answer_parts:
                         pass  # partial answer is fine
                     else:
-                        yield _sse("message", {"chunk": "[I'm taking too long. Please try a shorter question.]"})
+                        yield _sse(
+                            "message",
+                            {"chunk": "[I'm taking too long. Please try a shorter question.]"},
+                        )
                 except asyncio.CancelledError:
                     # Client disconnected or stop requested — handled by finally.
                     raise
@@ -668,12 +688,11 @@ async def _stream_chat(
                 # Simple streaming generates no memories; _capture_turn extracts them.
                 _spawn_background(
                     request.app,
-                    _capture_turn(request, user_id, query, answer, turn_id, citations, [], None)
+                    _capture_turn(request, user_id, query, answer, turn_id, citations, [], None),
                 )
                 # Store in semantic cache for future hits (fire-and-forget).
                 _spawn_background(
-                    request.app,
-                    cache_put(query, mode, tone, answer, citations, [])
+                    request.app, cache_put(query, mode, tone, answer, citations, [], model_id)
                 )
                 # Broadcast buddy state: listening
                 if broadcaster:
@@ -730,12 +749,12 @@ async def _stream_chat(
                         citations,
                         sub_questions,
                         memories,
-                    )
+                    ),
                 )
                 # Store in semantic cache for future hits (fire-and-forget).
                 _spawn_background(
                     request.app,
-                    cache_put(query, mode, tone, answer, citations, sub_questions)
+                    cache_put(query, mode, tone, answer, citations, sub_questions, model_id),
                 )
                 # Broadcast buddy state: listening
                 if broadcaster:

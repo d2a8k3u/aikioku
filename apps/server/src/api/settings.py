@@ -100,9 +100,17 @@ def _settings_to_dict() -> dict:
 
 def _maybe_rebuild(request: Request) -> None:
     if getattr(request.app.state, "configured", False):
+        import asyncio
+
         from src.main import build_runtime
 
         build_runtime(request.app)
+        # The model/provider (or retrieval config) changed, so cached answers may
+        # be from the old model. Flush the semantic cache as note writes do, else a
+        # repeated question would return a stale answer until the cache TTL expires.
+        from src.cache.semantic_cache import cache_invalidate
+
+        asyncio.ensure_future(cache_invalidate())
         # If the change altered the effective embedding config, rebuild the
         # vector store in the background (atomic swap, no search blackout).
         from src.knowledge.reembed import maybe_schedule_reembed
