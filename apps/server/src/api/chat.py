@@ -100,35 +100,9 @@ def _get_note_store(request: Request) -> NoteStore:
     return store
 
 
-def _build_conversation_retriever(request: Request):
-    """Build a ConversationRetriever over the shared conversation vector store.
-
-    Returns None when the store or LLM provider is unavailable (e.g. the app is
-    not yet configured), in which case recall is simply skipped.
-    """
-    store = getattr(request.app.state, "conversation_embedding_store", None)
-    embedder = getattr(request.app.state, "embedding_provider", None)
-    if store is None or embedder is None:
-        return None
-    from src.retrieval.conversation_retrieval import ConversationRetriever
-
-    return ConversationRetriever(store, embedder)
-
-
 def _build_rag_generator(request: Request):
-    """Build and return a RAGGenerator instance using app.state singletons."""
-    from src.memory.extraction import MemoryExtractor
-    from src.reasoning.rag import RAGGenerator
-
-    llm = request.app.state.llm_provider
-    hybrid_fusion = request.app.state.hybrid_fusion
-    memory_extractor = MemoryExtractor(llm, request.app.state.event_bus)
-    return RAGGenerator(
-        fusion=hybrid_fusion,
-        llm_provider=llm,
-        memory_extractor=memory_extractor,
-        conversation_retriever=_build_conversation_retriever(request),
-    )
+    """Return the singleton RAGGenerator from app.state."""
+    return request.app.state.rag_generator
 
 
 def _build_multi_hop_reasoner(request: Request):
