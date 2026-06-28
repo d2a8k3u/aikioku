@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import os
 import sqlite3
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import AsyncIterator
@@ -205,14 +208,35 @@ class LLMRouter(LLMProvider):
         self._failure_threshold = failure_threshold
         self._cooldown_seconds = cooldown_seconds
         self._circuits: dict[int, CircuitState] = {i: CircuitState() for i in range(len(providers))}
+        self._avail_ttl = float(os.environ.get("LLM_AVAILABILITY_TTL", "60"))
+        self._avail_cache: dict[int, tuple[bool, float]] = {}
 
-    def _first_available(self) -> tuple[int, LLMProvider]:
+    async def _is_available_cached(self, idx: int, provider: LLMProvider) -> bool:
+        """Cached availability check; the blocking probe runs off the event loop."""
+        now = time.monotonic()
+        cached = self._avail_cache.get(idx)
+        if cached is not None and now - cached[1] < self._avail_ttl:
+            return cached[0]
+        available = await asyncio.to_thread(provider.is_available)
+        self._avail_cache[idx] = (available, now)
+        return available
+
+    async def _first_available(self) -> tuple[int, LLMProvider]:
         for i, provider in enumerate(self._providers):
             if not self._circuits[i].is_open(self._failure_threshold, self._cooldown_seconds):
-                if provider.is_available():
+                if await self._is_available_cached(i, provider):
                     return i, provider
         # Fallback: return first provider even if circuit is open
         return 0, self._providers[0]
+
+    def _record_failure(self, idx: int) -> None:
+        """Record a provider failure and drop its cached availability.
+
+        Invalidating only on failure (never on success) keeps the cache warm
+        through busy successful workloads while re-probing a just-died provider.
+        """
+        self._circuits[idx].record_failure()
+        self._avail_cache.pop(idx, None)
 
     async def complete(self, prompt: str, system: str = "", **kwargs) -> str:
         if self._cost_tracker is not None:
@@ -226,14 +250,14 @@ class LLMRouter(LLMProvider):
                     self._cost_tracker.daily_budget,
                     self._cost_tracker.get_today_cost(),
                 )
-        idx, provider = self._first_available()
+        idx, provider = await self._first_available()
         try:
             result = await provider.complete(prompt, system, **kwargs)
             self._circuits[idx].record_success()
             self._track(provider, prompt, result)
             return result
         except Exception as exc:
-            self._circuits[idx].record_failure()
+            self._record_failure(idx)
             logger.warning("provider_failed: %s - %s", type(provider).__name__, str(exc))
             # Try next provider
             for fallback_idx, fallback in enumerate(self._providers):
@@ -248,7 +272,7 @@ class LLMRouter(LLMProvider):
                         self._track(fallback, prompt, result)
                         return result
                     except Exception as exc2:
-                        self._circuits[fallback_idx].record_failure()
+                        self._record_failure(fallback_idx)
                         logger.warning(
                             "fallback_failed: %s - %s", type(fallback).__name__, str(exc2)
                         )
@@ -266,14 +290,14 @@ class LLMRouter(LLMProvider):
                     self._cost_tracker.daily_budget,
                     self._cost_tracker.get_today_cost(),
                 )
-        idx, provider = self._first_available()
+        idx, provider = await self._first_available()
         try:
             async for chunk in provider.stream(prompt, system, **kwargs):
                 yield chunk
             self._circuits[idx].record_success()
             self._track(provider, prompt, "")
         except Exception as exc:
-            self._circuits[idx].record_failure()
+            self._record_failure(idx)
             logger.warning("stream_provider_failed: %s - %s", type(provider).__name__, str(exc))
             # Fallback: complete non-streaming and yield as single chunk
             for fallback_idx, fallback in enumerate(self._providers):
@@ -289,20 +313,20 @@ class LLMRouter(LLMProvider):
                         yield result
                         return
                     except Exception as exc2:
-                        self._circuits[fallback_idx].record_failure()
+                        self._record_failure(fallback_idx)
                         logger.warning(
                             "stream_fallback_failed: %s - %s", type(fallback).__name__, str(exc2)
                         )
             raise
 
     async def embed(self, text: str) -> list[float]:
-        idx, provider = self._first_available()
+        idx, provider = await self._first_available()
         try:
             result = await provider.embed(text)
             self._circuits[idx].record_success()
             return result
         except Exception:
-            self._circuits[idx].record_failure()
+            self._record_failure(idx)
             for fallback_idx, fallback in enumerate(self._providers):
                 if fallback_idx == idx:
                     continue
@@ -314,15 +338,17 @@ class LLMRouter(LLMProvider):
                         self._circuits[fallback_idx].record_success()
                         return result
                     except Exception:
-                        self._circuits[fallback_idx].record_failure()
+                        self._record_failure(fallback_idx)
             raise
 
     def is_available(self) -> bool:
-        return any(
-            not self._circuits[i].is_open(self._failure_threshold, self._cooldown_seconds)
-            and p.is_available()
-            for i, p in enumerate(self._providers)
-        )
+        for i in range(len(self._providers)):
+            if self._circuits[i].is_open(self._failure_threshold, self._cooldown_seconds):
+                continue
+            cached = self._avail_cache.get(i)
+            if cached is None or cached[0]:
+                return True
+        return False
 
     def _track(self, provider: LLMProvider, prompt: str, result: str) -> None:
         if self._cost_tracker is None:
