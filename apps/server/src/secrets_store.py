@@ -6,6 +6,7 @@ secret). Secrets are encrypted with Fernet (AES-128-CBC + HMAC) and stored in th
 a chicken-and-egg constraint: the DB can't decrypt itself. The key file is
 auto-generated on first run and persisted in the data volume.
 """
+
 from __future__ import annotations
 
 import os
@@ -94,9 +95,7 @@ def get_secret(key: str) -> str | None:
     """Return the decrypted secret, or None if absent/undecryptable."""
     _ensure_table()
     with sqlite3.connect(settings.sqlite_db_path) as conn:
-        row = conn.execute(
-            "SELECT value FROM app_secrets WHERE key = ?", (key,)
-        ).fetchone()
+        row = conn.execute("SELECT value FROM app_secrets WHERE key = ?", (key,)).fetchone()
     if row is None:
         return None
     try:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from src.llm.base import LLMProvider
 from src.llm.long_text import condense_for_prompt
@@ -14,6 +14,7 @@ from src.models.memory import Memory
 if TYPE_CHECKING:
     from src.retrieval.conversation_retrieval import ConversationRetriever
     from src.retrieval.fusion import HybridFusion
+    from src.retrieval.search_result import SearchResult
     from src.storage.note_store import NoteStore
 
 logger = logging.getLogger(__name__)
@@ -58,8 +59,8 @@ class RAGGenerator:
         self,
         query: str,
         note_store: NoteStore,
-        history: list[dict] | None = None,
-    ) -> tuple[str, list[dict]]:
+        history: list[dict[str, Any]] | None = None,
+    ) -> tuple[str, list[dict[str, Any]]]:
         """Retrieve and build the grounding context for a query.
 
         Performs retrieval, full-note-content context assembly, system-prompt
@@ -99,7 +100,7 @@ class RAGGenerator:
         citations = self._extract_citations("", context)
         return system_prompt, citations
 
-    async def _recall_conversations(self, query: str) -> list[dict]:
+    async def _recall_conversations(self, query: str) -> list[dict[str, Any]]:
         """Recall past chat turns similar to the query (best-effort, may be empty)."""
         if self._conversation_retriever is None:
             return []
@@ -118,8 +119,8 @@ class RAGGenerator:
         note_store: NoteStore,
         *,
         extract_memories: bool = True,
-        history: list[dict] | None = None,
-    ) -> dict:
+        history: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
         """Generate a RAG response for the given query.
 
         Steps:
@@ -184,7 +185,9 @@ class RAGGenerator:
             "memories": memories,
         }
 
-    async def _build_context_entry(self, result, note_store: NoteStore, *, query: str = "") -> dict:
+    async def _build_context_entry(
+        self, result: SearchResult, note_store: NoteStore, *, query: str = ""
+    ) -> dict[str, Any]:
         """Build a single context entry for a fused result.
 
         For ``source_type="note"`` results: fetches the real note via
@@ -245,9 +248,9 @@ class RAGGenerator:
 
     def _build_system_prompt(
         self,
-        context: list[dict],
-        conversation_context: list[dict] | None = None,
-        history: list[dict] | None = None,
+        context: list[dict[str, Any]],
+        conversation_context: list[dict[str, Any]] | None = None,
+        history: list[dict[str, Any]] | None = None,
     ) -> str:
         """Build the system prompt with retrieved context and instructions.
 
@@ -344,7 +347,9 @@ class RAGGenerator:
         """
         return f"Question: {query}"
 
-    def _extract_citations(self, response: str, context: list[dict]) -> list[dict]:
+    def _extract_citations(
+        self, response: str, context: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Extract citation information from the response and context.
 
         Returns a list of citation dicts for each context chunk,

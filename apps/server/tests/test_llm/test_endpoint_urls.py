@@ -1,4 +1,5 @@
 """Model-listing and setup-test endpoints must build normalized URLs."""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -21,7 +22,9 @@ def _ok(payload: dict) -> MagicMock:
 class TestModelListUrls:
     @pytest.mark.asyncio
     async def test_ollama_tags_url_normalized(self):
-        with patch("httpx.AsyncClient.get", new=AsyncMock(return_value=_ok({"models": []}))) as mock_get:
+        with patch(
+            "httpx.AsyncClient.get", new=AsyncMock(return_value=_ok({"models": []}))
+        ) as mock_get:
             await list_ollama_models("https://api.ollama.com/v1")
 
         args, kwargs = mock_get.call_args
@@ -30,7 +33,9 @@ class TestModelListUrls:
 
     @pytest.mark.asyncio
     async def test_openrouter_models_url_normalized(self):
-        with patch("httpx.AsyncClient.get", new=AsyncMock(return_value=_ok({"data": []}))) as mock_get:
+        with patch(
+            "httpx.AsyncClient.get", new=AsyncMock(return_value=_ok({"data": []}))
+        ) as mock_get:
             await list_openrouter_models("https://openrouter.ai")
 
         args, kwargs = mock_get.call_args
@@ -41,7 +46,9 @@ class TestModelListUrls:
 class TestSetupTestUrls:
     @pytest.mark.asyncio
     async def test_ollama_branch_normalizes(self):
-        payload = setup_api.TestPayload(llm_provider="ollama_remote", ollama_base_url="https://api.ollama.com/api/v1")
+        payload = setup_api.TestPayload(
+            llm_provider="ollama_remote", ollama_base_url="https://api.ollama.com/api/v1"
+        )
         with patch("httpx.AsyncClient.get", new=AsyncMock(return_value=_ok({}))) as mock_get:
             await setup_api.test_connection(payload)
 
@@ -51,7 +58,9 @@ class TestSetupTestUrls:
 
     @pytest.mark.asyncio
     async def test_openrouter_branch_normalizes(self):
-        payload = setup_api.TestPayload(llm_provider="openrouter", openrouter_base_url="https://openrouter.ai")
+        payload = setup_api.TestPayload(
+            llm_provider="openrouter", openrouter_base_url="https://openrouter.ai"
+        )
         with patch("httpx.AsyncClient.get", new=AsyncMock(return_value=_ok({}))) as mock_get:
             await setup_api.test_connection(payload)
 
@@ -79,7 +88,11 @@ class TestEmbeddingModelsListing:
         tags = _ok({"models": [{"name": "nomic-embed-text", "details": {"family": "nomic-bert"}}]})
         with patch("httpx.AsyncClient.get", new=AsyncMock(return_value=tags)) as mock_get:
             res = await settings_api.list_embedding_models(
-                provider="ollama", base_url="http://host:11434/api", api_key=None, q=None, _user=None
+                provider="ollama",
+                base_url="http://host:11434/api",
+                api_key=None,
+                q=None,
+                _user=None,
             )
         args, kwargs = mock_get.call_args
         url = args[0] if args else kwargs["url"]

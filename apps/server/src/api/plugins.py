@@ -1,5 +1,8 @@
 """Plugin API endpoints with manifest validation and hook wiring."""
+
 from __future__ import annotations
+
+from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, field_validator
@@ -43,17 +46,14 @@ def _get_plugin_api(request: Request) -> PluginAPI:
 
 
 @router.get("/")
-async def list_plugins(request: Request) -> list[dict]:
+async def list_plugins(request: Request) -> list[dict[str, Any]]:
     """List all registered plugins."""
     manager = _get_manager(request)
-    return [
-        {"name": name, **info}
-        for name, info in manager._plugins.items()
-    ]
+    return [{"name": name, **info} for name, info in manager._plugins.items()]
 
 
 @router.post("/")
-async def register_plugin(request: Request, manifest: PluginManifest) -> dict:
+async def register_plugin(request: Request, manifest: PluginManifest) -> dict[str, str]:
     """Register a new plugin from a manifest."""
     manager = _get_manager(request)
     manager.register_plugin(manifest.name, manifest.model_dump())
@@ -61,7 +61,7 @@ async def register_plugin(request: Request, manifest: PluginManifest) -> dict:
 
 
 @router.post("/{name}/activate")
-async def activate_plugin(request: Request, name: str) -> dict:
+async def activate_plugin(request: Request, name: str) -> dict[str, str]:
     """Activate a registered plugin."""
     manager = _get_manager(request)
     try:
@@ -72,7 +72,7 @@ async def activate_plugin(request: Request, name: str) -> dict:
 
 
 @router.post("/{name}/deactivate")
-async def deactivate_plugin(request: Request, name: str) -> dict:
+async def deactivate_plugin(request: Request, name: str) -> dict[str, str]:
     """Deactivate a registered plugin."""
     manager = _get_manager(request)
     try:
@@ -83,7 +83,7 @@ async def deactivate_plugin(request: Request, name: str) -> dict:
 
 
 @router.delete("/{name}")
-async def unregister_plugin(request: Request, name: str) -> dict:
+async def unregister_plugin(request: Request, name: str) -> dict[str, str]:
     """Remove a registered plugin."""
     manager = _get_manager(request)
     if name not in manager._plugins:
@@ -100,4 +100,4 @@ async def list_plugin_hooks(request: Request, name: str) -> list[str]:
     if info is None:
         raise HTTPException(status_code=404, detail=f"Plugin not found: {name}")
     manifest = info.get("manifest", {})
-    return manifest.get("hooks", [])
+    return cast("list[str]", manifest.get("hooks", []))

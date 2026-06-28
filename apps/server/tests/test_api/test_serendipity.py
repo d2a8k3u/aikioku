@@ -1,4 +1,5 @@
 """Tests for Serendipity API endpoints."""
+
 from __future__ import annotations
 
 import os
@@ -29,12 +30,20 @@ def client():
         kg.create_entity(e2)
         kg.create_entity(e3)
 
-        kg.create_relation(Relation(
-            source_entity_id=e1.id, target_entity_id=e2.id, type=RelationType.works_at,
-        ))
-        kg.create_relation(Relation(
-            source_entity_id=e2.id, target_entity_id=e3.id, type=RelationType.works_at,
-        ))
+        kg.create_relation(
+            Relation(
+                source_entity_id=e1.id,
+                target_entity_id=e2.id,
+                type=RelationType.works_at,
+            )
+        )
+        kg.create_relation(
+            Relation(
+                source_entity_id=e2.id,
+                target_entity_id=e3.id,
+                type=RelationType.works_at,
+            )
+        )
 
         yield TestClient(app), e1, e2, e3
 
@@ -84,6 +93,7 @@ class TestSurpriseScore:
         # e3 has one relation (to e2), e1 has one relation (to e2)
         # Create an isolated entity
         from src.models.entity import Entity, EntityType
+
         isolated = Entity(name="Isolated", type=EntityType.Concept, confidence=0.90)
         app = cli.app
         app.state.knowledge_graph.create_entity(isolated)

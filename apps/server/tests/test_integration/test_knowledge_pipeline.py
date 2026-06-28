@@ -3,6 +3,7 @@
 Tests entity and relation CRUD, type-based queries, and path finding
 using a real Kuzu database in a temp directory.
 """
+
 from __future__ import annotations
 
 import tempfile
@@ -165,20 +166,24 @@ def test_find_paths(kg):
     kg.create_entity(entity_b)
     kg.create_entity(entity_c)
 
-    kg.create_relation(Relation(
-        id=str(uuid.uuid4()),
-        source_entity_id=entity_a.id,
-        target_entity_id=entity_b.id,
-        type=RelationType.works_at,
-        confidence=0.8,
-    ))
-    kg.create_relation(Relation(
-        id=str(uuid.uuid4()),
-        source_entity_id=entity_b.id,
-        target_entity_id=entity_c.id,
-        type=RelationType.created,
-        confidence=0.7,
-    ))
+    kg.create_relation(
+        Relation(
+            id=str(uuid.uuid4()),
+            source_entity_id=entity_a.id,
+            target_entity_id=entity_b.id,
+            type=RelationType.works_at,
+            confidence=0.8,
+        )
+    )
+    kg.create_relation(
+        Relation(
+            id=str(uuid.uuid4()),
+            source_entity_id=entity_b.id,
+            target_entity_id=entity_c.id,
+            type=RelationType.created,
+            confidence=0.7,
+        )
+    )
 
     paths = kg.find_paths(entity_a.id, entity_c.id, max_depth=2)
     assert len(paths) == 1

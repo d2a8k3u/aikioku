@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import uuid
 from datetime import datetime
+from typing import Any
 
 import yaml
 
@@ -22,7 +23,7 @@ def parse_markdown_file(content: str, filename: str) -> Note:
         A fully populated Note instance.
     """
     title = _title_from_filename(filename)
-    frontmatter: dict = {}
+    frontmatter: dict[str, Any] = {}
     body = content
     created = datetime.utcnow()
     modified = datetime.utcnow()

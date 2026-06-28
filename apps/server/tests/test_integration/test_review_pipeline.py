@@ -2,6 +2,7 @@
 
 Uses real SQLite in a temp directory and a mocked LLMProvider for card generation.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -120,8 +121,12 @@ class TestGenerateCardsFromNote:
         # Verify LLM was called with the note content
         mock_llm_provider.complete.assert_called_once()
         call_kwargs = mock_llm_provider.complete.call_args
-        assert sample_note.title in call_kwargs.kwargs.get("prompt", call_kwargs[1].get("prompt", ""))
-        assert sample_note.content in call_kwargs.kwargs.get("prompt", call_kwargs[1].get("prompt", ""))
+        assert sample_note.title in call_kwargs.kwargs.get(
+            "prompt", call_kwargs[1].get("prompt", "")
+        )
+        assert sample_note.content in call_kwargs.kwargs.get(
+            "prompt", call_kwargs[1].get("prompt", "")
+        )
 
         # Verify all cards have status 'new' and interval 0
         for card in cards:

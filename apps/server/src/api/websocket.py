@@ -1,4 +1,5 @@
 """WebSocket endpoint for real-time EventBus events."""
+
 from __future__ import annotations
 
 import asyncio
@@ -35,12 +36,14 @@ class _EventBusBroadcaster:
                 self._connections.remove(websocket)
 
     async def _on_event(self, event: Event) -> None:
-        message = json.dumps({
-            "id": event.id,
-            "type": event.type,
-            "data": event.data,
-            "created": event.created.isoformat(),
-        })
+        message = json.dumps(
+            {
+                "id": event.id,
+                "type": event.type,
+                "data": event.data,
+                "created": event.created.isoformat(),
+            }
+        )
         async with self._lock:
             to_remove: list[WebSocket] = []
             for ws in self._connections:
@@ -76,7 +79,7 @@ def get_broadcaster() -> "_EventBusBroadcaster | None":
 
 
 @router.websocket("/ws/events")
-async def websocket_events(websocket: WebSocket):
+async def websocket_events(websocket: WebSocket) -> None:
     """WebSocket endpoint that streams all EventBus events in real-time."""
     if _broadcaster is None:
         await websocket.close(code=1011, reason="EventBus not initialized")

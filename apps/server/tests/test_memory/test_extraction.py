@@ -46,25 +46,25 @@ class TestExtractFromNote:
     ):
         from src.memory.extraction import MemoryExtractor
 
-        mock_response = json.dumps([
-            {
-                "subject": "Python",
-                "predicate": "is_a",
-                "object": "programming language",
-                "confidence": 0.95,
-            },
-            {
-                "subject": "Python",
-                "predicate": "created_by",
-                "object": "Guido van Rossum",
-                "confidence": 0.90,
-            },
-        ])
+        mock_response = json.dumps(
+            [
+                {
+                    "subject": "Python",
+                    "predicate": "is_a",
+                    "object": "programming language",
+                    "confidence": 0.95,
+                },
+                {
+                    "subject": "Python",
+                    "predicate": "created_by",
+                    "object": "Guido van Rossum",
+                    "confidence": 0.90,
+                },
+            ]
+        )
         mock_llm_provider.complete.return_value = mock_response
 
-        extractor = MemoryExtractor(
-            llm_provider=mock_llm_provider, event_bus=mock_event_bus
-        )
+        extractor = MemoryExtractor(llm_provider=mock_llm_provider, event_bus=mock_event_bus)
         memories = await extractor.extract_from_note(sample_note)
 
         assert len(memories) == 2
@@ -83,9 +83,7 @@ class TestExtractFromNote:
 
         mock_llm_provider.complete.return_value = "[]"
 
-        extractor = MemoryExtractor(
-            llm_provider=mock_llm_provider, event_bus=mock_event_bus
-        )
+        extractor = MemoryExtractor(llm_provider=mock_llm_provider, event_bus=mock_event_bus)
         await extractor.extract_from_note(sample_note)
 
         mock_llm_provider.complete.assert_called_once()
@@ -110,19 +108,19 @@ class TestExtractFromConversation:
             },
         ]
 
-        mock_response = json.dumps([
-            {
-                "subject": "Machine learning",
-                "predicate": "is_a",
-                "object": "subset of AI",
-                "confidence": 0.88,
-            },
-        ])
+        mock_response = json.dumps(
+            [
+                {
+                    "subject": "Machine learning",
+                    "predicate": "is_a",
+                    "object": "subset of AI",
+                    "confidence": 0.88,
+                },
+            ]
+        )
         mock_llm_provider.complete.return_value = mock_response
 
-        extractor = MemoryExtractor(
-            llm_provider=mock_llm_provider, event_bus=mock_event_bus
-        )
+        extractor = MemoryExtractor(llm_provider=mock_llm_provider, event_bus=mock_event_bus)
         memories = await extractor.extract_from_conversation(messages)
 
         assert len(memories) == 1
@@ -144,9 +142,7 @@ class TestExtractFromConversation:
 
         mock_llm_provider.complete.return_value = "[]"
 
-        extractor = MemoryExtractor(
-            llm_provider=mock_llm_provider, event_bus=mock_event_bus
-        )
+        extractor = MemoryExtractor(llm_provider=mock_llm_provider, event_bus=mock_event_bus)
         await extractor.extract_from_conversation(messages)
 
         mock_llm_provider.complete.assert_called_once()
@@ -162,9 +158,11 @@ class TestExtractFromText:
     async def test_extract_from_text_returns_memories(self, mock_llm_provider, mock_event_bus):
         from src.memory.extraction import MemoryExtractor
 
-        mock_llm_provider.complete.return_value = json.dumps([
-            {"subject": "Alice", "predicate": "works_at", "object": "Acme", "confidence": 0.9},
-        ])
+        mock_llm_provider.complete.return_value = json.dumps(
+            [
+                {"subject": "Alice", "predicate": "works_at", "object": "Acme", "confidence": 0.9},
+            ]
+        )
 
         extractor = MemoryExtractor(llm_provider=mock_llm_provider, event_bus=mock_event_bus)
         memories = await extractor.extract_from_text("Alice works at Acme", source="user")
@@ -193,18 +191,18 @@ class TestParseMemories:
     def test_parse_memories_valid_json(self, mock_llm_provider, mock_event_bus):
         from src.memory.extraction import MemoryExtractor
 
-        extractor = MemoryExtractor(
-            llm_provider=mock_llm_provider, event_bus=mock_event_bus
-        )
+        extractor = MemoryExtractor(llm_provider=mock_llm_provider, event_bus=mock_event_bus)
 
-        response = json.dumps([
-            {
-                "subject": "Alice",
-                "predicate": "knows",
-                "object": "Bob",
-                "confidence": 0.75,
-            },
-        ])
+        response = json.dumps(
+            [
+                {
+                    "subject": "Alice",
+                    "predicate": "knows",
+                    "object": "Bob",
+                    "confidence": 0.75,
+                },
+            ]
+        )
 
         memories = extractor._parse_memories(response, source="test-source")
 
@@ -215,14 +213,10 @@ class TestParseMemories:
         assert memories[0].confidence == 0.75
         assert memories[0].source == "test-source"
 
-    def test_parse_memories_invalid_json_returns_empty(
-        self, mock_llm_provider, mock_event_bus
-    ):
+    def test_parse_memories_invalid_json_returns_empty(self, mock_llm_provider, mock_event_bus):
         from src.memory.extraction import MemoryExtractor
 
-        extractor = MemoryExtractor(
-            llm_provider=mock_llm_provider, event_bus=mock_event_bus
-        )
+        extractor = MemoryExtractor(llm_provider=mock_llm_provider, event_bus=mock_event_bus)
 
         memories = extractor._parse_memories("not valid json", source="test-source")
 
@@ -231,9 +225,7 @@ class TestParseMemories:
     def test_parse_memories_empty_array(self, mock_llm_provider, mock_event_bus):
         from src.memory.extraction import MemoryExtractor
 
-        extractor = MemoryExtractor(
-            llm_provider=mock_llm_provider, event_bus=mock_event_bus
-        )
+        extractor = MemoryExtractor(llm_provider=mock_llm_provider, event_bus=mock_event_bus)
 
         memories = extractor._parse_memories("[]", source="test-source")
 
@@ -242,18 +234,18 @@ class TestParseMemories:
     def test_parse_memories_fenced_json(self, mock_llm_provider, mock_event_bus):
         from src.memory.extraction import MemoryExtractor
 
-        extractor = MemoryExtractor(
-            llm_provider=mock_llm_provider, event_bus=mock_event_bus
-        )
+        extractor = MemoryExtractor(llm_provider=mock_llm_provider, event_bus=mock_event_bus)
 
-        inner = json.dumps([
-            {
-                "subject": "Alice",
-                "predicate": "knows",
-                "object": "Bob",
-                "confidence": 0.75,
-            },
-        ])
+        inner = json.dumps(
+            [
+                {
+                    "subject": "Alice",
+                    "predicate": "knows",
+                    "object": "Bob",
+                    "confidence": 0.75,
+                },
+            ]
+        )
         response = f"Here are the memories:\n```json\n{inner}\n```"
 
         memories = extractor._parse_memories(response, source="test-source")
@@ -262,9 +254,7 @@ class TestParseMemories:
         assert memories[0].subject == "Alice"
         assert memories[0].object == "Bob"
 
-    def test_parse_memories_seeds_vitality_with_confidence(
-        self, mock_llm_provider, mock_event_bus
-    ):
+    def test_parse_memories_seeds_vitality_with_confidence(self, mock_llm_provider, mock_event_bus):
         """A freshly-extracted, confident memory should start 'alive'.
 
         vitality_score must seed from confidence so stage_forgetting tiers it
@@ -272,18 +262,18 @@ class TestParseMemories:
         """
         from src.memory.extraction import MemoryExtractor
 
-        extractor = MemoryExtractor(
-            llm_provider=mock_llm_provider, event_bus=mock_event_bus
-        )
+        extractor = MemoryExtractor(llm_provider=mock_llm_provider, event_bus=mock_event_bus)
 
-        response = json.dumps([
-            {
-                "subject": "Alice",
-                "predicate": "knows",
-                "object": "Bob",
-                "confidence": 0.82,
-            },
-        ])
+        response = json.dumps(
+            [
+                {
+                    "subject": "Alice",
+                    "predicate": "knows",
+                    "object": "Bob",
+                    "confidence": 0.82,
+                },
+            ]
+        )
 
         memories = extractor._parse_memories(response, source="test-source")
 

@@ -1,4 +1,5 @@
 """Tests for the personal access token (PAT) store."""
+
 from __future__ import annotations
 
 import sqlite3
@@ -26,9 +27,11 @@ class TestCreateAndVerify:
 
     def test_plaintext_not_stored(self):
         _, plaintext = access_tokens.create_token("ci", "alice", "full")
-        raw = sqlite3.connect(settings.sqlite_db_path).execute(
-            "SELECT token_hash FROM access_tokens"
-        ).fetchone()[0]
+        raw = (
+            sqlite3.connect(settings.sqlite_db_path)
+            .execute("SELECT token_hash FROM access_tokens")
+            .fetchone()[0]
+        )
         assert plaintext not in raw  # only the sha256 hash is persisted
 
     def test_verify_rejects_unknown_token(self):

@@ -10,6 +10,7 @@ settings — the same strategy the cloud-Ollama provider uses. This keeps the
 vector store on a stable embedding model regardless of which chat model serves
 completions.
 """
+
 from __future__ import annotations
 
 import json
@@ -75,7 +76,9 @@ class OpenRouterProvider(LLMProvider):
             "stream": False,
             **kwargs,
         }
-        resp = await self._client.post(join(self.base_url, OPENROUTER_CHAT, dialect="openrouter"), json=payload)
+        resp = await self._client.post(
+            join(self.base_url, OPENROUTER_CHAT, dialect="openrouter"), json=payload
+        )
         resp.raise_for_status()
         body = resp.json()
         # OpenRouter (OpenAI-compatible) can report failures inside an HTTP-200
@@ -106,7 +109,7 @@ class OpenRouterProvider(LLMProvider):
             async for line in resp.aiter_lines():
                 if not line or not line.startswith("data:"):
                     continue
-                data_str = line[len("data:"):].strip()
+                data_str = line[len("data:") :].strip()
                 if data_str == "[DONE]":
                     break
                 try:
@@ -133,6 +136,7 @@ class OpenRouterProvider(LLMProvider):
             return False
         try:
             import urllib.request
+
             req = urllib.request.Request(
                 join(self.base_url, OPENROUTER_MODELS, dialect="openrouter"),
                 headers={

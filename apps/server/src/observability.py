@@ -6,6 +6,7 @@ routed through the stdlib, and the Prometheus collectors + ``render_metrics``
 expose an operational ``/metrics`` endpoint (request counts/latency, plus the
 embedding degraded-mode counter from the LLM layer).
 """
+
 from __future__ import annotations
 
 import logging
@@ -13,6 +14,9 @@ import time
 
 import structlog
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
+from starlette.middleware.base import RequestResponseEndpoint
+from starlette.requests import Request
+from starlette.responses import Response
 
 # --- Metrics (module-level singletons, registered once at import) ---------- #
 
@@ -73,7 +77,7 @@ def _normalize_path(path: str) -> str:
     return "/".join(out) or "/"
 
 
-async def metrics_middleware(request, call_next):
+async def metrics_middleware(request: Request, call_next: RequestResponseEndpoint) -> Response:
     """Record request count + latency for every HTTP request."""
     start = time.perf_counter()
     method = request.method
@@ -84,9 +88,7 @@ async def metrics_middleware(request, call_next):
         return response
     except Exception:
         HTTP_REQUESTS.labels(method=method, path=path, status=500).inc()
-        HTTP_REQUEST_LATENCY.labels(method=method, path=path).observe(
-            time.perf_counter() - start
-        )
+        HTTP_REQUEST_LATENCY.labels(method=method, path=path).observe(time.perf_counter() - start)
         raise
     finally:
         # On the success path, record here (status set above). On exception the

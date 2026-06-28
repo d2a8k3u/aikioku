@@ -14,6 +14,7 @@ import json
 import logging
 import sqlite3
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 
@@ -51,12 +52,14 @@ def _ensure_table() -> None:
         conn.execute(_DB_INDEX)
         # Migration: add in_progress column for deployments that pre-date it.
         try:
-            conn.execute("ALTER TABLE conversation_messages ADD COLUMN in_progress INTEGER NOT NULL DEFAULT 0")
+            conn.execute(
+                "ALTER TABLE conversation_messages ADD COLUMN in_progress INTEGER NOT NULL DEFAULT 0"
+            )
         except sqlite3.OperationalError:
             pass  # column already exists
 
 
-def _row_to_dict(row: tuple) -> dict:
+def _row_to_dict(row: tuple[Any, ...]) -> dict[str, Any]:
     return {
         "id": row[0],
         "user_id": row[1],
@@ -95,10 +98,10 @@ def store_message(message: ConversationMessage) -> ConversationMessage:
 def update_message(
     message_id: str,
     content: str | None = None,
-    citations: list | None = None,
-    sub_questions: list | None = None,
+    citations: list[Any] | None = None,
+    sub_questions: list[Any] | None = None,
     in_progress: bool | None = None,
-) -> dict | None:
+) -> dict[str, Any] | None:
     """Update an existing assistant message in place.
 
     Used to promote an ``in_progress`` placeholder to its final content once
@@ -107,7 +110,7 @@ def update_message(
     """
     _ensure_table()
     fields: list[str] = []
-    params: list = []
+    params: list[Any] = []
     if content is not None:
         fields.append("content = ?")
         params.append(content)
@@ -132,7 +135,7 @@ def update_message(
     return _get_message(message_id)
 
 
-def _get_message(message_id: str) -> dict | None:
+def _get_message(message_id: str) -> dict[str, Any] | None:
     _ensure_table()
     columns = "id, user_id, role, content, citations, sub_questions, created, in_progress"
     with sqlite3.connect(settings.sqlite_db_path) as conn:
@@ -151,9 +154,7 @@ def delete_message(message_id: str) -> bool:
     return cursor.rowcount > 0
 
 
-def load_messages(
-    user_id: str, limit: int = 10, before: str | None = None
-) -> list[dict]:
+def load_messages(user_id: str, limit: int = 10, before: str | None = None) -> list[dict[str, Any]]:
     """Load a page of the user's messages, newest-first.
 
     Args:
@@ -188,7 +189,7 @@ def load_messages(
         return [_row_to_dict(r) for r in cursor.fetchall()]
 
 
-def recent_history(user_id: str, limit: int = 10) -> list[dict]:
+def recent_history(user_id: str, limit: int = 10) -> list[dict[str, Any]]:
     """Return the last ``limit`` messages in chronological (old->new) order.
 
     Used to ground generation with short-term conversation context so the
@@ -199,7 +200,9 @@ def recent_history(user_id: str, limit: int = 10) -> list[dict]:
     and would only confuse the LLM context.
     """
     rows = load_messages(user_id, limit=limit)
-    return [r for r in reversed(rows) if not (r.get("role") == "assistant" and r.get("in_progress"))]
+    return [
+        r for r in reversed(rows) if not (r.get("role") == "assistant" and r.get("in_progress"))
+    ]
 
 
 def iter_turns_for_reembed() -> list[tuple[str, str]]:
@@ -237,9 +240,7 @@ def clear_messages(user_id: str) -> int:
     """Delete all of the user's messages. Returns the number deleted."""
     _ensure_table()
     with sqlite3.connect(settings.sqlite_db_path) as conn:
-        cursor = conn.execute(
-            "DELETE FROM conversation_messages WHERE user_id = ?", (user_id,)
-        )
+        cursor = conn.execute("DELETE FROM conversation_messages WHERE user_id = ?", (user_id,))
         return cursor.rowcount
 
 
@@ -248,7 +249,7 @@ async def get_messages(
     user: UserInDB = Depends(require_auth),
     limit: int = Query(10, ge=1, le=100),
     before: str | None = None,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Return a page of the authenticated user's chat history, newest-first.
 
     Pass the oldest loaded message's ``created`` as ``before`` to page further
@@ -261,7 +262,7 @@ async def get_messages(
 async def get_message_endpoint(
     message_id: str,
     user: UserInDB = Depends(require_auth),
-) -> dict:
+) -> dict[str, Any]:
     """Return a single chat message by id.
 
     Used by the frontend to poll in-progress placeholders after a mid-generation
@@ -271,9 +272,11 @@ async def get_message_endpoint(
     message = _get_message(message_id)
     if message is None:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail="Message not found")
     if message.get("user_id") != user.username:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=403, detail="Not authorized")
     return message
 
@@ -282,7 +285,7 @@ async def get_message_endpoint(
 async def delete_message_endpoint(
     message_id: str,
     user: UserInDB = Depends(require_auth),
-) -> dict:
+) -> dict[str, Any]:
     """Delete a single chat message by id.
 
     Only messages owned by the authenticated user can be deleted.
@@ -299,7 +302,7 @@ async def delete_message_endpoint(
 
 
 @router.delete("/messages")
-async def delete_messages(user: UserInDB = Depends(require_auth)) -> dict:
+async def delete_messages(user: UserInDB = Depends(require_auth)) -> dict[str, Any]:
     """Delete the authenticated user's entire chat history."""
     deleted = clear_messages(user.username)
     return {"status": "cleared", "deleted": deleted}

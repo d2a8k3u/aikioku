@@ -37,6 +37,7 @@ def temp_db_path() -> str:
 @pytest.fixture
 def note_store(temp_db_path: str):
     from src.storage.note_store import NoteStore
+
     notes_dir = str(Path(temp_db_path).parent / "notes")
     return NoteStore(notes_dir=notes_dir)
 
@@ -65,6 +66,7 @@ class TestGetDueCards:
             with patch("src.api.review.settings") as mock_settings:
                 mock_settings.sqlite_db_path = temp_db_path
                 from src.main import app
+
                 cli = TestClient(app)
                 response = cli.get("/api/review/due")
 
@@ -100,8 +102,10 @@ class TestCreateCards:
                 status=CardStatus.new,
             ),
         ]
-        with patch("src.api.review._get_note_store") as mock_get_store, \
-             patch("src.api.review._get_spaced_repetition") as mock_get_sr:
+        with (
+            patch("src.api.review._get_note_store") as mock_get_store,
+            patch("src.api.review._get_spaced_repetition") as mock_get_sr,
+        ):
             mock_get_store.return_value = note_store
             note_store.get = MagicMock(return_value=sample_note)
             mock_sr = MagicMock()
@@ -111,6 +115,7 @@ class TestCreateCards:
             with patch("src.api.review.settings") as mock_settings:
                 mock_settings.sqlite_db_path = temp_db_path
                 from src.main import app
+
                 cli = TestClient(app)
                 response = cli.post("/api/review/cards", json={"note_id": sample_note.id})
 
@@ -149,6 +154,7 @@ class TestReviewCard:
             with patch("src.api.review.settings") as mock_settings:
                 mock_settings.sqlite_db_path = temp_db_path
                 from src.main import app
+
                 cli = TestClient(app)
                 response = cli.post(
                     "/api/review/cards/card-1/review",
@@ -186,6 +192,7 @@ class TestReviewCard:
             with patch("src.api.review.settings") as mock_settings:
                 mock_settings.sqlite_db_path = temp_db_path
                 from src.main import app
+
                 cli = TestClient(app)
                 response = cli.post(
                     "/api/review/cards/card-1/review",
@@ -276,13 +283,14 @@ class TestGenerateCardsGracefulErrors:
                 '"back": "Guido van Rossum"}]\n```'
             )
         )
-        sr = SpacedRepetition(
-            note_store=note_store, llm_provider=provider, db_path=temp_db_path
-        )
+        sr = SpacedRepetition(note_store=note_store, llm_provider=provider, db_path=temp_db_path)
 
-        with patch("src.api.review._get_note_store", return_value=note_store), \
-             patch("src.api.review._get_spaced_repetition", return_value=sr):
+        with (
+            patch("src.api.review._get_note_store", return_value=note_store),
+            patch("src.api.review._get_spaced_repetition", return_value=sr),
+        ):
             from src.main import app
+
             cli = TestClient(app)
             response = cli.post("/api/review/cards", json={"note_id": sample_note.id})
 
@@ -297,13 +305,14 @@ class TestGenerateCardsGracefulErrors:
         note_store.get = MagicMock(return_value=sample_note)
         provider = MagicMock()
         provider.complete = AsyncMock(return_value="I cannot make cards.")
-        sr = SpacedRepetition(
-            note_store=note_store, llm_provider=provider, db_path=temp_db_path
-        )
+        sr = SpacedRepetition(note_store=note_store, llm_provider=provider, db_path=temp_db_path)
 
-        with patch("src.api.review._get_note_store", return_value=note_store), \
-             patch("src.api.review._get_spaced_repetition", return_value=sr):
+        with (
+            patch("src.api.review._get_note_store", return_value=note_store),
+            patch("src.api.review._get_spaced_repetition", return_value=sr),
+        ):
             from src.main import app
+
             cli = TestClient(app)
             response = cli.post("/api/review/cards", json={"note_id": sample_note.id})
 
@@ -312,13 +321,14 @@ class TestGenerateCardsGracefulErrors:
     def test_connect_error_returns_503(self, temp_db_path, note_store, sample_note):
         note_store.get = MagicMock(return_value=sample_note)
         mock_sr = MagicMock()
-        mock_sr.generate_cards = AsyncMock(
-            side_effect=httpx.ConnectError("connection refused")
-        )
+        mock_sr.generate_cards = AsyncMock(side_effect=httpx.ConnectError("connection refused"))
 
-        with patch("src.api.review._get_note_store", return_value=note_store), \
-             patch("src.api.review._get_spaced_repetition", return_value=mock_sr):
+        with (
+            patch("src.api.review._get_note_store", return_value=note_store),
+            patch("src.api.review._get_spaced_repetition", return_value=mock_sr),
+        ):
             from src.main import app
+
             cli = TestClient(app)
             response = cli.post("/api/review/cards", json={"note_id": sample_note.id})
 
@@ -329,9 +339,12 @@ class TestGenerateCardsGracefulErrors:
         mock_sr = MagicMock()
         mock_sr.generate_cards = AsyncMock()
 
-        with patch("src.api.review._get_note_store", return_value=note_store), \
-             patch("src.api.review._get_spaced_repetition", return_value=mock_sr):
+        with (
+            patch("src.api.review._get_note_store", return_value=note_store),
+            patch("src.api.review._get_spaced_repetition", return_value=mock_sr),
+        ):
             from src.main import app
+
             cli = TestClient(app)
             response = cli.post("/api/review/cards", json={"note_id": "missing-id"})
 
@@ -344,19 +357,22 @@ class TestGetStats:
     def test_returns_correct_counts(self, temp_db_path):
         with patch("src.api.review._get_spaced_repetition") as mock_get_sr:
             mock_sr = MagicMock()
-            mock_sr.get_stats = AsyncMock(return_value={
-                "total": 10,
-                "due": 3,
-                "new": 2,
-                "learning": 1,
-                "review": 6,
-            })
+            mock_sr.get_stats = AsyncMock(
+                return_value={
+                    "total": 10,
+                    "due": 3,
+                    "new": 2,
+                    "learning": 1,
+                    "review": 6,
+                }
+            )
             mock_sr.get_suspended_count = AsyncMock(return_value=0)
             mock_get_sr.return_value = mock_sr
 
             with patch("src.api.review.settings") as mock_settings:
                 mock_settings.sqlite_db_path = temp_db_path
                 from src.main import app
+
                 with TestClient(app) as client:
                     response = client.get("/api/review/stats")
 

@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 # Ollama model listing
 # ---------------------------------------------------------------------------
 
+
 async def list_ollama_models(
     base_url: str = "http://localhost:11434",
     api_key: str = "",
@@ -48,12 +49,14 @@ async def list_ollama_models(
         details = m.get("details", {})
         family = details.get("family", "")
         parameter_size = details.get("parameter_size", "")
-        result.append({
-            "id": name,
-            "name": name,
-            "family": family,
-            "parameter_size": parameter_size,
-        })
+        result.append(
+            {
+                "id": name,
+                "name": name,
+                "family": family,
+                "parameter_size": parameter_size,
+            }
+        )
     return result
 
 
@@ -76,6 +79,7 @@ def classify_ollama_models(
 # ---------------------------------------------------------------------------
 # OpenRouter model listing
 # ---------------------------------------------------------------------------
+
 
 async def list_openrouter_models(
     base_url: str = "https://openrouter.ai/api/v1",
@@ -103,13 +107,15 @@ async def list_openrouter_models(
     models_raw: list[dict[str, Any]] = data.get("data", [])
     result: list[dict[str, Any]] = []
     for m in models_raw:
-        result.append({
-            "id": m.get("id", ""),
-            "name": m.get("name", m.get("id", "")),
-            "context_length": m.get("context_length"),
-            "pricing_prompt": float(m.get("pricing", {}).get("prompt", 0) or 0),
-            "pricing_completion": float(m.get("pricing", {}).get("completion", 0) or 0),
-        })
+        result.append(
+            {
+                "id": m.get("id", ""),
+                "name": m.get("name", m.get("id", "")),
+                "context_length": m.get("context_length"),
+                "pricing_prompt": float(m.get("pricing", {}).get("prompt", 0) or 0),
+                "pricing_completion": float(m.get("pricing", {}).get("completion", 0) or 0),
+            }
+        )
     return result
 
 
@@ -117,9 +123,8 @@ async def list_openrouter_models(
 # HuggingFace embedding model search (public Hub API; no auth required)
 # ---------------------------------------------------------------------------
 
-async def list_hf_embedding_models(
-    query: str = "", limit: int = 20
-) -> list[dict[str, Any]]:
+
+async def list_hf_embedding_models(query: str = "", limit: int = 20) -> list[dict[str, Any]]:
     """Search the public HuggingFace Hub for sentence-similarity (embedding) models.
 
     Returns a list of dicts with keys: id, name, provider, dimensions.

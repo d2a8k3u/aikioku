@@ -11,6 +11,7 @@ Keyed off the dedicated EMBEDDING provider (independent of the chat provider):
 ``embedding_strict`` is intentionally excluded — it changes failure behavior, not
 a successful vector — and is enforced by the reembed probe instead.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -19,7 +20,7 @@ import json
 from src import runtime_config
 
 
-def effective_embedding_identity() -> dict:
+def effective_embedding_identity() -> dict[str, str | int]:
     """Return the provider-aware identity that determines stored vectors."""
     ep = runtime_config.embedding_provider()
     if ep == "openai":

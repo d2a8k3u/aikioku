@@ -2,6 +2,7 @@
 
 Uses real file-based NoteStore in a temp directory.
 """
+
 from __future__ import annotations
 
 import tempfile

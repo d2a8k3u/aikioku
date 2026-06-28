@@ -7,7 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from src.augmentation.auto_tag import AutoTagger
-from src.auth import require_auth
+from src.auth import UserInDB, require_auth
 
 router = APIRouter(prefix="/api/tags", tags=["tags"])
 
@@ -25,8 +25,8 @@ def _get_tagger(request: Request) -> AutoTagger:
 async def auto_tag_note(
     request: Request,
     note_id: UUID,
-    user=Depends(require_auth),
-) -> dict:
+    user: UserInDB = Depends(require_auth),
+) -> dict[str, str | list[str]]:
     """Generate tags for a note using the auto-tagging engine and persist them."""
     from src.storage.note_store import NoteStore
     from src.config import settings
@@ -51,6 +51,7 @@ async def auto_tag_note(
     # Invalidate semantic cache — updated note may change correct answers
     import asyncio
     from src.cache.semantic_cache import cache_invalidate
+
     asyncio.ensure_future(cache_invalidate())
 
     return {"note_id": str(note_id), "tags": tags}

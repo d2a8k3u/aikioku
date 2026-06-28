@@ -33,11 +33,13 @@ class TestCardCreation:
         card = Card(
             note_id=fixed_uuid,
             type=CardType.qa,
-            front="Q", back="A",
+            front="Q",
+            back="A",
             next_review=fixed_datetime,
             status=CardStatus.new,
         )
         import uuid
+
         parsed = uuid.UUID(card.id)
         assert parsed.version == 4
 
@@ -47,7 +49,8 @@ class TestCardCreation:
         card = Card(
             note_id=fixed_uuid,
             type=CardType.qa,
-            front="Q", back="A",
+            front="Q",
+            back="A",
             next_review=fixed_datetime,
             status=CardStatus.new,
         )
@@ -59,7 +62,8 @@ class TestCardCreation:
         card = Card(
             note_id=fixed_uuid,
             type=CardType.qa,
-            front="Q", back="A",
+            front="Q",
+            back="A",
             next_review=fixed_datetime,
             status=CardStatus.new,
         )
@@ -71,7 +75,8 @@ class TestCardCreation:
         card = Card(
             note_id=fixed_uuid,
             type=CardType.qa,
-            front="Q", back="A",
+            front="Q",
+            back="A",
             next_review=fixed_datetime,
             status=CardStatus.new,
         )
@@ -81,9 +86,7 @@ class TestCardCreation:
 class TestCardWithAllFields:
     """Test Card creation with all fields."""
 
-    def test_create_card_with_all_fields(
-        self, fixed_uuid, fixed_uuid2, fixed_datetime
-    ):
+    def test_create_card_with_all_fields(self, fixed_uuid, fixed_uuid2, fixed_datetime):
         from src.models.card import Card, CardType, CardStatus
 
         card = Card(
@@ -135,7 +138,8 @@ class TestCardValidation:
             Card(
                 note_id=fixed_uuid,
                 type=CardType.qa,
-                front="Q", back="A",
+                front="Q",
+                back="A",
                 next_review=fixed_datetime,
                 status=CardStatus.new,
                 ease_factor=1.0,
@@ -147,7 +151,8 @@ class TestCardValidation:
         card = Card(
             note_id=fixed_uuid,
             type=CardType.qa,
-            front="Q", back="A",
+            front="Q",
+            back="A",
             next_review=fixed_datetime,
             status=CardStatus.new,
             ease_factor=1.3,
@@ -161,7 +166,8 @@ class TestCardValidation:
             Card(
                 note_id=fixed_uuid,
                 type=CardType.qa,
-                front="Q", back="A",
+                front="Q",
+                back="A",
                 next_review=fixed_datetime,
                 status=CardStatus.new,
                 interval=-1,
@@ -174,7 +180,8 @@ class TestCardValidation:
             Card(
                 note_id=fixed_uuid,
                 type=CardType.qa,
-                front="Q", back="A",
+                front="Q",
+                back="A",
                 next_review=fixed_datetime,
                 status=CardStatus.new,
                 repetitions=-5,
@@ -186,7 +193,8 @@ class TestCardValidation:
         card = Card(
             note_id=fixed_uuid,
             type=CardType.qa,
-            front="Q", back="A",
+            front="Q",
+            back="A",
             next_review=fixed_datetime,
             status=CardStatus.new,
             interval=0,
@@ -199,7 +207,8 @@ class TestCardValidation:
         card = Card(
             note_id=fixed_uuid,
             type=CardType.qa,
-            front="Q", back="A",
+            front="Q",
+            back="A",
             next_review=fixed_datetime,
             status=CardStatus.new,
             repetitions=0,
@@ -213,7 +222,8 @@ class TestCardValidation:
             Card(
                 note_id=fixed_uuid,
                 type=CardType.qa,
-                front="", back="A",
+                front="",
+                back="A",
                 next_review=fixed_datetime,
                 status=CardStatus.new,
             )

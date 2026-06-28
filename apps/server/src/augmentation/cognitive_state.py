@@ -11,7 +11,7 @@ import sqlite3
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 from uuid import uuid4
 
 from src.events import EventBus
@@ -31,10 +31,10 @@ class InterventionType(Enum):
     """Type of AI intervention appropriate for a given cognitive state."""
 
     BACKGROUND_ONLY = "background_only"  # Process but don't interrupt
-    SUGGEST = "suggest"                  # Gentle suggestions OK
-    FULL = "full"                        # All interventions OK
-    PROACTIVE = "proactive"              # Offer help
-    DEFER = "defer"                      # Queue for later
+    SUGGEST = "suggest"  # Gentle suggestions OK
+    FULL = "full"  # All interventions OK
+    PROACTIVE = "proactive"  # Offer help
+    DEFER = "defer"  # Queue for later
 
 
 # Mapping from cognitive state to recommended intervention type
@@ -47,19 +47,19 @@ _STATE_TO_INTERVENTION: dict[CognitiveState, InterventionType] = {
 }
 
 # Classification thresholds
-_FLOW_TYPING_MIN = 3.0        # chars/sec
-_FLOW_TYPING_MAX = 15.0       # chars/sec
-_FLOW_DELETION_MAX = 0.15     # 15%
-_FLOW_SWITCH_MAX = 0.1        # minimal switching
-_FLOW_DURATION_MIN = 120      # 2 minutes in seconds
+_FLOW_TYPING_MIN = 3.0  # chars/sec
+_FLOW_TYPING_MAX = 15.0  # chars/sec
+_FLOW_DELETION_MAX = 0.15  # 15%
+_FLOW_SWITCH_MAX = 0.1  # minimal switching
+_FLOW_DURATION_MIN = 120  # 2 minutes in seconds
 
-_FRUSTRATED_DELETION_MIN = 0.30   # high deletion
-_FRUSTRATED_TYPING_MAX = 3.0      # rapid short inputs (low speed)
+_FRUSTRATED_DELETION_MIN = 0.30  # high deletion
+_FRUSTRATED_TYPING_MAX = 3.0  # rapid short inputs (low speed)
 
-_IDLE_THRESHOLD = 300          # 5 minutes in seconds
+_IDLE_THRESHOLD = 300  # 5 minutes in seconds
 
-_EXPLORING_SWITCH_MIN = 0.3       # high switching
-_EXPLORING_ACTIVITY_VARIETY = 3   # number of different signal types
+_EXPLORING_SWITCH_MIN = 0.3  # high switching
+_EXPLORING_ACTIVITY_VARIETY = 3  # number of different signal types
 
 
 class CognitiveStateTracker:
@@ -82,9 +82,8 @@ class CognitiveStateTracker:
         if db_path is None:
             # Use a temp file so each tracker instance gets its own DB by default
             import tempfile
-            self._db_path = str(
-                Path(tempfile.mkdtemp()) / "cognitive_signals.db"
-            )
+
+            self._db_path = str(Path(tempfile.mkdtemp()) / "cognitive_signals.db")
         else:
             self._db_path = db_path
         self._init_db()
@@ -102,12 +101,8 @@ class CognitiveStateTracker:
                 )
                 """
             )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_signals_timestamp ON signals(timestamp)"
-            )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_signals_type ON signals(signal_type)"
-            )
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_signals_timestamp ON signals(timestamp)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_signals_type ON signals(signal_type)")
 
     def record_signal(
         self,
@@ -224,9 +219,7 @@ class CognitiveStateTracker:
         # Fallback
         return CognitiveState.IDLE
 
-    def get_intervention_recommendation(
-        self, state: CognitiveState
-    ) -> InterventionType:
+    def get_intervention_recommendation(self, state: CognitiveState) -> InterventionType:
         """Return the appropriate AI intervention type for a cognitive state.
 
         Args:
@@ -237,7 +230,7 @@ class CognitiveStateTracker:
         """
         return _STATE_TO_INTERVENTION.get(state, InterventionType.DEFER)
 
-    def get_signal_history(self, limit: int = 100) -> list[dict]:
+    def get_signal_history(self, limit: int = 100) -> list[dict[str, Any]]:
         """Return the most recent signals.
 
         Args:

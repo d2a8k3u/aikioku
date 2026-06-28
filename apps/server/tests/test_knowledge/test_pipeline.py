@@ -2,6 +2,7 @@
 
 Uses real Kuzu DB and real ChromaDB in temp dirs. LLMProvider is mocked.
 """
+
 from __future__ import annotations
 
 import json
@@ -69,26 +70,28 @@ def sample_note():
 @pytest.fixture
 def entity_extraction_response():
     """Mock LLM JSON response for entity extraction."""
-    return json.dumps([
-        {
-            "name": "Python",
-            "type": "Concept",
-            "aliases": ["Python language"],
-            "confidence": 0.95,
-        },
-        {
-            "name": "Guido van Rossum",
-            "type": "Person",
-            "aliases": ["Guido"],
-            "confidence": 0.90,
-        },
-        {
-            "name": "OOP",
-            "type": "Concept",
-            "aliases": ["Object-Oriented Programming"],
-            "confidence": 0.85,
-        },
-    ])
+    return json.dumps(
+        [
+            {
+                "name": "Python",
+                "type": "Concept",
+                "aliases": ["Python language"],
+                "confidence": 0.95,
+            },
+            {
+                "name": "Guido van Rossum",
+                "type": "Person",
+                "aliases": ["Guido"],
+                "confidence": 0.90,
+            },
+            {
+                "name": "OOP",
+                "type": "Concept",
+                "aliases": ["Object-Oriented Programming"],
+                "confidence": 0.85,
+            },
+        ]
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -273,9 +276,7 @@ class TestStoreNoteEmbeddings:
         embedding_store,
         sample_note,
     ):
-        mock_llm_provider.embed = AsyncMock(
-            return_value=[0.1] * 384
-        )
+        mock_llm_provider.embed = AsyncMock(return_value=[0.1] * 384)
 
         from src.knowledge.pipeline import store_note_embeddings
 
@@ -295,9 +296,7 @@ class TestStoreNoteEmbeddings:
         embedding_store,
         sample_note,
     ):
-        mock_llm_provider.embed = AsyncMock(
-            return_value=[0.2] * 384
-        )
+        mock_llm_provider.embed = AsyncMock(return_value=[0.2] * 384)
 
         from src.knowledge.pipeline import store_note_embeddings
 

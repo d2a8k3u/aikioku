@@ -1,5 +1,8 @@
 """Serendipity API endpoints for random walks and surprise scoring."""
+
 from __future__ import annotations
+
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
@@ -23,7 +26,7 @@ async def random_walk(
     request: Request,
     start_entity_id: str,
     steps: int = Query(5, ge=1, le=50),
-) -> dict:
+) -> dict[str, Any]:
     """Perform a random walk from a starting entity."""
     engine = _get_engine(request)
     try:
@@ -37,7 +40,7 @@ async def random_walk(
 async def surprise_score(
     request: Request,
     entity_id: str | None = Query(None, min_length=1),
-) -> dict:
+) -> dict[str, Any]:
     """Compute a surprise score for an entity.
 
     If entity_id is omitted, returns a random surprise from the graph.

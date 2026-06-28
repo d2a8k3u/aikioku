@@ -1,5 +1,6 @@
 """Tests for entity-type coercion: the LLM emits free-form types that must map
 onto the fixed EntityType enum instead of being dropped."""
+
 from __future__ import annotations
 
 from src.knowledge.pipeline import _coerce_entity_type, _parse_entities_from_llm

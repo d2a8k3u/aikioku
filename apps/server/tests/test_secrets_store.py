@@ -15,9 +15,11 @@ class TestSecretsRoundTrip:
 
     def test_value_stored_as_ciphertext_not_plaintext(self):
         secrets_store.set_secret("ollama_api_key", "sk-pla...pear")
-        raw = sqlite3.connect(settings.sqlite_db_path).execute(
-            "SELECT value FROM app_secrets WHERE key='ollama_api_key'"
-        ).fetchone()[0]
+        raw = (
+            sqlite3.connect(settings.sqlite_db_path)
+            .execute("SELECT value FROM app_secrets WHERE key='ollama_api_key'")
+            .fetchone()[0]
+        )
         assert b"sk-pla...pear" not in raw
 
     def test_list_returns_names_only(self):

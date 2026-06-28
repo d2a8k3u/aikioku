@@ -121,12 +121,16 @@ class TestRelationValidation:
         id1 = str(uuid.uuid4())
         id2 = str(uuid.uuid4())
         r1 = Relation(
-            source_entity_id=id1, target_entity_id=id2,
-            type=RelationType.related_to, confidence=0.0,
+            source_entity_id=id1,
+            target_entity_id=id2,
+            type=RelationType.related_to,
+            confidence=0.0,
         )
         r2 = Relation(
-            source_entity_id=id1, target_entity_id=id2,
-            type=RelationType.related_to, confidence=1.0,
+            source_entity_id=id1,
+            target_entity_id=id2,
+            type=RelationType.related_to,
+            confidence=1.0,
         )
         assert r1.confidence == 0.0
         assert r2.confidence == 1.0

@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from enum import Enum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -43,4 +44,4 @@ class Memory(BaseModel):
     modified: datetime = Field(default_factory=datetime.utcnow)
     vitality_score: float = Field(ge=0.0, le=1.0, default=0.0)
     tier: MemoryTier = MemoryTier.hot
-    properties: dict = Field(default_factory=dict)
+    properties: dict[str, Any] = Field(default_factory=dict)

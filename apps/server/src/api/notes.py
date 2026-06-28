@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
-from src.auth import require_auth
+from src.auth import UserInDB, require_auth
 from src.cache.semantic_cache import cache_invalidate
 from src.llm.long_text import condense_for_prompt
 from src.models.note import Note, NoteUpdate
@@ -58,7 +59,7 @@ def _extract_and_store_entities(request: Request, note: Note) -> None:
 
     from src.processing.budget_gate import WORK_NOTE_PROCESSING, gated
 
-    async def _do_processing():
+    async def _do_processing() -> None:
         try:
             await gated(
                 request.app,
@@ -150,7 +151,7 @@ async def get_note(request: Request, note_id: UUID) -> Note:
 async def create_note(
     request: Request,
     note: Note,
-    user=Depends(require_auth),
+    user: UserInDB = Depends(require_auth),
 ) -> Note:
     """Create a new note and trigger entity extraction + embedding."""
     import asyncio
@@ -236,7 +237,7 @@ async def update_note(
     request: Request,
     note_id: UUID,
     note: NoteUpdate,
-    user=Depends(require_auth),
+    user: UserInDB = Depends(require_auth),
 ) -> Note:
     """Update an existing note and trigger entity extraction + embedding."""
     store = _get_note_store_from_request(request)
@@ -277,8 +278,8 @@ async def update_note(
 async def delete_note(
     request: Request,
     note_id: UUID,
-    user=Depends(require_auth),
-) -> dict:
+    user: UserInDB = Depends(require_auth),
+) -> dict[str, str]:
     """Delete a note."""
     store = _get_note_store_from_request(request)
     deleted = store.delete(str(note_id))
@@ -304,7 +305,7 @@ async def delete_note(
 
 
 @router.get("/{note_id}/backlinks")
-async def get_backlinks(request: Request, note_id: UUID) -> list[dict]:
+async def get_backlinks(request: Request, note_id: UUID) -> list[dict[str, str]]:
     """Find notes that link to this note.
 
     Searches all notes for:
@@ -318,7 +319,7 @@ async def get_backlinks(request: Request, note_id: UUID) -> list[dict]:
     if store.get(target_id) is None:
         raise HTTPException(status_code=404, detail="Note not found")
 
-    backlinks: list[dict] = []
+    backlinks: list[dict[str, str]] = []
     wikilink_pattern = f"[[{target_id}]]"
 
     all_notes: list[Note] = store.list_all()
@@ -357,7 +358,7 @@ async def get_backlinks(request: Request, note_id: UUID) -> list[dict]:
 
 
 @router.get("/{note_id}/related")
-async def get_related_notes(request: Request, note_id: UUID) -> dict:
+async def get_related_notes(request: Request, note_id: UUID) -> dict[str, Any]:
     """Get entities, related notes, and surprise connections for a note.
 
     Returns:
@@ -378,7 +379,7 @@ async def get_related_notes(request: Request, note_id: UUID) -> dict:
     # Find entities linked to this note
     # We need to scan all entities since Kuzu stores source_note_ids as JSON string
     all_entities = graph.find_entities(limit=10000)
-    note_entities: list[dict] = []
+    note_entities: list[dict[str, Any]] = []
     for entity in all_entities:
         if target_id in entity.source_note_ids:
             note_entities.append(
@@ -399,7 +400,7 @@ async def get_related_notes(request: Request, note_id: UUID) -> dict:
                 if other_note_id != target_id:
                     related_note_ids.add(other_note_id)
 
-    related_notes: list[dict] = []
+    related_notes: list[dict[str, str]] = []
     for rid in related_note_ids:
         related_note = store.get(rid)
         if related_note is not None:
@@ -412,7 +413,7 @@ async def get_related_notes(request: Request, note_id: UUID) -> dict:
             )
 
     # Surprise connections: random walk from one of the note's entities
-    surprise: list[dict] = []
+    surprise: list[dict[str, str]] = []
     if note_entities:
         from src.augmentation.serendipity import SerendipityEngine
 
@@ -472,7 +473,7 @@ async def note_history(
     request: Request,
     note_id: UUID,
     limit: int = Query(50, ge=1, le=200),
-) -> list[dict]:
+) -> list[dict[str, str]]:
     """Get Git commit history for a specific note."""
     from src.storage.git_sync import GitSync
     from src.config import settings
@@ -491,7 +492,7 @@ async def note_diff(
     note_id: UUID,
     commit_a: str | None = None,
     commit_b: str | None = None,
-) -> dict:
+) -> dict[str, str]:
     """Get diff for a specific note.
 
     If commit_a and commit_b are provided, returns the diff between them.

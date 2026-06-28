@@ -69,10 +69,18 @@ class TestMemoryTierManager:
         from src.memory.tiers import MemoryTierManager
 
         mgr = MemoryTierManager()
-        mgr.register(Memory(subject="A", predicate="is", object="A", source="src", tier=MemoryTier.hot))
-        mgr.register(Memory(subject="B", predicate="is", object="B", source="src", tier=MemoryTier.warm))
-        mgr.register(Memory(subject="C", predicate="is", object="C", source="src", tier=MemoryTier.cold))
-        mgr.register(Memory(subject="D", predicate="is", object="D", source="src", tier=MemoryTier.hot))
+        mgr.register(
+            Memory(subject="A", predicate="is", object="A", source="src", tier=MemoryTier.hot)
+        )
+        mgr.register(
+            Memory(subject="B", predicate="is", object="B", source="src", tier=MemoryTier.warm)
+        )
+        mgr.register(
+            Memory(subject="C", predicate="is", object="C", source="src", tier=MemoryTier.cold)
+        )
+        mgr.register(
+            Memory(subject="D", predicate="is", object="D", source="src", tier=MemoryTier.hot)
+        )
         stats = mgr.get_tier_stats()
         assert stats == {"hot": 2, "warm": 1, "cold": 1}
 
@@ -91,5 +99,7 @@ class TestMemoryTierManager:
         from src.memory.tiers import MemoryTierManager
 
         mgr = MemoryTierManager()
-        mgr.register(Memory(subject="Y", predicate="is", object="Y", source="src", tier=MemoryTier.warm))
+        mgr.register(
+            Memory(subject="Y", predicate="is", object="Y", source="src", tier=MemoryTier.warm)
+        )
         assert mgr.schedule_for_consolidation() == []

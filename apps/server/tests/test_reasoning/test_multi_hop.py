@@ -41,9 +41,7 @@ def mock_rag() -> AsyncMock:
     rag.generate = AsyncMock(
         return_value={
             "response": "Python is a programming language.",
-            "citations": [
-                {"note_id": "note-1", "score": 0.9, "snippet": "Python info."}
-            ],
+            "citations": [{"note_id": "note-1", "score": 0.9, "snippet": "Python info."}],
             "memories": [],
         }
     )
@@ -71,23 +69,17 @@ class TestMultiHopReasoner:
             side_effect=[
                 {
                     "response": "Python is a programming language.",
-                    "citations": [
-                        {"note_id": "note-1", "score": 0.9, "snippet": "Python info."}
-                    ],
+                    "citations": [{"note_id": "note-1", "score": 0.9, "snippet": "Python info."}],
                     "memories": [],
                 },
                 {
                     "response": "Python features include dynamic typing.",
-                    "citations": [
-                        {"note_id": "note-2", "score": 0.8, "snippet": "Features."}
-                    ],
+                    "citations": [{"note_id": "note-2", "score": 0.8, "snippet": "Features."}],
                     "memories": [],
                 },
                 {
                     "response": "Python was created by Guido van Rossum.",
-                    "citations": [
-                        {"note_id": "note-3", "score": 0.7, "snippet": "Creator info."}
-                    ],
+                    "citations": [{"note_id": "note-3", "score": 0.7, "snippet": "Creator info."}],
                     "memories": [],
                 },
             ]
@@ -122,14 +114,22 @@ class TestMultiHopReasoner:
         from src.memory.extraction import MemoryExtractor
         from src.models.memory import Memory
 
-        m1 = Memory(subject="Python", predicate="is_a", object="language",
-                    confidence=0.9, source="conversation")
-        m2 = Memory(subject="Python", predicate="created_by", object="Guido",
-                    confidence=0.8, source="conversation")
-
-        mock_llm_provider.complete = AsyncMock(
-            side_effect=['["q1", "q2"]', "synthesized answer"]
+        m1 = Memory(
+            subject="Python",
+            predicate="is_a",
+            object="language",
+            confidence=0.9,
+            source="conversation",
         )
+        m2 = Memory(
+            subject="Python",
+            predicate="created_by",
+            object="Guido",
+            confidence=0.8,
+            source="conversation",
+        )
+
+        mock_llm_provider.complete = AsyncMock(side_effect=['["q1", "q2"]', "synthesized answer"])
         # Sub-answers carry no memories now — extraction happens once at the end.
         mock_rag.generate = AsyncMock(
             side_effect=[
@@ -166,31 +166,26 @@ class TestMultiHopReasoner:
         memories (and never crashes)."""
         from src.reasoning.multi_hop import MultiHopReasoner
 
-        mock_llm_provider.complete = AsyncMock(
-            side_effect=['["q1", "q2"]', "synthesized answer"]
-        )
+        mock_llm_provider.complete = AsyncMock(side_effect=['["q1", "q2"]', "synthesized answer"])
         mock_rag.generate = AsyncMock(
             return_value={"response": "a", "citations": [], "memories": []}
         )
 
-        reasoner = MultiHopReasoner(
-            graph=mock_graph, llm_provider=mock_llm_provider, rag=mock_rag
-        )
+        reasoner = MultiHopReasoner(graph=mock_graph, llm_provider=mock_llm_provider, rag=mock_rag)
 
         result = await reasoner.reason("Tell me about Python", mock_note_store)
 
         assert result["memories"] == []
 
     @pytest.mark.asyncio
-    async def test_fallback_carries_memories(
-        self, mock_graph, mock_llm_provider, mock_note_store
-    ):
+    async def test_fallback_carries_memories(self, mock_graph, mock_llm_provider, mock_note_store):
         """When all sub-questions fail, the fallback's memories are carried out."""
         from src.reasoning.multi_hop import MultiHopReasoner
         from src.models.memory import Memory
 
-        fb_mem = Memory(subject="X", predicate="is", object="Y",
-                        confidence=0.7, source="conversation")
+        fb_mem = Memory(
+            subject="X", predicate="is", object="Y", confidence=0.7, source="conversation"
+        )
         fallback = {
             "response": "fallback answer",
             "citations": [],
@@ -206,9 +201,7 @@ class TestMultiHopReasoner:
         rag.generate = AsyncMock(side_effect=_generate)
         mock_llm_provider.complete = AsyncMock(return_value='["q1", "q2"]')
 
-        reasoner = MultiHopReasoner(
-            graph=mock_graph, llm_provider=mock_llm_provider, rag=rag
-        )
+        reasoner = MultiHopReasoner(graph=mock_graph, llm_provider=mock_llm_provider, rag=rag)
 
         result = await reasoner.reason("complex query", mock_note_store)
 
@@ -307,9 +300,7 @@ class TestMultiHopConcurrencyAndResilience:
 
         mock_rag.generate = AsyncMock(side_effect=_slow_generate)
 
-        reasoner = MultiHopReasoner(
-            graph=mock_graph, llm_provider=mock_llm_provider, rag=mock_rag
-        )
+        reasoner = MultiHopReasoner(graph=mock_graph, llm_provider=mock_llm_provider, rag=mock_rag)
 
         start = time.perf_counter()
         result = await reasoner.reason("Tell me about Python", mock_note_store)
@@ -327,13 +318,9 @@ class TestMultiHopConcurrencyAndResilience:
         """Decomposition returning 6 sub-questions should cap to 3 answered."""
         from src.reasoning.multi_hop import MultiHopReasoner
 
-        mock_llm_provider.complete = AsyncMock(
-            return_value='["q1", "q2", "q3", "q4", "q5", "q6"]'
-        )
+        mock_llm_provider.complete = AsyncMock(return_value='["q1", "q2", "q3", "q4", "q5", "q6"]')
 
-        reasoner = MultiHopReasoner(
-            graph=mock_graph, llm_provider=mock_llm_provider, rag=mock_rag
-        )
+        reasoner = MultiHopReasoner(graph=mock_graph, llm_provider=mock_llm_provider, rag=mock_rag)
 
         result = await reasoner.reason("complex query", mock_note_store)
 
@@ -368,9 +355,7 @@ class TestMultiHopConcurrencyAndResilience:
 
         mock_rag.generate = AsyncMock(side_effect=_flaky_generate)
 
-        reasoner = MultiHopReasoner(
-            graph=mock_graph, llm_provider=mock_llm_provider, rag=mock_rag
-        )
+        reasoner = MultiHopReasoner(graph=mock_graph, llm_provider=mock_llm_provider, rag=mock_rag)
 
         result = await reasoner.reason("complex query", mock_note_store)
 
@@ -403,9 +388,7 @@ class TestMultiHopConcurrencyAndResilience:
 
         mock_rag.generate = AsyncMock(side_effect=_generate)
 
-        reasoner = MultiHopReasoner(
-            graph=mock_graph, llm_provider=mock_llm_provider, rag=mock_rag
-        )
+        reasoner = MultiHopReasoner(graph=mock_graph, llm_provider=mock_llm_provider, rag=mock_rag)
 
         result = await reasoner.reason("complex query", mock_note_store)
 
@@ -413,9 +396,7 @@ class TestMultiHopConcurrencyAndResilience:
         assert result["citations"] == [{"note_id": "fb", "score": 0.4}]
 
     @pytest.mark.asyncio
-    async def test_response_is_llm_synthesized(
-        self, mock_graph, mock_rag, mock_note_store
-    ):
+    async def test_response_is_llm_synthesized(self, mock_graph, mock_rag, mock_note_store):
         """The final response is the LLM-synthesized text (distinct from concat)."""
         from src.reasoning.multi_hop import MultiHopReasoner
 
@@ -463,9 +444,7 @@ class TestMultiHopConcurrencyAndResilience:
         assert "Second part." in result["response"]
 
     @pytest.mark.asyncio
-    async def test_graph_context_included_in_synthesis_prompt(
-        self, mock_rag, mock_note_store
-    ):
+    async def test_graph_context_included_in_synthesis_prompt(self, mock_rag, mock_note_store):
         """A matching entity+relation should surface in the synthesis prompt."""
         from src.reasoning.multi_hop import MultiHopReasoner
 
@@ -481,15 +460,11 @@ class TestMultiHopConcurrencyAndResilience:
         graph.find_entities = MagicMock(return_value=[ent])
         graph.get_relations = MagicMock(return_value=[rel])
         graph.get_entity = MagicMock(
-            return_value=Entity(
-                id="e2", name="FastAPI", type=EntityType.Concept, confidence=0.9
-            )
+            return_value=Entity(id="e2", name="FastAPI", type=EntityType.Concept, confidence=0.9)
         )
 
         llm = AsyncMock(spec=LLMProvider)
-        llm.complete = AsyncMock(
-            side_effect=['["What is Python?"]', "final synthesized answer"]
-        )
+        llm.complete = AsyncMock(side_effect=['["What is Python?"]', "final synthesized answer"])
 
         reasoner = MultiHopReasoner(graph=graph, llm_provider=llm, rag=mock_rag)
 
@@ -497,25 +472,23 @@ class TestMultiHopConcurrencyAndResilience:
 
         # The second complete() call is synthesis; its prompt/system must carry graph facts.
         synthesis_call = llm.complete.await_args_list[1]
-        combined_text = " ".join(
-            str(a) for a in synthesis_call.args
-        ) + " " + " ".join(str(v) for v in synthesis_call.kwargs.values())
+        combined_text = (
+            " ".join(str(a) for a in synthesis_call.args)
+            + " "
+            + " ".join(str(v) for v in synthesis_call.kwargs.values())
+        )
         assert "Python" in combined_text
         assert "FastAPI" in combined_text
 
     @pytest.mark.asyncio
-    async def test_empty_graph_does_not_crash(
-        self, mock_llm_provider, mock_rag, mock_note_store
-    ):
+    async def test_empty_graph_does_not_crash(self, mock_llm_provider, mock_rag, mock_note_store):
         """An empty/raising graph must not crash reasoning; context is just empty."""
         from src.reasoning.multi_hop import MultiHopReasoner
 
         graph = MagicMock(spec=KnowledgeGraph)
         graph.find_entities = MagicMock(side_effect=RuntimeError("graph down"))
 
-        reasoner = MultiHopReasoner(
-            graph=graph, llm_provider=mock_llm_provider, rag=mock_rag
-        )
+        reasoner = MultiHopReasoner(graph=graph, llm_provider=mock_llm_provider, rag=mock_rag)
 
         result = await reasoner.reason("anything", mock_note_store)
         assert isinstance(result["response"], str)
@@ -528,9 +501,7 @@ class TestMultiHopConcurrencyAndResilience:
         from src.reasoning.multi_hop import MultiHopReasoner
 
         llm = AsyncMock(spec=LLMProvider)
-        llm.complete = AsyncMock(
-            return_value='```json\n["sub A", "sub B"]\n```'
-        )
+        llm.complete = AsyncMock(return_value='```json\n["sub A", "sub B"]\n```')
         reasoner = MultiHopReasoner(graph=mock_graph, llm_provider=llm, rag=mock_rag)
 
         subs = await reasoner._decompose_query("q")

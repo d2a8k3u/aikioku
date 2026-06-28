@@ -6,6 +6,7 @@ consumers (e.g. the memory API's fallback path) use this so providers are
 constructed identically — never a bare localhost default that is unreachable
 in-container.
 """
+
 from __future__ import annotations
 
 from src import runtime_config

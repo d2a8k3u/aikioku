@@ -1,8 +1,9 @@
 """Ollama LLM provider (local)."""
+
 from __future__ import annotations
 
 import json
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, cast
 
 import httpx
 
@@ -32,9 +33,11 @@ class OllamaProvider(LLMProvider):
             "stream": False,
             **kwargs,
         }
-        resp = await self._client.post(join(self.base_url, OLLAMA_GENERATE, dialect="ollama"), json=payload)
+        resp = await self._client.post(
+            join(self.base_url, OLLAMA_GENERATE, dialect="ollama"), json=payload
+        )
         resp.raise_for_status()
-        return resp.json().get("response", "")
+        return cast(str, resp.json().get("response", ""))
 
     async def stream(self, prompt: str, system: str = "", **kwargs: Any) -> AsyncIterator[str]:
         payload = {
@@ -44,7 +47,9 @@ class OllamaProvider(LLMProvider):
             "stream": True,
             **kwargs,
         }
-        async with self._client.stream("POST", join(self.base_url, OLLAMA_GENERATE, dialect="ollama"), json=payload) as resp:
+        async with self._client.stream(
+            "POST", join(self.base_url, OLLAMA_GENERATE, dialect="ollama"), json=payload
+        ) as resp:
             async for line in resp.aiter_lines():
                 if line:
                     data = json.loads(line)
@@ -53,13 +58,16 @@ class OllamaProvider(LLMProvider):
 
     async def embed(self, text: str) -> list[float]:
         payload = {"model": self.model, "prompt": text}
-        resp = await self._client.post(join(self.base_url, OLLAMA_EMBEDDINGS, dialect="ollama"), json=payload)
+        resp = await self._client.post(
+            join(self.base_url, OLLAMA_EMBEDDINGS, dialect="ollama"), json=payload
+        )
         resp.raise_for_status()
-        return resp.json().get("embedding", [])
+        return cast("list[float]", resp.json().get("embedding", []))
 
     def is_available(self) -> bool:
         try:
             import urllib.request
+
             urllib.request.urlopen(join(self.base_url, OLLAMA_TAGS, dialect="ollama"), timeout=5)
             return True
         except Exception:

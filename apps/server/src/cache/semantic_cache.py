@@ -83,7 +83,7 @@ def _patch_onnx_for_transformers_v5() -> None:
         # --- Patch Onnx.to_embeddings ---
         _original_to_emb = OnnxEmbed.to_embeddings
 
-        def _patched_to_embeddings(self, data, **_):
+        def _patched_to_embeddings(self: Any, data: Any, **_: Any) -> Any:
             encoded = self.tokenizer(
                 data, padding="max_length", truncation=True, return_tensors="np"
             )
@@ -102,7 +102,7 @@ def _patch_onnx_for_transformers_v5() -> None:
         # --- Patch OnnxModelEvaluation.inference ---
         _original_inference = OnnxEval.inference
 
-        def _patched_inference(self, reference: str, candidates: list[str]):
+        def _patched_inference(self: Any, reference: str, candidates: list[str]) -> float:
             n_candidates = len(candidates)
             inference_texts = [
                 {"text_a": reference, "text_b": candidate} for candidate in candidates
@@ -125,7 +125,7 @@ def _patch_onnx_for_transformers_v5() -> None:
             # Pad sequences to the same length
             max_len = max(len(ids) for ids in input_ids_list)
 
-            def _pad(arr, length):
+            def _pad(arr: Any, length: int) -> Any:
                 padded = np.zeros(length, dtype=arr.dtype)
                 padded[: len(arr)] = arr
                 return padded
@@ -233,7 +233,7 @@ async def _init_cache() -> tuple[Any, Any, Any] | None:
 # ---------------------------------------------------------------------------
 
 
-async def cache_get(query: str, mode: str, tone: str, model: str) -> dict | None:
+async def cache_get(query: str, mode: str, tone: str, model: str) -> dict[str, Any] | None:
     """Check the semantic cache for a query matching the given mode, tone, and model.
 
     Uses ONNX embedding for the query, FAISS for vector similarity search, and
@@ -340,8 +340,8 @@ async def cache_put(
     mode: str,
     tone: str,
     response: str,
-    citations: list,
-    sub_questions: list,
+    citations: list[Any],
+    sub_questions: list[Any],
     model: str,
 ) -> None:
     """Store a query-result pair in the semantic cache.
@@ -412,7 +412,7 @@ async def cache_invalidate() -> None:
         logger.warning("Cache flush failed — ignored.", exc_info=True)
 
 
-async def cache_stats() -> dict:
+async def cache_stats() -> dict[str, Any]:
     """Return cache statistics: enabled, hits, misses, hit_rate.
 
     Always succeeds — returns zeros when the cache is disabled.

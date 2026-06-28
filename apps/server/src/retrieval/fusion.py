@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import asyncio
 
-from typing import TYPE_CHECKING
+from collections.abc import Awaitable
+from typing import TYPE_CHECKING, cast
 
 from src.retrieval.search_result import SearchResult
 
@@ -32,7 +33,7 @@ class HybridFusion:
         dense: DenseRetriever,
         sparse: SparseRetriever,
         graph: GraphRetriever,
-        weights: dict | None = None,
+        weights: dict[str, float] | None = None,
     ) -> None:
         """Create a HybridFusion.
 
@@ -100,7 +101,9 @@ class HybridFusion:
         return fused[:limit]
 
     @staticmethod
-    async def _with_timeout(coro_or_future, timeout: float) -> list[SearchResult]:
+    async def _with_timeout(
+        coro_or_future: Awaitable[list[SearchResult]], timeout: float
+    ) -> list[SearchResult]:
         """Await *coro_or_future* with a timeout; return [] on timeout."""
         try:
             return await asyncio.wait_for(coro_or_future, timeout=timeout)
@@ -108,11 +111,14 @@ class HybridFusion:
             return []
 
     @staticmethod
-    async def _collect(task) -> list[SearchResult]:
+    async def _collect(task: Awaitable[list[SearchResult]]) -> list[SearchResult]:
         """Collect a task's result if done, otherwise return []."""
-        if task.done() and not task.cancelled():
+        # The total-timeout branch hands us the same awaitables it created; treat
+        # them as the Futures they are scheduled into to read their settled state.
+        fut = cast("asyncio.Future[list[SearchResult]]", task)
+        if fut.done() and not fut.cancelled():
             try:
-                return task.result()
+                return fut.result()
             except Exception:
                 return []
         return []

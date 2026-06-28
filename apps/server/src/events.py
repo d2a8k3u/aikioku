@@ -1,4 +1,5 @@
 """Event bus for inter-module communication."""
+
 from __future__ import annotations
 
 import asyncio
@@ -27,7 +28,7 @@ class EventBus:
 
     def __init__(self, db_path: str) -> None:
         self._db_path = db_path
-        self._subscribers: dict[str, list[Callable]] = {}
+        self._subscribers: dict[str, list[Callable[[Event], Any]]] = {}
         self._init_db()
 
     def _init_db(self) -> None:
@@ -42,14 +43,10 @@ class EventBus:
                     processed INTEGER DEFAULT 0
                 )
             """)
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_events_type ON events(type)"
-            )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_events_processed ON events(processed)"
-            )
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_events_type ON events(type)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_events_processed ON events(processed)")
 
-    def subscribe(self, event_type: str, handler: Callable) -> None:
+    def subscribe(self, event_type: str, handler: Callable[[Event], Any]) -> None:
         """Subscribe a handler to an event type."""
         if event_type not in self._subscribers:
             self._subscribers[event_type] = []

@@ -43,15 +43,29 @@ def reset_app_state(tmp_path):
 
     tmp_db = str(tmp_path / "test.db")
 
-    with patch.object(settings, "sqlite_db_path", tmp_db), \
-         patch.object(settings, "notes_dir", str(tmp_path)):
+    with (
+        patch.object(settings, "sqlite_db_path", tmp_db),
+        patch.object(settings, "notes_dir", str(tmp_path)),
+    ):
         # Now safe to import main — module-level code uses patched settings
         from src.main import app
 
-        for attr in ("knowledge_graph", "embedding_store", "hybrid_fusion", "note_store",
-                     "serendipity_engine", "summarizer", "connection_discovery",
-                     "cognitive_tracker", "git_sync", "llm_provider", "event_bus",
-                     "spaced_repetition", "auth", "card_auto_generator"):
+        for attr in (
+            "knowledge_graph",
+            "embedding_store",
+            "hybrid_fusion",
+            "note_store",
+            "serendipity_engine",
+            "summarizer",
+            "connection_discovery",
+            "cognitive_tracker",
+            "git_sync",
+            "llm_provider",
+            "event_bus",
+            "spaced_repetition",
+            "auth",
+            "card_auto_generator",
+        ):
             if hasattr(app.state, attr):
                 delattr(app.state, attr)
 

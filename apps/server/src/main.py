@@ -1,14 +1,22 @@
 """FastAPI application entry point."""
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from slowapi.middleware import SlowAPIMiddleware
+from starlette.middleware.base import RequestResponseEndpoint
 from starlette.routing import Route
+from starlette.types import ASGIApp, Receive, Scope, Send
 import structlog
+
+if TYPE_CHECKING:
+    from src.knowledge.embeddings import EmbeddingStore
+    from src.llm.base import LLMProvider
 
 from src.llm.json_parse import LLMOutputParseError
 from src.llm.ollama_remote import EmbeddingUnavailableError
@@ -63,8 +71,13 @@ logger = structlog.get_logger()
 
 
 async def _run_consolidation_once(
-    event_bus, graph, llm_provider=None, *, provider=None, store=None
-) -> dict:
+    event_bus: EventBus,
+    graph: KnowledgeGraph,
+    llm_provider: "LLMProvider | None" = None,
+    *,
+    provider: "LLMProvider | None" = None,
+    store: "EmbeddingStore | None" = None,
+) -> dict[str, Any]:
     """Run a single consolidation pass over the persisted memories.
 
     Loads persisted memories, runs the consolidator against the SHARED Kuzu
@@ -93,7 +106,7 @@ async def _run_consolidation_once(
     return {k: v for k, v in summary.items() if k != "memories"}
 
 
-async def _consolidation_worker(app: FastAPI, interval_hours: int = 24):
+async def _consolidation_worker(app: FastAPI, interval_hours: int = 24) -> None:
     """Background task that runs memory consolidation periodically.
 
     Reads the LLM provider + SHARED KnowledgeGraph handle from ``app.state`` on
@@ -139,7 +152,7 @@ async def _consolidation_worker(app: FastAPI, interval_hours: int = 24):
         await asyncio.sleep(interval_hours * 3600)
 
 
-async def _budget_drain_worker(app: FastAPI, poll_seconds: int = 60):
+async def _budget_drain_worker(app: FastAPI, poll_seconds: int = 60) -> None:
     """Background task that drains deferred LLM work once the budget allows.
 
     Notes/memories ingested while the daily budget was exhausted are queued
@@ -200,10 +213,14 @@ def build_runtime(app: FastAPI) -> None:
     from src.retrieval.conversation_retrieval import ConversationRetriever
 
     memory_extractor = MemoryExtractor(app.state.llm_provider, app.state.event_bus)
-    conversation_retriever = ConversationRetriever(
-        app.state.conversation_embedding_store,
-        app.state.embedding_provider,
-    ) if getattr(app.state, "conversation_embedding_store", None) is not None else None
+    conversation_retriever = (
+        ConversationRetriever(
+            app.state.conversation_embedding_store,
+            app.state.embedding_provider,
+        )
+        if getattr(app.state, "conversation_embedding_store", None) is not None
+        else None
+    )
     app.state.memory_extractor = memory_extractor
     app.state.rag_generator = RAGGenerator(
         fusion=app.state.hybrid_fusion,
@@ -214,7 +231,7 @@ def build_runtime(app: FastAPI) -> None:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Initialize and cleanup services."""
     # Startup
     app.state.event_bus = EventBus(settings.sqlite_db_path)
@@ -310,7 +327,7 @@ async def lifespan(app: FastAPI):
     # Strong-reference set for fire-and-forget background tasks (Python 3.12+
     # holds only weak references to tasks, so ensure_future/create_task can be
     # silently GC'd). Populated by _spawn_background() in chat.py.
-    app.state._bg_tasks: set = set()  # type: ignore[misc]
+    app.state._bg_tasks: set[asyncio.Task[Any]] = set()  # type: ignore[misc]
 
     # Embedding fingerprint: adopt the on-disk collections as the baseline on
     # first run (no wipe), then auto-reembed in the background if the effective
@@ -387,10 +404,10 @@ class _MCPBarePath:
     # instance has none, so expose one to avoid an AttributeError on every call.
     __name__ = "mcp_bare_path"
 
-    def __init__(self, asgi_app) -> None:
+    def __init__(self, asgi_app: ASGIApp) -> None:
         self._app = asgi_app
 
-    async def __call__(self, scope, receive, send) -> None:
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         # Rewrite to the inner streamable route ("/" == streamable_http_path).
         scope = dict(scope, path="/", raw_path=b"/")
         await self._app(scope, receive, send)
@@ -423,7 +440,7 @@ _AUTH_EXEMPT_PREFIXES = (
 
 
 @app.middleware("http")
-async def enforce_auth(request: Request, call_next):
+async def enforce_auth(request: Request, call_next: RequestResponseEndpoint) -> Response:
     path = request.url.path
     if request.method == "OPTIONS" or path == "/" or path.startswith(_AUTH_EXEMPT_PREFIXES):
         return await call_next(request)
@@ -463,7 +480,7 @@ app.add_middleware(
 
 
 @app.exception_handler(httpx.HTTPError)
-async def upstream_llm_exception_handler(request: Request, exc: httpx.HTTPError):
+async def upstream_llm_exception_handler(request: Request, exc: httpx.HTTPError) -> JSONResponse:
     """Map upstream LLM/network failures to 503 (covers ConnectError/TimeoutException)."""
     logger.warning("Upstream language model error", exc_info=exc)
     return JSONResponse(
@@ -473,7 +490,9 @@ async def upstream_llm_exception_handler(request: Request, exc: httpx.HTTPError)
 
 
 @app.exception_handler(EmbeddingUnavailableError)
-async def embedding_unavailable_exception_handler(request: Request, exc: EmbeddingUnavailableError):
+async def embedding_unavailable_exception_handler(
+    request: Request, exc: EmbeddingUnavailableError
+) -> JSONResponse:
     """Map embedding-model failures to 503."""
     logger.warning("Embedding model unavailable", exc_info=exc)
     return JSONResponse(
@@ -483,7 +502,9 @@ async def embedding_unavailable_exception_handler(request: Request, exc: Embeddi
 
 
 @app.exception_handler(LLMOutputParseError)
-async def llm_output_parse_exception_handler(request: Request, exc: LLMOutputParseError):
+async def llm_output_parse_exception_handler(
+    request: Request, exc: LLMOutputParseError
+) -> JSONResponse:
     """Map unparseable LLM output to 502 (bad upstream response)."""
     logger.warning("Invalid language model output", exc_info=exc)
     return JSONResponse(
@@ -493,7 +514,9 @@ async def llm_output_parse_exception_handler(request: Request, exc: LLMOutputPar
 
 
 @app.exception_handler(BudgetExceededError)
-async def budget_exceeded_exception_handler(request: Request, exc: BudgetExceededError):
+async def budget_exceeded_exception_handler(
+    request: Request, exc: BudgetExceededError
+) -> JSONResponse:
     """Map daily LLM budget exceeded to 429 (Too Many Requests)."""
     logger.warning("Daily LLM budget exceeded", exc_info=exc)
     # Flip the dashboard budget banner to "paused" — an interactive call (e.g.
@@ -511,7 +534,7 @@ async def budget_exceeded_exception_handler(request: Request, exc: BudgetExceede
 
 
 @app.exception_handler(Exception)
-async def generic_exception_handler(request: Request, exc: Exception):
+async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     logger.error("Unhandled exception", exc_info=exc)
     return JSONResponse(
         status_code=500,
@@ -553,19 +576,17 @@ app.include_router(budget_router)
 
 
 @app.get("/health")
-async def health():
+async def health() -> dict[str, str]:
     return {"status": "ok", "version": "0.1.0"}
 
 
 @app.get("/metrics")
-async def metrics():
+async def metrics() -> Response:
     """Prometheus metrics exposition (request counts/latency, embedding degraded gauge)."""
-    from fastapi.responses import Response
-
     payload, content_type = render_metrics()
     return Response(content=payload, media_type=content_type)
 
 
 @app.get("/")
-async def root():
+async def root() -> dict[str, str]:
     return {"message": "Aikioku API", "docs": "/docs"}

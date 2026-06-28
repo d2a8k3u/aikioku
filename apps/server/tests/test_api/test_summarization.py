@@ -1,4 +1,5 @@
 """Tests for Summarization API endpoint."""
+
 from __future__ import annotations
 
 import tempfile
@@ -17,6 +18,7 @@ def client(tmp_path):
 
     with tempfile.TemporaryDirectory() as tmpdir:
         from src.storage.note_store import NoteStore
+
         store = NoteStore(tmpdir)
         note = Note(
             title="Python Programming",

@@ -4,6 +4,7 @@ A dimension/model change is handled by reembedding into a new fingerprinted
 collection and atomically swapping (see src.knowledge.reembed), so an existing
 collection under a fixed name is always adopted as-is, never silently dropped.
 """
+
 from __future__ import annotations
 
 import os

@@ -1,4 +1,5 @@
 """ConnectionDiscovery: discover indirect connections between entities via graph traversal + embedding similarity."""
+
 from __future__ import annotations
 
 import logging
@@ -21,6 +22,7 @@ class Connection:
         strength: Combined graph + embedding similarity score [0.0, 1.0].
         explanation: Human-readable description of the connection.
     """
+
     path: list[str]
     strength: float
     explanation: str
@@ -100,7 +102,9 @@ class ConnectionDiscovery:
                 continue
 
             # Refine strength with embedding similarity if both have source notes
-            sim = self._embedding_similarity(source_entity.source_note_ids, target_entity.source_note_ids)
+            sim = self._embedding_similarity(
+                source_entity.source_note_ids, target_entity.source_note_ids
+            )
             strength = conn.strength * 0.6 + sim * 0.4
 
             # Build path of names for explanation
@@ -115,11 +119,13 @@ class ConnectionDiscovery:
                 steps = " → ".join(path_names)
                 explanation = f"Connection path: {steps}."
 
-            results.append(Connection(
-                path=conn.path,
-                strength=round(strength, 4),
-                explanation=explanation,
-            ))
+            results.append(
+                Connection(
+                    path=conn.path,
+                    strength=round(strength, 4),
+                    explanation=explanation,
+                )
+            )
 
         # Sort by strength descending and deduplicate by target (last element)
         results.sort(key=lambda c: c.strength, reverse=True)
@@ -153,6 +159,7 @@ class ConnectionDiscovery:
         best = 0.0
         emb_map = self._emb.get_embeddings(source_note_ids + target_note_ids)
         import numpy as np
+
         for s_id in source_note_ids:
             s_vec = emb_map.get(s_id)
             if s_vec is None:

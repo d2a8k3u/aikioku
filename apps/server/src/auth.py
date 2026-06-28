@@ -1,11 +1,12 @@
 """JWT authentication helpers for Aikioku."""
+
 from __future__ import annotations
 
 import bcrypt
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any, cast
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -72,13 +73,13 @@ def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(_safe_password(password), bcrypt.gensalt()).decode("utf-8")
 
 
-def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + (
         expires_delta or timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
     )
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, get_secret_key(), algorithm=ALGORITHM)
+    return cast(str, jwt.encode(to_encode, get_secret_key(), algorithm=ALGORITHM))
 
 
 def token_username(token: str) -> str | None:
@@ -87,7 +88,7 @@ def token_username(token: str) -> str | None:
         payload = jwt.decode(token, get_secret_key(), algorithms=[ALGORITHM])
     except JWTError:
         return None
-    return payload.get("sub")
+    return cast("str | None", payload.get("sub"))
 
 
 def _get_user(username: str) -> UserInDB | None:
@@ -105,7 +106,7 @@ def _get_user(username: str) -> UserInDB | None:
 def user_count() -> int:
     _ensure_users_table()
     with sqlite3.connect(settings.sqlite_db_path) as conn:
-        return conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        return cast(int, conn.execute("SELECT COUNT(*) FROM users").fetchone()[0])
 
 
 def register_user(username: str, email: str, password: str) -> UserInDB:
@@ -122,10 +123,13 @@ def register_user(username: str, email: str, password: str) -> UserInDB:
     _ensure_users_table()
     with sqlite3.connect(settings.sqlite_db_path) as conn:
         conn.execute(
-            "INSERT INTO users (username, email, hashed_password, created) "
-            "VALUES (?, ?, ?, ?)",
-            (user.username, user.email, user.hashed_password,
-             datetime.now(timezone.utc).isoformat()),
+            "INSERT INTO users (username, email, hashed_password, created) VALUES (?, ?, ?, ?)",
+            (
+                user.username,
+                user.email,
+                user.hashed_password,
+                datetime.now(timezone.utc).isoformat(),
+            ),
         )
     return user
 

@@ -1,5 +1,8 @@
 """Connection discovery API endpoint for the knowledge graph."""
+
 from __future__ import annotations
+
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -24,7 +27,7 @@ async def discover_connections(
     request: Request,
     entity_id: str | None = None,
     max_distance: int = 3,
-) -> dict:
+) -> dict[str, Any]:
     """Discover indirect connections from an entity via graph traversal + embedding similarity."""
     if entity_id is None:
         raise HTTPException(status_code=400, detail="entity_id query parameter is required")

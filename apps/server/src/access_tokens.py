@@ -6,6 +6,7 @@ a leaked DB read must not reveal usable tokens. Each token carries a ``scope``
 (``read`` or ``full``) and the ``username`` of its creator, which the MCP layer
 uses to mint a short-lived internal JWT when proxying calls to the REST API.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -15,6 +16,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from src.config import settings
 
@@ -60,7 +62,7 @@ def _hash(plaintext: str) -> str:
     return hashlib.sha256(plaintext.encode("utf-8")).hexdigest()
 
 
-def _row_to_token(row: tuple) -> AccessToken:
+def _row_to_token(row: tuple[Any, ...]) -> AccessToken:
     return AccessToken(
         id=row[0],
         name=row[1],

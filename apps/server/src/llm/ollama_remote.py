@@ -6,7 +6,7 @@ import asyncio
 import hashlib
 import json
 import logging
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, cast
 
 import httpx
 
@@ -89,7 +89,7 @@ class OllamaRemoteProvider(LLMProvider):
             join(self.base_url, OLLAMA_GENERATE, dialect="ollama"), json=payload
         )
         resp.raise_for_status()
-        return resp.json().get("response", "")
+        return cast(str, resp.json().get("response", ""))
 
     async def stream(self, prompt: str, system: str = "", **kwargs: Any) -> AsyncIterator[str]:
         payload = {

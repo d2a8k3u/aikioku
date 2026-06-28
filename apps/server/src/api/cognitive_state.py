@@ -1,4 +1,5 @@
 """Cognitive state API endpoints."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request
@@ -19,7 +20,7 @@ def _get_tracker(request: Request) -> CognitiveStateTracker:
 
 
 @router.get("/state")
-async def get_state(request: Request) -> dict:
+async def get_state(request: Request) -> dict[str, str]:
     """Get the current cognitive state and recommended intervention."""
     tracker = _get_tracker(request)
     try:
@@ -34,7 +35,7 @@ async def get_state(request: Request) -> dict:
 
 
 @router.post("/state")
-async def record_signal(request: Request, signal_type: str, value: float) -> dict:
+async def record_signal(request: Request, signal_type: str, value: float) -> dict[str, str | float]:
     """Record a behavioural signal for cognitive state tracking."""
     tracker = _get_tracker(request)
     try:

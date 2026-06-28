@@ -29,7 +29,7 @@ class MemoryTierManager:
         elif memory.tier == MemoryTier.warm:
             memory.tier = MemoryTier.cold
 
-    def get_tier_stats(self) -> dict:
+    def get_tier_stats(self) -> dict[str, int]:
         """Return counts per tier among registered memories."""
         stats: dict[str, int] = {"hot": 0, "warm": 0, "cold": 0}
         for mem in self._memories:

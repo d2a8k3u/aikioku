@@ -12,9 +12,7 @@ from src.retrieval.search_result import SearchResult
 class DenseRetriever:
     """Retrieves notes by embedding the query and searching a vector store."""
 
-    def __init__(
-        self, embedding_store: EmbeddingStore, llm_provider: LLMProvider
-    ) -> None:
+    def __init__(self, embedding_store: EmbeddingStore, llm_provider: LLMProvider) -> None:
         """Create a DenseRetriever.
 
         Args:

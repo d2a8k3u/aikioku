@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -34,7 +35,7 @@ class ConversationMessage(BaseModel):
     user_id: str = Field(min_length=1)
     role: str = Field(min_length=1)
     content: str = ""
-    citations: list = Field(default_factory=list)
-    sub_questions: list = Field(default_factory=list)
+    citations: list[dict[str, Any]] = Field(default_factory=list)
+    sub_questions: list[str] = Field(default_factory=list)
     created: datetime = Field(default_factory=datetime.utcnow)
     in_progress: bool = Field(default=False)

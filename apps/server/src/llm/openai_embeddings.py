@@ -4,6 +4,7 @@ A dedicated embedding-only provider (chat methods are unused): ``embed()`` calls
 OpenAI's ``POST /v1/embeddings``. Strict/fallback behavior mirrors
 ``OllamaRemoteProvider`` so the rest of the system treats every embedder the same.
 """
+
 from __future__ import annotations
 
 import logging
@@ -83,6 +84,7 @@ class OpenAIEmbeddingProvider(LLMProvider):
             return False
         try:
             import urllib.request
+
             req = urllib.request.Request(
                 join(self.base_url, OPENAI_MODELS, dialect="openai"),
                 headers={

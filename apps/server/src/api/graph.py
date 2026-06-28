@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import logging
+from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
+from src.knowledge.graph import KnowledgeGraph
 from src.models.entity import Entity
 
 logger = logging.getLogger(__name__)
@@ -13,12 +15,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/graph", tags=["graph"])
 
 
-def _get_graph(request: Request):
+def _get_graph(request: Request) -> KnowledgeGraph:
     """Get KnowledgeGraph from app state."""
-    return request.app.state.knowledge_graph
+    return cast(KnowledgeGraph, request.app.state.knowledge_graph)
 
 
-def _entity_to_dict(entity: Entity) -> dict:
+def _entity_to_dict(entity: Entity) -> dict[str, Any]:
     return {
         "id": entity.id,
         "name": entity.name,
@@ -35,14 +37,14 @@ async def list_entities(
     request: Request,
     type: str | None = None,
     limit: int = Query(50, ge=1, le=500),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     graph = _get_graph(request)
     entities = graph.find_entities(type=type, limit=limit)
     return [_entity_to_dict(e) for e in entities]
 
 
 @router.get("/entities/{entity_id}")
-async def get_entity(request: Request, entity_id: str) -> dict:
+async def get_entity(request: Request, entity_id: str) -> dict[str, Any]:
     graph = _get_graph(request)
     entity = graph.get_entity(entity_id)
     if entity is None:
@@ -64,7 +66,7 @@ async def get_entity(request: Request, entity_id: str) -> dict:
 
 
 @router.get("/entities/{entity_id}/relations")
-async def get_entity_relations(request: Request, entity_id: str) -> list[dict]:
+async def get_entity_relations(request: Request, entity_id: str) -> list[dict[str, Any]]:
     graph = _get_graph(request)
     entity = graph.get_entity(entity_id)
     if entity is None:
@@ -87,7 +89,7 @@ async def get_entity_relations(request: Request, entity_id: str) -> list[dict]:
 async def list_relations(
     request: Request,
     limit: int = Query(500, ge=1, le=5000),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     graph = _get_graph(request)
     relations = graph.get_all_relations(limit=limit)
     return [
@@ -107,7 +109,7 @@ async def graph_full(
     request: Request,
     limit: int = Query(2000, ge=1, le=10000),
     relation_limit: int = Query(10000, ge=1, le=50000),
-) -> dict:
+) -> dict[str, Any]:
     """Return the whole graph (nodes + edges) in one request for visualization."""
     graph = _get_graph(request)
     entities = graph.find_entities(limit=limit)
@@ -132,14 +134,14 @@ async def find_paths(
     source: str,
     target: str,
     max_depth: int = Query(3, ge=1, le=10),
-) -> dict:
+) -> dict[str, Any]:
     graph = _get_graph(request)
     paths = graph.find_paths(source, target, max_depth)
     return {"paths": [[_entity_to_dict(e) for e in path] for path in paths]}
 
 
 @router.get("/stats")
-async def graph_stats(request: Request) -> dict:
+async def graph_stats(request: Request) -> dict[str, Any]:
     graph = _get_graph(request)
     return {
         "entities": graph.count_entities(),

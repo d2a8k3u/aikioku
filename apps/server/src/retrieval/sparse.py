@@ -107,7 +107,11 @@ class SparseRetriever:
             note_id = doc.get_first("note_id") or ""
             body = doc.get_first("body") or ""
             snippet_obj = snippet_gen.snippet_from_doc(doc)
-            snippet = snippet_obj.to_html() if snippet_obj.fragment() else (body[:200] + "..." if len(body) > 200 else body)
+            snippet = (
+                snippet_obj.to_html()
+                if snippet_obj.fragment()
+                else (body[:200] + "..." if len(body) > 200 else body)
+            )
             results.append(
                 SearchResult(
                     note_id=str(note_id),

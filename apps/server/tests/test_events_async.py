@@ -1,4 +1,5 @@
 """Tests for async EventBus methods."""
+
 from __future__ import annotations
 
 import os

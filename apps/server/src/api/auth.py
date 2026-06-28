@@ -1,4 +1,5 @@
 """Authentication API endpoints."""
+
 from __future__ import annotations
 
 from datetime import timedelta
@@ -57,6 +58,6 @@ async def auth_login(form_data: OAuth2PasswordRequestForm = Depends()) -> Token:
 
 
 @router.get("/me")
-async def auth_me(user: UserInDB = Depends(require_auth)) -> dict:
+async def auth_me(user: UserInDB = Depends(require_auth)) -> dict[str, str]:
     """Return the currently authenticated user's profile."""
     return {"username": user.username, "email": user.email}

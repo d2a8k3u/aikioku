@@ -24,7 +24,7 @@ class TestParseLLMJson:
         assert result == [{"type": "qa", "front": "Q", "back": "A"}]
 
     def test_bare_fenced_array(self):
-        text = '```\n[1, 2, 3]\n```'
+        text = "```\n[1, 2, 3]\n```"
         result = parse_llm_json(text, expect="list")
         assert result == [1, 2, 3]
 
@@ -44,7 +44,7 @@ class TestParseLLMJson:
 
     def test_array_when_expect_dict_raises(self):
         with pytest.raises(LLMOutputParseError):
-            parse_llm_json('[1, 2, 3]', expect="dict")
+            parse_llm_json("[1, 2, 3]", expect="dict")
 
     def test_garbage_raises(self):
         with pytest.raises(LLMOutputParseError):

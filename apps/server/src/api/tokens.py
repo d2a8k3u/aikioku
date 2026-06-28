@@ -4,6 +4,7 @@ Tokens authenticate machine clients (MCP, external apps) against the ``/mcp``
 surface. They are created here by the logged-in owner, stored one-way hashed by
 ``access_tokens``, and shown in plaintext exactly once — in the POST response.
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -20,7 +21,7 @@ class TokenCreate(BaseModel):
     scope: str = Field(default="full")
 
 
-def _public(token: access_tokens.AccessToken) -> dict:
+def _public(token: access_tokens.AccessToken) -> dict[str, str | None]:
     return {
         "id": token.id,
         "name": token.name,
@@ -32,7 +33,7 @@ def _public(token: access_tokens.AccessToken) -> dict:
 
 
 @router.get("/")
-async def list_tokens(_user: UserInDB = Depends(require_auth)) -> list[dict]:
+async def list_tokens(_user: UserInDB = Depends(require_auth)) -> list[dict[str, str | None]]:
     """List access tokens (never returns the secret value)."""
     return [_public(t) for t in access_tokens.list_tokens()]
 
@@ -41,7 +42,7 @@ async def list_tokens(_user: UserInDB = Depends(require_auth)) -> list[dict]:
 async def create_token(
     body: TokenCreate,
     user: UserInDB = Depends(require_auth),
-) -> dict:
+) -> dict[str, str | None]:
     """Create a token. The plaintext ``token`` is returned only in this response."""
     if body.scope not in access_tokens.VALID_SCOPES:
         raise HTTPException(
@@ -58,11 +59,9 @@ async def create_token(
 async def delete_token(
     token_id: str,
     _user: UserInDB = Depends(require_auth),
-) -> dict:
+) -> dict[str, bool]:
     """Revoke a token by id."""
     removed = access_tokens.delete_token(token_id)
     if not removed:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Token not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Token not found")
     return {"ok": True}

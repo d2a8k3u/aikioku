@@ -22,12 +22,18 @@ import json
 import logging
 import os
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Any
 
 from src import runtime_config
 from src.config import settings
 from src.knowledge.embeddings import EmbeddingStore
 from src.knowledge.reembed_fingerprint import effective_embedding_fingerprint
 from src.llm.ollama_remote import _deterministic_embedding
+
+if TYPE_CHECKING:
+    from fastapi import FastAPI
+
+    from src.llm.base import LLMProvider
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +43,7 @@ _EMBED_RETRIES = 3  # attempts per item before counting a hard failure
 _ABORT_AFTER_FAILURES = 25  # total hard failures => treat as a real outage, abort
 
 # Module-level state (mirrors api/admin.py reextract precedent).
-_reembed_state: dict = {
+_reembed_state: dict[str, Any] = {
     "state": "idle",  # idle | running | failed
     "target_fp": None,
     "processed_notes": 0,
@@ -46,14 +52,14 @@ _reembed_state: dict = {
     "total_convs": 0,
     "error": None,
 }
-_reembed_task: "asyncio.Task | None" = None
+_reembed_task: "asyncio.Task[None] | None" = None
 _current_target_fp: "str | None" = None
 
 
 # --- public API -----------------------------------------------------------------
 
 
-def get_status() -> dict:
+def get_status() -> dict[str, Any]:
     return dict(_reembed_state)
 
 
@@ -64,7 +70,7 @@ def current_fingerprint_mismatch() -> tuple[bool, str]:
     return (active != current, current)
 
 
-def schedule_reembed(app, target_fp: str) -> dict:
+def schedule_reembed(app: FastAPI, target_fp: str) -> dict[str, Any]:
     """Single-flight + supersede entry point. Returns immediately."""
     global _reembed_task, _current_target_fp
     if _reembed_task is not None and not _reembed_task.done():
@@ -77,7 +83,7 @@ def schedule_reembed(app, target_fp: str) -> dict:
     return {"status": "started", "target_fp": target_fp}
 
 
-def maybe_schedule_reembed(app) -> bool:
+def maybe_schedule_reembed(app: FastAPI) -> bool:
     """Schedule a reembed if configured and the stored vectors are stale.
 
     Triggers on a fingerprint mismatch, or to resume/retry an interrupted
@@ -106,14 +112,14 @@ def _persist_status() -> None:
     runtime_config.set_app_setting("reembed_status", json.dumps(_reembed_state))
 
 
-def _fail(app, msg: str) -> None:
+def _fail(app: FastAPI, msg: str) -> None:
     _reembed_state.update(state="failed", error=msg)
     _persist_status()
     logger.warning("reembed failed: %s", msg)
     _emit(app, "reembed.failed", {"target_fp": _reembed_state["target_fp"], "error": msg})
 
 
-def _emit(app, event_type: str, data: dict) -> None:
+def _emit(app: FastAPI, event_type: str, data: dict[str, Any]) -> None:
     from src.api.websocket import get_broadcaster
 
     bc = get_broadcaster()
@@ -123,7 +129,7 @@ def _emit(app, event_type: str, data: dict) -> None:
     asyncio.ensure_future(bc.broadcast(event_type, data))
 
 
-def _progress_payload(target_fp: str) -> dict:
+def _progress_payload(target_fp: str) -> dict[str, Any]:
     return {
         "target_fp": target_fp,
         "processed_notes": _reembed_state["processed_notes"],
@@ -148,7 +154,7 @@ def _as_aware_utc(dt: datetime) -> datetime:
     return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
 
 
-async def _embed_with_retry(embedder, text: str) -> list[float]:
+async def _embed_with_retry(embedder: LLMProvider, text: str) -> list[float]:
     """Embed with bounded retries to ride out a transient endpoint blip."""
     last: Exception | None = None
     for attempt in range(_EMBED_RETRIES):
@@ -160,7 +166,14 @@ async def _embed_with_retry(embedder, text: str) -> list[float]:
     raise last if last is not None else RuntimeError("embed failed")
 
 
-async def _embed_items(app, target_fp, embedder, store, items, counter) -> bool:
+async def _embed_items(
+    app: FastAPI,
+    target_fp: str,
+    embedder: LLMProvider,
+    store: EmbeddingStore,
+    items: list[tuple[str, str]],
+    counter: str | None,
+) -> bool:
     """Embed ``(id, text)`` pairs into ``store`` with bounded concurrency.
 
     Idempotent per item (delete-then-add). Each item is retried; a handful of
@@ -173,7 +186,7 @@ async def _embed_items(app, target_fp, embedder, store, items, counter) -> bool:
     aborted = {"flag": False}
     failures = {"count": 0}
 
-    async def _one(item) -> None:
+    async def _one(item: tuple[str, str]) -> None:
         if aborted["flag"] or _current_target_fp != target_fp:
             return
         item_id, text = item
@@ -219,7 +232,7 @@ async def _embed_items(app, target_fp, embedder, store, items, counter) -> bool:
     return True
 
 
-async def _reembed_worker(app, target_fp: str) -> None:
+async def _reembed_worker(app: FastAPI, target_fp: str) -> None:
     dim = runtime_config.embedding_dimension()
     _reembed_state.update(
         state="running",

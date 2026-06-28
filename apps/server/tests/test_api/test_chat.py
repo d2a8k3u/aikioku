@@ -24,9 +24,11 @@ def mock_rag_generator():
         [{"note_id": "note-1", "score": 0.95, "snippet": "Python is a language"}],
     )
     # _extract_citations is a real sync method; AsyncMock would turn it async.
-    mock._extract_citations = MagicMock(return_value=[
-        {"note_id": "note-1", "score": 0.95, "snippet": "Python is a language"},
-    ])
+    mock._extract_citations = MagicMock(
+        return_value=[
+            {"note_id": "note-1", "score": 0.95, "snippet": "Python is a language"},
+        ]
+    )
     return mock
 
 
@@ -47,13 +49,16 @@ def mock_multi_hop_reasoner():
 @pytest.fixture
 def client(mock_rag_generator, mock_multi_hop_reasoner, tmp_path):
     """Create a FastAPI TestClient with mocked reasoning dependencies."""
-    with patch("src.api.chat._build_rag_generator", return_value=mock_rag_generator), \
-         patch("src.api.chat._build_multi_hop_reasoner", return_value=mock_multi_hop_reasoner), \
-         patch("src.api.chat.NoteStore") as mock_store_cls, \
-         patch("src.api.chat.settings") as mock_settings:
+    with (
+        patch("src.api.chat._build_rag_generator", return_value=mock_rag_generator),
+        patch("src.api.chat._build_multi_hop_reasoner", return_value=mock_multi_hop_reasoner),
+        patch("src.api.chat.NoteStore") as mock_store_cls,
+        patch("src.api.chat.settings") as mock_settings,
+    ):
         mock_store_cls.return_value = MagicMock()
         mock_settings.notes_dir = str(tmp_path)
         from src.main import app
+
         yield TestClient(app), mock_rag_generator, mock_multi_hop_reasoner
 
 
@@ -163,8 +168,11 @@ class TestChatCapturesMemories:
         cli, mock_rag, mock_multi = client
 
         mem = Memory(
-            subject="A", predicate="b", object="C",
-            confidence=0.5, source="conversation",
+            subject="A",
+            predicate="b",
+            object="C",
+            confidence=0.5,
+            source="conversation",
         )
         mock_rag.generate.return_value = {
             "response": "answer",
@@ -192,8 +200,11 @@ class TestChatCapturesMemories:
         cli, mock_rag, mock_multi = client
 
         mem = Memory(
-            subject="Rust", predicate="is_a", object="systems language",
-            confidence=0.9, source="conversation",
+            subject="Rust",
+            predicate="is_a",
+            object="systems language",
+            confidence=0.9,
+            source="conversation",
         )
         mock_multi.reason.return_value = {
             "response": "Combined answer",
@@ -253,11 +264,7 @@ class TestChatPersistsConversation:
         assert response.status_code == 200
 
         stored = memory_api._load_memories()
-        episodic = [
-            m
-            for m in stored
-            if m["subject"] == "user" and m["predicate"] == "asked_about"
-        ]
+        episodic = [m for m in stored if m["subject"] == "user" and m["predicate"] == "asked_about"]
         assert any(m["object"] == "When is the deadline?" for m in episodic)
 
 

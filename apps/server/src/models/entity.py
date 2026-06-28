@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from enum import Enum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -38,6 +39,6 @@ class Entity(BaseModel):
     name: str = Field(min_length=1)
     type: EntityType
     aliases: list[str] = Field(default_factory=list)
-    properties: dict = Field(default_factory=dict)
+    properties: dict[str, Any] = Field(default_factory=dict)
     confidence: float = Field(ge=0.0, le=1.0, default=0.0)
     source_note_ids: list[str] = Field(default_factory=list)

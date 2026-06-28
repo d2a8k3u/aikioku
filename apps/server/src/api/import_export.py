@@ -6,15 +6,18 @@ import io
 import json
 import zipfile
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 
-from src.auth import require_auth
+from src.auth import UserInDB, require_auth
 from src.config import settings
 from src.limiter import limiter
+from src.models.entity import Entity
 from src.models.note import Note
+from src.models.relation import Relation
 from src.storage.file_import import parse_markdown_file
 from src.storage.note_store import NoteStore, _note_to_markdown
 
@@ -44,7 +47,7 @@ def _extract_and_store_entities(request: Request, note: Note) -> None:
 
     from src.processing.budget_gate import WORK_NOTE_PROCESSING, gated
 
-    async def _do_processing():
+    async def _do_processing() -> None:
         try:
             await gated(request.app, WORK_NOTE_PROCESSING, note.id, {"note_id": note.id})
         except Exception as exc:
@@ -86,7 +89,7 @@ def _process_imported_note(request: Request, note: Note) -> Note:
 async def import_markdown(
     request: Request,
     file: UploadFile = File(...),
-    user=Depends(require_auth),
+    user: UserInDB = Depends(require_auth),
 ) -> Note:
     """Accept a single markdown file and create a note."""
     content = await file.read()
@@ -101,8 +104,8 @@ async def import_markdown(
 async def import_obsidian(
     request: Request,
     file: UploadFile = File(...),
-    user=Depends(require_auth),
-) -> dict:
+    user: UserInDB = Depends(require_auth),
+) -> dict[str, int]:
     """Accept an Obsidian vault zip, extract all .md files, and create notes."""
     content = await file.read()
     buf = io.BytesIO(content)
@@ -129,6 +132,7 @@ async def import_obsidian(
     # Invalidate semantic cache after bulk import
     import asyncio as _asyncio
     from src.cache.semantic_cache import cache_invalidate as _cache_invalidate
+
     _asyncio.ensure_future(_cache_invalidate())
     return {"imported_count": imported_count}
 
@@ -138,8 +142,8 @@ async def import_obsidian(
 async def import_bulk(
     request: Request,
     files: list[UploadFile] = File(...),
-    user=Depends(require_auth),
-) -> dict:
+    user: UserInDB = Depends(require_auth),
+) -> dict[str, int]:
     """Accept multiple markdown files and create notes for each."""
     store = get_note_store()
     imported_count = 0
@@ -160,6 +164,7 @@ async def import_bulk(
     # Invalidate semantic cache after bulk import
     import asyncio as _asyncio
     from src.cache.semantic_cache import cache_invalidate as _cache_invalidate
+
     _asyncio.ensure_future(_cache_invalidate())
     return {"imported_count": imported_count}
 
@@ -169,7 +174,7 @@ async def import_bulk(
 async def import_pdf(
     request: Request,
     file: UploadFile = File(...),
-    user=Depends(require_auth),
+    user: UserInDB = Depends(require_auth),
 ) -> Note:
     """Accept a PDF file and create a note."""
     from src.ingestion.pdf_parser import parse_pdf
@@ -190,7 +195,7 @@ async def import_pdf(
 async def import_docx(
     request: Request,
     file: UploadFile = File(...),
-    user=Depends(require_auth),
+    user: UserInDB = Depends(require_auth),
 ) -> Note:
     """Accept a DOCX file and create a note."""
     from src.ingestion.docx_parser import parse_docx
@@ -211,7 +216,7 @@ async def import_docx(
 async def import_audio(
     request: Request,
     file: UploadFile = File(...),
-    user=Depends(require_auth),
+    user: UserInDB = Depends(require_auth),
 ) -> Note:
     """Accept an audio file and create a note (requires Whisper)."""
     from src.ingestion.audio_parser import parse_audio
@@ -232,7 +237,7 @@ async def import_audio(
 async def import_image(
     request: Request,
     file: UploadFile = File(...),
-    user=Depends(require_auth),
+    user: UserInDB = Depends(require_auth),
 ) -> Note:
     """Accept an image file and create a note via OCR (requires Tesseract)."""
     from src.ingestion.image_parser import parse_image
@@ -253,7 +258,7 @@ async def import_image(
 async def import_web(
     request: Request,
     url: str,
-    user=Depends(require_auth),
+    user: UserInDB = Depends(require_auth),
 ) -> Note:
     """Fetch a web page and create a note from the article text."""
     from src.ingestion.web_parser import parse_web_clip
@@ -272,7 +277,7 @@ async def import_web(
 async def import_email(
     request: Request,
     file: UploadFile = File(...),
-    user=Depends(require_auth),
+    user: UserInDB = Depends(require_auth),
 ) -> Note:
     """Accept a raw email (.eml) file and create a note."""
     from src.ingestion.email_parser import parse_email
@@ -387,7 +392,7 @@ def _import_roam_zip(request: Request, content: bytes) -> int:
         children = page.get("children", [])
         lines: list[str] = []
 
-        def _walk(nodes: list[dict], depth: int = 0):
+        def _walk(nodes: list[dict[str, Any]], depth: int = 0) -> None:
             for node in nodes:
                 if not isinstance(node, dict):
                     continue
@@ -413,14 +418,15 @@ def _import_roam_zip(request: Request, content: bytes) -> int:
 async def import_logseq(
     request: Request,
     file: UploadFile = File(...),
-    user=Depends(require_auth),
-) -> dict:
+    user: UserInDB = Depends(require_auth),
+) -> dict[str, int]:
     """Accept a Logseq graph export zip and import markdown pages."""
     content = await file.read()
     imported_count = _import_logseq_zip(request, content)
     # Invalidate semantic cache after bulk import
     import asyncio as _asyncio
     from src.cache.semantic_cache import cache_invalidate as _cache_invalidate
+
     _asyncio.ensure_future(_cache_invalidate())
     return {"imported_count": imported_count}
 
@@ -430,14 +436,15 @@ async def import_logseq(
 async def import_notion(
     request: Request,
     file: UploadFile = File(...),
-    user=Depends(require_auth),
-) -> dict:
+    user: UserInDB = Depends(require_auth),
+) -> dict[str, int]:
     """Accept a Notion export zip and import pages and CSV databases."""
     content = await file.read()
     imported_count = _import_notion_zip(request, content)
     # Invalidate semantic cache after bulk import
     import asyncio as _asyncio
     from src.cache.semantic_cache import cache_invalidate as _cache_invalidate
+
     _asyncio.ensure_future(_cache_invalidate())
     return {"imported_count": imported_count}
 
@@ -447,14 +454,15 @@ async def import_notion(
 async def import_roam(
     request: Request,
     file: UploadFile = File(...),
-    user=Depends(require_auth),
-) -> dict:
+    user: UserInDB = Depends(require_auth),
+) -> dict[str, int]:
     """Accept a Roam Research JSON export and import pages as notes."""
     content = await file.read()
     imported_count = _import_roam_zip(request, content)
     # Invalidate semantic cache after bulk import
     import asyncio as _asyncio
     from src.cache.semantic_cache import cache_invalidate as _cache_invalidate
+
     _asyncio.ensure_future(_cache_invalidate())
     return {"imported_count": imported_count}
 
@@ -511,8 +519,8 @@ async def export_json(request: Request) -> JSONResponse:
     notes = store.list_all()
 
     graph = getattr(request.app.state, "knowledge_graph", None)
-    entities: list = []
-    relations: list = []
+    entities: list[Entity] = []
+    relations: list[Relation] = []
     if graph is not None:
         entities = graph.find_entities(limit=10000)
         seen_rel_ids: set[str] = set()
@@ -522,7 +530,7 @@ async def export_json(request: Request) -> JSONResponse:
                     seen_rel_ids.add(rel.id)
                     relations.append(rel)
 
-    def _serialize_note(note):
+    def _serialize_note(note: Note) -> dict[str, Any]:
         return {
             "id": note.id,
             "title": note.title,
@@ -538,7 +546,7 @@ async def export_json(request: Request) -> JSONResponse:
             else str(note.modified),
         }
 
-    def _serialize_entity(entity):
+    def _serialize_entity(entity: Entity) -> dict[str, Any]:
         return {
             "id": entity.id,
             "name": entity.name,
@@ -549,7 +557,7 @@ async def export_json(request: Request) -> JSONResponse:
             "source_note_ids": entity.source_note_ids,
         }
 
-    def _serialize_relation(relation):
+    def _serialize_relation(relation: Relation) -> dict[str, Any]:
         return {
             "id": relation.id,
             "source_entity_id": relation.source_entity_id,
@@ -704,7 +712,7 @@ async def export_anki(
     deck_id = 1234567890
 
     if format == "apkg":
-        import genanki  # type: ignore[import-untyped]
+        import genanki
 
         # Basic front/back model
         model = genanki.Model(

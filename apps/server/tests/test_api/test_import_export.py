@@ -23,11 +23,7 @@ class TestParseMarkdownFile:
         from src.storage.file_import import parse_markdown_file
 
         content = (
-            "---\n"
-            "title: My Test Note\n"
-            "tags: [test, demo]\n"
-            "---\n"
-            "# Hello World\n\nThis is the body."
+            "---\ntitle: My Test Note\ntags: [test, demo]\n---\n# Hello World\n\nThis is the body."
         )
         note = parse_markdown_file(content, "my-test-note.md")
         assert note.title == "My Test Note"
@@ -54,26 +50,14 @@ class TestParseMarkdownFile:
     def test_extracts_tags_from_frontmatter(self):
         from src.storage.file_import import parse_markdown_file
 
-        content = (
-            "---\n"
-            "title: Tagged Note\n"
-            "tags: [python, coding, ai]\n"
-            "---\n"
-            "Body."
-        )
+        content = "---\ntitle: Tagged Note\ntags: [python, coding, ai]\n---\nBody."
         note = parse_markdown_file(content, "tagged.md")
         assert note.frontmatter["tags"] == ["python", "coding", "ai"]
 
     def test_extracts_aliases_from_frontmatter(self):
         from src.storage.file_import import parse_markdown_file
 
-        content = (
-            "---\n"
-            "title: Aliased Note\n"
-            "aliases: [alias1, alias2]\n"
-            "---\n"
-            "Body."
-        )
+        content = "---\ntitle: Aliased Note\naliases: [alias1, alias2]\n---\nBody."
         note = parse_markdown_file(content, "aliased.md")
         assert note.frontmatter["aliases"] == ["alias1", "alias2"]
 
@@ -137,11 +121,7 @@ class TestExtractWikilinks:
     def test_extracts_wikilinks_from_multiline_content(self):
         from src.storage.file_import import extract_wikilinks
 
-        content = (
-            "# Title\n\n"
-            "First reference [[Link One]].\n\n"
-            "Second reference [[Link Two]]."
-        )
+        content = "# Title\n\nFirst reference [[Link One]].\n\nSecond reference [[Link Two]]."
         result = extract_wikilinks(content)
         assert result == ["Link One", "Link Two"]
 
@@ -226,6 +206,7 @@ def client(tmp_notes_dir):
 
     with patch.object(import_export, "_note_store", mock_store):
         from src.main import app
+
         yield TestClient(app), mock_store
 
 

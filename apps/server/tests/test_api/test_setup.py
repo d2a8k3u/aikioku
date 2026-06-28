@@ -57,9 +57,12 @@ def test_setup_test_endpoint_unreachable_host():
     from src.main import app
 
     with TestClient(app) as c:
-        r = c.post("/api/setup/test", json={
-            "llm_provider": "ollama",
-            "ollama_base_url": "http://127.0.0.1:1",
-        })
+        r = c.post(
+            "/api/setup/test",
+            json={
+                "llm_provider": "ollama",
+                "ollama_base_url": "http://127.0.0.1:1",
+            },
+        )
         assert r.status_code == 200
         assert r.json()["ok"] is False

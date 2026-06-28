@@ -22,9 +22,7 @@ def _store(user_id: str, role: str, content: str, created: datetime, **kw):
     from src.models.conversation import ConversationMessage
 
     return conv.store_message(
-        ConversationMessage(
-            user_id=user_id, role=role, content=content, created=created, **kw
-        )
+        ConversationMessage(user_id=user_id, role=role, content=content, created=created, **kw)
     )
 
 

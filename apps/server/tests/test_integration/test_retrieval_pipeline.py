@@ -3,6 +3,7 @@
 Uses real ChromaDB, real file-based notes, and real Kuzu KG in temp dirs.
 LLMProvider is mocked for dense retrieval embedding generation.
 """
+
 from __future__ import annotations
 
 import tempfile
@@ -25,6 +26,7 @@ from src.storage.note_store import NoteStore
 def _make_embedding(dim: int = 384, seed: int = 0) -> list[float]:
     """Create a deterministic pseudo-embedding vector."""
     import random
+
     rng = random.Random(seed)
     vec = [rng.uniform(-1, 1) for _ in range(dim)]
     magnitude = sum(x * x for x in vec) ** 0.5
@@ -144,6 +146,7 @@ def populated_kg(knowledge_graph, populated_note_store):
 # Dense retrieval
 # --------------------------------------------------------------------------- #
 
+
 class TestDenseRetrieval:
     @pytest.mark.asyncio
     async def test_dense_retrieval(self, populated_embedding_store, mock_llm_provider):
@@ -173,6 +176,7 @@ class TestDenseRetrieval:
 # --------------------------------------------------------------------------- #
 # Sparse retrieval
 # --------------------------------------------------------------------------- #
+
 
 class TestSparseRetrieval:
     def test_sparse_retrieval(self, temp_dirs, populated_note_store):
@@ -210,9 +214,17 @@ class TestSparseRetrieval:
 # Hybrid fusion
 # --------------------------------------------------------------------------- #
 
+
 class TestHybridFusion:
     @pytest.mark.asyncio
-    async def test_hybrid_fusion(self, temp_dirs, populated_note_store, populated_embedding_store, populated_kg, mock_llm_provider):
+    async def test_hybrid_fusion(
+        self,
+        temp_dirs,
+        populated_note_store,
+        populated_embedding_store,
+        populated_kg,
+        mock_llm_provider,
+    ):
         """Hybrid fusion should return fused results from all 3 retrievers."""
         store, notes = populated_note_store
         emb_store, _ = populated_embedding_store
@@ -236,7 +248,14 @@ class TestHybridFusion:
             assert r.source == "fusion"
 
     @pytest.mark.asyncio
-    async def test_hybrid_fusion_returns_fused_results(self, temp_dirs, populated_note_store, populated_embedding_store, populated_kg, mock_llm_provider):
+    async def test_hybrid_fusion_returns_fused_results(
+        self,
+        temp_dirs,
+        populated_note_store,
+        populated_embedding_store,
+        populated_kg,
+        mock_llm_provider,
+    ):
         """Fused results should be deduplicated and sorted by score."""
         store, notes = populated_note_store
         emb_store, _ = populated_embedding_store
@@ -265,6 +284,7 @@ class TestHybridFusion:
 # --------------------------------------------------------------------------- #
 # Graph retrieval
 # --------------------------------------------------------------------------- #
+
 
 class TestGraphRetrieval:
     def test_graph_retrieval(self, populated_kg):

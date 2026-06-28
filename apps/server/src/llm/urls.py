@@ -12,10 +12,11 @@ Dialects:
 - ``"openai"`` (OpenAI): canonical base is the host plus exactly one ``/v1``;
   suffixes are bare (``/embeddings``, ``/models``).
 """
+
 from __future__ import annotations
 
 OLLAMA_GENERATE = "/api/generate"
-OLLAMA_EMBED = "/api/embed"          # remote (current Ollama shape)
+OLLAMA_EMBED = "/api/embed"  # remote (current Ollama shape)
 OLLAMA_EMBEDDINGS = "/api/embeddings"  # local (legacy shape)
 OLLAMA_TAGS = "/api/tags"
 OPENROUTER_CHAT = "/chat/completions"

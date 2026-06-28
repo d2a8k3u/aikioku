@@ -1,4 +1,5 @@
 """Tests for Connection Discovery API endpoint."""
+
 from __future__ import annotations
 
 import os
@@ -29,12 +30,20 @@ def client():
         kg.create_entity(e2)
         kg.create_entity(e3)
 
-        kg.create_relation(Relation(
-            source_entity_id=e1.id, target_entity_id=e2.id, type=RelationType.works_at,
-        ))
-        kg.create_relation(Relation(
-            source_entity_id=e2.id, target_entity_id=e3.id, type=RelationType.works_at,
-        ))
+        kg.create_relation(
+            Relation(
+                source_entity_id=e1.id,
+                target_entity_id=e2.id,
+                type=RelationType.works_at,
+            )
+        )
+        kg.create_relation(
+            Relation(
+                source_entity_id=e2.id,
+                target_entity_id=e3.id,
+                type=RelationType.works_at,
+            )
+        )
 
         # Mock embedding store with minimal interface needed by ConnectionDiscovery
         class FakeEmbeddingStore:
@@ -74,6 +83,7 @@ class TestDiscoverConnections:
     def test_empty_connections_for_isolated(self, client):
         cli, e1, e2, e3 = client
         from src.models.entity import Entity, EntityType
+
         isolated = Entity(name="Solo", type=EntityType.Concept, confidence=0.90)
         app = cli.app
         app.state.knowledge_graph.create_entity(isolated)

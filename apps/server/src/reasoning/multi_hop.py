@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from src.llm.base import LLMProvider
 from src.llm.json_parse import LLMOutputParseError, parse_llm_json
@@ -12,6 +12,8 @@ from src.llm.json_parse import LLMOutputParseError, parse_llm_json
 if TYPE_CHECKING:
     from src.knowledge.graph import KnowledgeGraph
     from src.memory.extraction import MemoryExtractor
+    from src.models.entity import Entity
+    from src.models.memory import Memory
     from src.reasoning.rag import RAGGenerator
     from src.storage.note_store import NoteStore
 
@@ -81,8 +83,8 @@ class MultiHopReasoner:
         self,
         query: str,
         note_store: NoteStore,
-        history: list[dict] | None = None,
-    ) -> dict:
+        history: list[dict[str, str]] | None = None,
+    ) -> dict[str, Any]:
         """Perform multi-hop reasoning on the query.
 
         Steps:
@@ -111,9 +113,7 @@ class MultiHopReasoner:
 
         # If every sub-question failed, fall back to a single grounded pass.
         if not answers:
-            logger.warning(
-                "All sub-questions failed; falling back to single-pass generation."
-            )
+            logger.warning("All sub-questions failed; falling back to single-pass generation.")
             fallback = await self._rag.generate(query, note_store, history=history)
             return {
                 "response": fallback.get("response", ""),
@@ -124,24 +124,20 @@ class MultiHopReasoner:
 
         # Step 3: Ground with graph facts and synthesize.
         graph_context = self._graph_context(query)
-        combined = await self._synthesize(
-            query, sub_questions, answers, graph_context, history
-        )
+        combined = await self._synthesize(query, sub_questions, answers, graph_context, history)
         combined["sub_questions"] = sub_questions
         # Capture memories once, from the final synthesized answer. Sub-questions
         # deliberately skip extraction (it doubled the concurrent LLM load and,
         # under the per-sub-question timeout, discarded answers whose trailing
         # extraction call was still queued). The synthesized answer is also a
         # cleaner extraction source than the fragmented intermediate sub-answers.
-        combined["memories"] = await self._extract_memories(
-            query, combined.get("response", "")
-        )
+        combined["memories"] = await self._extract_memories(query, combined.get("response", ""))
 
         return combined
 
     async def _answer_sub_questions(
         self, sub_questions: list[str], note_store: NoteStore
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Answer sub-questions concurrently, dropping any that fail or time out.
 
         Args:
@@ -152,7 +148,7 @@ class MultiHopReasoner:
             The list of successful answer dicts, preserving sub-question order.
         """
 
-        async def _answer(sub_q: str) -> dict | None:
+        async def _answer(sub_q: str) -> dict[str, Any] | None:
             try:
                 # extract_memories=False: the 45s budget must cover only
                 # retrieval + the answer generate. Memory extraction is a second
@@ -168,15 +164,13 @@ class MultiHopReasoner:
                 logger.warning("Sub-question timed out, dropping: %s", sub_q)
                 return None
             except Exception:
-                logger.warning(
-                    "Sub-question failed, dropping: %s", sub_q, exc_info=True
-                )
+                logger.warning("Sub-question failed, dropping: %s", sub_q, exc_info=True)
                 return None
 
         results = await asyncio.gather(*[_answer(sq) for sq in sub_questions])
         return [r for r in results if r is not None]
 
-    async def _extract_memories(self, query: str, answer: str) -> list:
+    async def _extract_memories(self, query: str, answer: str) -> list[Memory]:
         """Extract memories from the final answer (best-effort, single LLM call).
 
         Returns ``[]`` when no extractor is configured, the answer is empty, or
@@ -237,10 +231,10 @@ class MultiHopReasoner:
         self,
         query: str,
         sub_questions: list[str],
-        answers: list[dict],
+        answers: list[dict[str, Any]],
         graph_context: str,
-        history: list[dict] | None = None,
-    ) -> dict:
+        history: list[dict[str, str]] | None = None,
+    ) -> dict[str, Any]:
         """Synthesize sub-answers into one coherent response via the LLM.
 
         On synthesis failure, falls back to concatenating the sub-answers.
@@ -258,9 +252,7 @@ class MultiHopReasoner:
         """
         citations = self._merge_citations(answers)
 
-        prompt = self._build_synthesis_prompt(
-            query, sub_questions, answers, graph_context, history
-        )
+        prompt = self._build_synthesis_prompt(query, sub_questions, answers, graph_context, history)
         try:
             response = await self._llm.complete(
                 prompt=prompt,
@@ -269,9 +261,7 @@ class MultiHopReasoner:
             if not response or not response.strip():
                 raise ValueError("empty synthesis response")
         except Exception:
-            logger.warning(
-                "Synthesis failed; falling back to concatenation.", exc_info=True
-            )
+            logger.warning("Synthesis failed; falling back to concatenation.", exc_info=True)
             concatenated = self._combine_answers(answers)
             return {
                 "response": concatenated["response"],
@@ -284,9 +274,9 @@ class MultiHopReasoner:
     def _build_synthesis_prompt(
         query: str,
         sub_questions: list[str],
-        answers: list[dict],
+        answers: list[dict[str, Any]],
         graph_context: str,
-        history: list[dict] | None = None,
+        history: list[dict[str, str]] | None = None,
     ) -> str:
         """Build the user prompt for the synthesis pass."""
         lines = [f"Original question: {query}", ""]
@@ -309,9 +299,7 @@ class MultiHopReasoner:
             lines.append(f"- Q: {sub_q}")
             lines.append(f"  A: {resp}")
         lines.append("")
-        lines.append(
-            "Synthesize a single coherent answer to the original question."
-        )
+        lines.append("Synthesize a single coherent answer to the original question.")
         return "\n".join(lines)
 
     def _graph_context(self, query: str) -> str:
@@ -344,9 +332,7 @@ class MultiHopReasoner:
                     other = self._graph.get_entity(other_id)
                     other_name = other.name if other is not None else other_id
                     rel_type = getattr(relation.type, "value", str(relation.type))
-                    fact_lines.append(
-                        f"- {entity.name} {rel_type} {other_name}"
-                    )
+                    fact_lines.append(f"- {entity.name} {rel_type} {other_name}")
 
             if not fact_lines:
                 return ""
@@ -356,10 +342,10 @@ class MultiHopReasoner:
             logger.warning("Graph context lookup failed; continuing without it.", exc_info=True)
             return ""
 
-    def _collect_entities(self, query: str) -> list:
+    def _collect_entities(self, query: str) -> list[Entity]:
         """Collect salient entities for the query from the graph (bounded)."""
         seen_ids: set[str] = set()
-        entities: list = []
+        entities: list[Entity] = []
 
         # Probe with capitalized tokens (likely proper nouns / concepts), then
         # fall back to the whole query.
@@ -381,10 +367,10 @@ class MultiHopReasoner:
         return entities
 
     @staticmethod
-    def _merge_citations(answers: list[dict]) -> list[dict]:
+    def _merge_citations(answers: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Merge and deduplicate citations across sub-answers (by note_id)."""
         seen_note_ids: set[str] = set()
-        merged: list[dict] = []
+        merged: list[dict[str, Any]] = []
         for answer in answers:
             for citation in answer.get("citations", []):
                 note_id = citation.get("note_id", "")
@@ -395,7 +381,7 @@ class MultiHopReasoner:
                     merged.append(citation)
         return merged
 
-    def _combine_answers(self, answers: list[dict]) -> dict:
+    def _combine_answers(self, answers: list[dict[str, Any]]) -> dict[str, Any]:
         """Concatenate sub-answers into a final response (synthesis fallback).
 
         Args:

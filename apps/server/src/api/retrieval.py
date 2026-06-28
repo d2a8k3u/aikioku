@@ -1,5 +1,8 @@
 """Retrieval API endpoints using HybridFusion."""
+
 from __future__ import annotations
+
+from typing import Any
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
@@ -21,7 +24,7 @@ class HybridSearchRequest(BaseModel):
 # ------------------------------------------------------------------ helpers (patchable in tests)
 
 
-async def _hybrid_search(request: Request, query: str, limit: int) -> list[dict]:
+async def _hybrid_search(request: Request, query: str, limit: int) -> list[dict[str, Any]]:
     """Run a hybrid search across dense, sparse, and graph retrievers.
 
     Uses the HybridFusion instance attached to the application state.
@@ -44,7 +47,7 @@ async def _hybrid_search(request: Request, query: str, limit: int) -> list[dict]
 
 
 @router.post("/hybrid")
-async def hybrid_search(request: Request, body: HybridSearchRequest) -> list[dict]:
+async def hybrid_search(request: Request, body: HybridSearchRequest) -> list[dict[str, Any]]:
     """Hybrid search across dense, sparse, and graph retrievers.
 
     Uses weighted reciprocal rank fusion (RRF) to combine results.
