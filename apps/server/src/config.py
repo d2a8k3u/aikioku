@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     # Automation
     auto_extract: bool = True
     auto_consolidation: bool = True
+    auto_entity_extraction: bool = True
+    auto_memory_extraction: bool = True
     auto_title: bool = True
     llm_daily_budget_usd: float = 5.0
     # Fraction of the daily budget at which the UI flags a near-limit warning

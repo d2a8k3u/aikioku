@@ -24,10 +24,11 @@ import logging
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, field_validator
 
+from src import runtime_config
 from src.auth import UserInDB, require_auth
 from src.cache.semantic_cache import cache_get, cache_put
 from src.config import settings
@@ -46,6 +47,21 @@ _HISTORY_LIMIT = 10
 # When exceeded, the stream begins with raw retrieval snippets and the
 # condensed context is discarded — the user gets an answer, not silence.
 _CONTEXT_BUILD_TIMEOUT_S = 10.0
+
+
+def _spawn_background(app: FastAPI, coro) -> None:
+    """Spawn a fire-and-forget background task with strong reference.
+
+    Python 3.12+ holds only weak references to asyncio tasks, so
+    ensure_future/create_task can be silently GC'd. This keeps a strong
+    reference in app.state._bg_tasks and auto-removes on completion.
+    """
+    task = asyncio.ensure_future(coro)
+    bg = getattr(app.state, "_bg_tasks", None)
+    if bg is not None:
+        bg.add(task)
+        task.add_done_callback(bg.discard)
+    return task
 
 
 def _persist_memories(memories: list) -> None:
@@ -195,7 +211,7 @@ def _extract_graph_entities(request: Request, turn_id: str, user_q: str, assista
         except Exception:
             logger.warning("Chat entity extraction failed for turn %s.", turn_id, exc_info=True)
 
-    asyncio.ensure_future(_do())
+    _spawn_background(request.app, _do())
 
 
 async def _capture_turn(
@@ -253,10 +269,11 @@ async def _capture_turn(
             logger.warning("Failed to update assistant placeholder %s.", turn_id, exc_info=True)
 
         await _embed_turn(request, turn_id, created, user_q, assistant_a)
-        _extract_graph_entities(request, turn_id, user_q, assistant_a)
+        if runtime_config.auto_entity_extraction():
+            _extract_graph_entities(request, turn_id, user_q, assistant_a)
 
         captured = list(memories) if memories else []
-        if memories is None:
+        if memories is None and runtime_config.auto_memory_extraction():
             captured.extend(await _extract_factual(request, user_q, assistant_a))
         try:
             captured.append(build_episodic_memory(user_q, created=created))
@@ -514,7 +531,8 @@ async def _stream_chat(
                 else:
                     yield _sse("message", {"chunk": ""})
 
-                asyncio.ensure_future(
+                _spawn_background(
+                    request.app,
                     _capture_turn(
                         request,
                         user_id,
@@ -646,11 +664,13 @@ async def _stream_chat(
 
                 answer = "".join(answer_parts)
                 # Simple streaming generates no memories; _capture_turn extracts them.
-                asyncio.ensure_future(
+                _spawn_background(
+                    request.app,
                     _capture_turn(request, user_id, query, answer, turn_id, citations, [], None)
                 )
                 # Store in semantic cache for future hits (fire-and-forget).
-                asyncio.ensure_future(
+                _spawn_background(
+                    request.app,
                     cache_put(query, mode, tone, answer, citations, [])
                 )
                 # Broadcast buddy state: listening
@@ -697,7 +717,8 @@ async def _stream_chat(
                     raise  # handled by finally
                 except Exception:
                     yield _sse("message", {"chunk": answer})
-                asyncio.ensure_future(
+                _spawn_background(
+                    request.app,
                     _capture_turn(
                         request,
                         user_id,
@@ -710,7 +731,8 @@ async def _stream_chat(
                     )
                 )
                 # Store in semantic cache for future hits (fire-and-forget).
-                asyncio.ensure_future(
+                _spawn_background(
+                    request.app,
                     cache_put(query, mode, tone, answer, citations, sub_questions)
                 )
                 # Broadcast buddy state: listening
