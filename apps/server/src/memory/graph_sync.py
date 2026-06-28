@@ -33,6 +33,9 @@ logger = logging.getLogger(__name__)
 # Timeout in seconds for the batched entity-typing LLM call.
 LLM_MEMORY_TYPING_TIMEOUT = 60
 
+# Max names per typing LLM call.
+LLM_MEMORY_TYPING_CHUNK_SIZE = 64
+
 # Map free-form memory predicates onto the fixed RelationType enum. The original
 # predicate is always preserved verbatim in ``relation.properties['predicate']``,
 # so the related_to fallback loses no information.
@@ -136,6 +139,19 @@ async def type_names(names: list[str], llm: LLMProvider) -> dict[str, EntityType
     return result
 
 
+async def type_names_chunked(
+    names: list[str],
+    llm: LLMProvider,
+    chunk_size: int = LLM_MEMORY_TYPING_CHUNK_SIZE,
+) -> dict[str, EntityType]:
+    """Type many names across several batched LLM calls (one per ``chunk_size``)."""
+    unique = list({n.strip(): None for n in names if n and n.strip()})
+    result: dict[str, EntityType] = {}
+    for start in range(0, len(unique), chunk_size):
+        result.update(await type_names(unique[start : start + chunk_size], llm))
+    return result
+
+
 def _add_source_memory_id(properties: dict[str, Any], memory_id: str) -> bool:
     """Append ``memory_id`` to ``properties['source_memory_ids']`` if absent.
 
@@ -157,11 +173,22 @@ def _find_entity_by_name(graph: KnowledgeGraph, name: str) -> Entity | None:
     return None
 
 
+def _known_entity_types(graph: KnowledgeGraph, names: list[str]) -> dict[str, EntityType]:
+    """Stored types for names already present in the graph (read-only)."""
+    known: dict[str, EntityType] = {}
+    for name in names:
+        entity = _find_entity_by_name(graph, name)
+        if entity is not None:
+            known[name] = entity.type
+    return known
+
+
 async def sync_memory_to_graph(
     memory: Memory,
     graph: KnowledgeGraph,
     llm: LLMProvider,
     resolver: EntityResolver | None = None,
+    types: dict[str, EntityType] | None = None,
 ) -> tuple[Entity, Entity, Relation] | None:
     """Resolve a memory's subject & object to graph entities and upsert a relation.
 
@@ -175,7 +202,8 @@ async def sync_memory_to_graph(
         return None
 
     resolver = resolver or EntityResolver(graph)
-    types = await type_names([subject, obj], llm)
+    if types is None:
+        types = await type_names([subject, obj], llm)
 
     def _resolve(name: str) -> Entity:
         raw = Entity(
@@ -234,9 +262,22 @@ async def sync_memories_to_graph(
 ) -> None:
     """Sync a batch of memories into the graph, isolating per-item failures."""
     resolver = resolver or EntityResolver(graph)
+
+    all_names = list(
+        {
+            name: None
+            for memory in memories
+            for name in (memory.subject.strip(), memory.object.strip())
+            if name
+        }
+    )
+    known_types = _known_entity_types(graph, all_names)
+    new_names = [name for name in all_names if name not in known_types]
+    types_map = {**known_types, **await type_names_chunked(new_names, llm)}
+
     for memory in memories:
         try:
-            await sync_memory_to_graph(memory, graph, llm, resolver)
+            await sync_memory_to_graph(memory, graph, llm, resolver, types=types_map)
         except Exception as exc:
             logger.warning("memory graph sync failed for %s: %s", memory.id, exc, exc_info=True)
 
