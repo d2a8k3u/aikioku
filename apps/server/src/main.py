@@ -307,6 +307,11 @@ async def lifespan(app: FastAPI):
     # Drain LLM work deferred while the daily budget was exhausted, once it resets.
     app.state._budget_drain_task = asyncio.create_task(_budget_drain_worker(app))
 
+    # Strong-reference set for fire-and-forget background tasks (Python 3.12+
+    # holds only weak references to tasks, so ensure_future/create_task can be
+    # silently GC'd). Populated by _spawn_background() in chat.py.
+    app.state._bg_tasks: set = set()
+
     # Embedding fingerprint: adopt the on-disk collections as the baseline on
     # first run (no wipe), then auto-reembed in the background if the effective
     # embedding config has since changed or a prior run was interrupted.
@@ -338,6 +343,12 @@ async def lifespan(app: FastAPI):
     reembed_task = getattr(app.state, "_reembed_task", None)
     if reembed_task is not None:
         reembed_task.cancel()
+    # Wait for fire-and-forget background tasks to finish (or 5s timeout)
+    if hasattr(app.state, "_bg_tasks") and app.state._bg_tasks:
+        await asyncio.wait_for(
+            asyncio.gather(*app.state._bg_tasks, return_exceptions=True),
+            timeout=5.0,
+        )
     logger.info("aikioku.stopped")
 
 
