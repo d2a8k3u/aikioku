@@ -704,7 +704,7 @@ async def export_anki(
     deck_id = 1234567890
 
     if format == "apkg":
-        import genanki
+        import genanki  # type: ignore[import-untyped]
 
         # Basic front/back model
         model = genanki.Model(

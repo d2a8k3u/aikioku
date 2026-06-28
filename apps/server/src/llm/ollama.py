@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
 
 import httpx
 
@@ -24,7 +24,7 @@ class OllamaProvider(LLMProvider):
         self.model = model
         self._client = httpx.AsyncClient(timeout=120.0)
 
-    async def complete(self, prompt: str, system: str = "", **kwargs) -> str:
+    async def complete(self, prompt: str, system: str = "", **kwargs: Any) -> str:
         payload = {
             "model": self.model,
             "prompt": prompt,
@@ -36,7 +36,7 @@ class OllamaProvider(LLMProvider):
         resp.raise_for_status()
         return resp.json().get("response", "")
 
-    async def stream(self, prompt: str, system: str = "", **kwargs) -> AsyncIterator[str]:
+    async def stream(self, prompt: str, system: str = "", **kwargs: Any) -> AsyncIterator[str]:
         payload = {
             "model": self.model,
             "prompt": prompt,

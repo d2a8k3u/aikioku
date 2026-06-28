@@ -32,8 +32,8 @@ def parse_image(content: bytes, filename: str = "imported.png") -> Note:
     #   image = Image.open(io.BytesIO(content))
     #   text = pytesseract.image_to_string(image)
     try:
-        from PIL import Image
-        import pytesseract
+        from PIL import Image  # type: ignore[import-not-found]
+        import pytesseract  # type: ignore[import-not-found]
     except ImportError as exc:
         raise ImportError(
             "OCR dependencies are not installed. Install them with: "

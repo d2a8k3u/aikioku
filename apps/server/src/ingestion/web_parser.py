@@ -36,7 +36,7 @@ def parse_web_clip(url: str) -> Note:
 
     # Try readability-lxml first, then fall back to lxml.html / html.parser
     try:
-        from readability import Document
+        from readability import Document  # type: ignore[import-untyped]
         doc = Document(html_text)
         title = doc.short_title() or url
         summary = doc.summary()
@@ -48,13 +48,15 @@ def parse_web_clip(url: str) -> Note:
             title = (title_elem.text if title_elem is not None else "") or url
             # Remove script/style tags
             for bad in tree.iter("script", "style", "nav", "footer", "header", "aside"):
-                bad.getparent().remove(bad)
+                parent = bad.getparent()
+                if parent is not None:
+                    parent.remove(bad)
             body_elem = tree.find(".//body")
             if body_elem is not None:
                 paragraphs = body_elem.iter("p", "h1", "h2", "h3", "h4", "h5", "h6", "article", "section")
-                parts = []
+                parts: list[str] = []
                 for el in paragraphs:
-                    text = " ".join(el.itertext()).strip()
+                    text = " ".join(str(t) for t in el.itertext()).strip()
                     if text:
                         parts.append(text)
                 summary = "\n\n".join(parts)

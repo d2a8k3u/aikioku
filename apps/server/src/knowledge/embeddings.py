@@ -130,8 +130,8 @@ class EmbeddingStore:
         ]
         self._coll.add(
             ids=ids,
-            embeddings=embeddings,
-            metadatas=metadatas,
+            embeddings=embeddings,  # type: ignore[arg-type]
+            metadatas=metadatas,  # type: ignore[arg-type]
         )
 
     def add_document(
@@ -160,11 +160,11 @@ class EmbeddingStore:
         meta["text"] = text
         self._coll.add(
             ids=[doc_id],
-            embeddings=[embedding],
-            metadatas=[meta],
+            embeddings=[embedding],  # type: ignore[arg-type]
+            metadatas=[meta],  # type: ignore[arg-type]
         )
 
-    def search(self, query_embedding: list[float], limit: int = 20) -> list[dict]:
+    def search(self, query_embedding: list[float], limit: int = 20) -> list[dict[str, Any]]:
         """Search the store by embedding similarity.
 
         Groups results by ``note_id`` and takes the **maximum** similarity
@@ -177,13 +177,13 @@ class EmbeddingStore:
         # Over-fetch heavily because each note may have many sub-windows.
         n_results = max(limit * 8, 40)
         raw = self._coll.query(
-            query_embeddings=[query_embedding],
+            query_embeddings=[query_embedding],  # type: ignore[arg-type]
             n_results=n_results,
             include=["metadatas", "distances"],
         )
-        ids_list: list[str] = raw["ids"][0]
-        dists_list: list[float] = raw["distances"][0]
-        metas_list: list[dict[str, Any]] = raw["metadatas"][0]
+        ids_list: list[str] = list(raw["ids"][0])  # type: ignore[index]
+        dists_list: list[float] = list(raw["distances"][0])  # type: ignore[index]
+        metas_list: list[dict[str, Any]] = list(raw["metadatas"][0])  # type: ignore[index,assignment,arg-type]
 
         # Group by note_id, keeping max score and best text.
         best: dict[str, tuple[float, str]] = {}  # note_id -> (max_score, best_text)
@@ -233,5 +233,5 @@ class EmbeddingStore:
                 include=["embeddings"],
             )
             if raw["ids"]:
-                result[note_id] = raw["embeddings"][0]
+                result[note_id] = list(raw["embeddings"][0])  # type: ignore[index]
         return result

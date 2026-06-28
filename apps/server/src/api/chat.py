@@ -22,6 +22,7 @@ import asyncio
 import json
 import logging
 import uuid
+from collections.abc import AsyncIterator
 from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, Request
@@ -169,7 +170,8 @@ async def _extract_factual(request: Request, user_q: str, assistant_a: str) -> l
     try:
         from src.memory.extraction import MemoryExtractor
 
-        extractor = MemoryExtractor(llm, getattr(request.app.state, "event_bus", None))
+        event_bus = getattr(request.app.state, "event_bus", None)
+        extractor = MemoryExtractor(llm, event_bus)  # type: ignore[arg-type]
         return await extractor.extract_from_conversation(
             [
                 {"role": "user", "content": user_q},
@@ -511,7 +513,7 @@ async def _stream_chat(
         # The turn placeholder is already created; we persist the cached
         # answer so history stays consistent.
 
-        async def _cache_hit_stream():
+        async def _cache_hit_stream() -> AsyncIterator[str]:
             _completed = False
             try:
                 answer = cached["response"]
@@ -578,7 +580,7 @@ async def _stream_chat(
     if mode == "simple":
         rag = _build_rag_generator(request)
 
-        async def _event_stream():
+        async def _event_stream() -> AsyncIterator[str]:
             # Track whether the turn completed normally so the finally block
             # knows whether to clean up the placeholder.
             _completed = False
@@ -625,7 +627,7 @@ async def _stream_chat(
                 _STREAM_TOTAL_TIMEOUT_S = 120.0
                 answer_parts: list[str] = []
 
-                async def _stream_with_timeout():
+                async def _stream_with_timeout() -> AsyncIterator[str]:
                     """Iterate llm.stream() with a total timeout on the whole loop."""
                     stream = llm.stream(prompt=query, system=system_prompt)
                     deadline = asyncio.get_event_loop().time() + _STREAM_TOTAL_TIMEOUT_S
@@ -697,7 +699,7 @@ async def _stream_chat(
         sub_questions = result.get("sub_questions", [])
         memories = result.get("memories", [])
 
-        async def _event_stream():
+        async def _event_stream() -> AsyncIterator[str]:
             _completed = False
             try:
                 yield _sse(

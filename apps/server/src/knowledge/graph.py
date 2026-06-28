@@ -54,6 +54,25 @@ class KnowledgeGraph:
         except Exception:
             pass
 
+    def _query(self, query: str, params: dict[str, Any] | None = None) -> list[list[Any]]:
+        """Execute a query and return rows as positional lists, narrowing the Kuzu union type."""
+        result = self._conn.execute(query, params)
+        if isinstance(result, list):
+            # Kuzu returns list[QueryResult] for some queries; flatten to rows.
+            raw: list[list[Any]] = []
+            for r in result:
+                for row in r.get_all():
+                    raw.append(self._row_values(row))
+            return raw
+        return [self._row_values(row) for row in result.get_all()]
+
+    @staticmethod
+    def _row_values(row: list[Any] | dict[str, Any]) -> list[Any]:
+        """Normalize a Kuzu row (list or dict) into a positional list."""
+        if isinstance(row, dict):
+            return list(row.values())
+        return row
+
     # ------------------------------------------------------------------
     # Entity helpers
     # ------------------------------------------------------------------
@@ -104,12 +123,11 @@ class KnowledgeGraph:
 
     def get_entity(self, entity_id: str) -> Optional[Entity]:
         """Retrieve an entity by its UUID."""
-        result = self._conn.execute(
+        rows = self._query(
             "MATCH (a:Entity) WHERE a.id = $id "
             "RETURN a.id, a.name, a.type, a.aliases, a.properties, a.confidence, a.source_note_ids",
             {"id": entity_id},
         )
-        rows = result.get_all()
         if not rows:
             return None
         return self._row_to_entity(rows[0])
@@ -128,12 +146,11 @@ class KnowledgeGraph:
 
     def delete_entity(self, entity_id: str) -> bool:
         """Delete an entity and all its relations."""
-        check = self._conn.execute(
+        check = self._query(
             "MATCH (a:Entity) WHERE a.id = $id RETURN a.id",
             {"id": entity_id},
         )
-        rows = check.get_all()
-        if not rows:
+        if not check:
             return False
         self._conn.execute(
             "MATCH (a:Entity)-[r:RELATES_TO]->(b:Entity) WHERE a.id = $id DELETE r",
@@ -181,9 +198,8 @@ class KnowledgeGraph:
                 "ORDER BY a.modified DESC LIMIT $limit"
             )
             params = {"limit": limit}
-        result = self._conn.execute(query, params)
-        rows = result.get_all()
-        return [self._row_to_entity(row) for row in rows]
+        result = self._query(query, params)
+        return [self._row_to_entity(row) for row in result]
 
     def find_entities_by_alias(self, alias: str, limit: int = 20) -> list[Entity]:
         """Search entities by alias substring.
@@ -200,15 +216,14 @@ class KnowledgeGraph:
         Returns:
             A list of matching Entity objects, ordered by most-recently-modified.
         """
-        result = self._conn.execute(
+        result = self._query(
             "MATCH (a:Entity) WHERE a.aliases CONTAINS $alias "
             "RETURN a.id, a.name, a.type, a.aliases, a.properties, "
             "a.confidence, a.source_note_ids "
             "ORDER BY a.modified DESC LIMIT $limit",
             {"alias": alias, "limit": limit},
         )
-        rows = result.get_all()
-        return [self._row_to_entity(row) for row in rows]
+        return [self._row_to_entity(row) for row in result]
 
     def find_entities_by_note_id(self, note_id: str) -> list[Entity]:
         """Return every entity whose ``source_note_ids`` contains ``note_id``.
@@ -218,17 +233,15 @@ class KnowledgeGraph:
         exact in practice (no false positives) and avoids the bounded full scan
         used elsewhere.
         """
-        result = self._conn.execute(
+        result = self._query(
             "MATCH (a:Entity) WHERE a.source_note_ids CONTAINS $note_id "
             "RETURN a.id, a.name, a.type, a.aliases, a.properties, a.confidence, a.source_note_ids",
             {"note_id": note_id},
         )
-        rows = result.get_all()
-        return [self._row_to_entity(row) for row in rows]
+        return [self._row_to_entity(row) for row in result]
 
     def count_entities(self) -> int:
-        result = self._conn.execute("MATCH (a:Entity) RETURN COUNT(a)")
-        rows = result.get_all()
+        rows = self._query("MATCH (a:Entity) RETURN COUNT(a)")
         return int(rows[0][0]) if rows else 0
 
     def random_entity(self) -> Optional[Entity]:
@@ -237,13 +250,12 @@ class KnowledgeGraph:
         if count == 0:
             return None
         offset = random.randint(0, count - 1)
-        result = self._conn.execute(
+        rows = self._query(
             "MATCH (a:Entity) "
             "RETURN a.id, a.name, a.type, a.aliases, a.properties, a.confidence, a.source_note_ids "
             "SKIP $offset LIMIT 1",
             {"offset": offset},
         )
-        rows = result.get_all()
         if not rows:
             return None
         return self._row_to_entity(rows[0])
@@ -273,12 +285,12 @@ class KnowledgeGraph:
         """Get all relations (both incoming and outgoing) for an entity."""
         relations: list[Relation] = []
         # Outgoing
-        result = self._conn.execute(
+        rows = self._query(
             "MATCH (a:Entity)-[r:RELATES_TO]->(b:Entity) WHERE a.id = $id "
             "RETURN a.id, b.id, r.type, r.confidence, r.properties",
             {"id": entity_id},
         )
-        for row in result.get_all():
+        for row in rows:
             relations.append(
                 Relation(
                     id="",
@@ -290,12 +302,12 @@ class KnowledgeGraph:
                 )
             )
         # Incoming
-        result = self._conn.execute(
+        rows = self._query(
             "MATCH (a:Entity)<-[r:RELATES_TO]-(b:Entity) WHERE a.id = $id "
             "RETURN b.id, a.id, r.type, r.confidence, r.properties",
             {"id": entity_id},
         )
-        for row in result.get_all():
+        for row in rows:
             relations.append(
                 Relation(
                     id="",
@@ -310,13 +322,13 @@ class KnowledgeGraph:
 
     def get_all_relations(self, limit: int = 500) -> list[Relation]:
         """Get all relations across the graph, up to `limit` rows."""
-        result = self._conn.execute(
+        rows = self._query(
             "MATCH (a:Entity)-[r:RELATES_TO]->(b:Entity) "
             "RETURN a.id, b.id, r.type, r.confidence, r.properties LIMIT $limit",
             {"limit": limit},
         )
         relations: list[Relation] = []
-        for row in result.get_all():
+        for row in rows:
             relations.append(
                 Relation(
                     source_entity_id=row[0],
@@ -329,8 +341,7 @@ class KnowledgeGraph:
         return relations
 
     def count_relations(self) -> int:
-        result = self._conn.execute("MATCH ()-[r:RELATES_TO]->() RETURN COUNT(r)")
-        rows = result.get_all()
+        rows = self._query("MATCH ()-[r:RELATES_TO]->() RETURN COUNT(r)")
         return int(rows[0][0]) if rows else 0
 
     def find_relation(
@@ -430,14 +441,14 @@ class KnowledgeGraph:
             return [[entity]] if entity else []
 
         # Kuzu does not support parameterised path lengths, so max_depth is interpolated
-        result = self._conn.execute(
+        rows = self._query(
             f"MATCH p = (a:Entity)-[:RELATES_TO*1..{max_depth}]->(b:Entity) "
             "WHERE a.id = $source_id AND b.id = $target_id "
             "RETURN nodes(p)",
             {"source_id": source_id, "target_id": target_id},
         )
         paths: list[list[Entity]] = []
-        for row in result.get_all():
+        for row in rows:
             nodes = row[0]
             path_entities = [self._dict_to_entity(node) for node in nodes]
             paths.append(path_entities)
@@ -482,12 +493,12 @@ class KnowledgeGraph:
                 max_confidence = other.confidence
 
             # Redirect outgoing relations of other to canonical
-            outgoing = self._conn.execute(
+            outgoing = self._query(
                 "MATCH (a:Entity)-[r:RELATES_TO]->(b:Entity) WHERE a.id = $id "
                 "RETURN b.id, r.type, r.confidence, r.properties",
                 {"id": other_id},
             )
-            for row in outgoing.get_all():
+            for row in outgoing:
                 self._conn.execute(
                     "MATCH (a:Entity), (b:Entity) WHERE a.id = $canonical_id AND b.id = $bid "
                     "CREATE (a)-[:RELATES_TO {type: $type, confidence: $confidence, properties: $properties}]->(b)",
@@ -501,12 +512,12 @@ class KnowledgeGraph:
                 )
 
             # Redirect incoming relations of other to canonical
-            incoming = self._conn.execute(
+            incoming = self._query(
                 "MATCH (a:Entity)<-[r:RELATES_TO]-(b:Entity) WHERE a.id = $id "
                 "RETURN b.id, r.type, r.confidence, r.properties",
                 {"id": other_id},
             )
-            for row in incoming.get_all():
+            for row in incoming:
                 self._conn.execute(
                     "MATCH (a:Entity), (b:Entity) WHERE a.id = $canonical_id AND b.id = $bid "
                     "CREATE (b)-[:RELATES_TO {type: $type, confidence: $confidence, properties: $properties}]->(a)",
@@ -539,8 +550,8 @@ class KnowledgeGraph:
     # ------------------------------------------------------------------
 
     def get_entity_types(self) -> dict[str, int]:
-        result = self._conn.execute("MATCH (a:Entity) RETURN a.type, COUNT(a)")
+        rows = self._query("MATCH (a:Entity) RETURN a.type, COUNT(a)")
         types: dict[str, int] = {}
-        for row in result.get_all():
+        for row in rows:
             types[row[0]] = int(row[1])
         return types
