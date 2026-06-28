@@ -70,6 +70,12 @@ class OllamaRemoteProvider(LLMProvider):
             timeout=120.0,
             headers={"Authorization": f"Bearer {api_key}"} if api_key else {},
         )
+        # Dedicated embed client for connection reuse (embedding calls are
+        # frequent and previously created a new AsyncClient per call).
+        self._embed_client = httpx.AsyncClient(
+            timeout=30.0,
+            headers={"Authorization": f"Bearer {embedding_api_key}"} if embedding_api_key else {},
+        )
 
     async def complete(self, prompt: str, system: str = "", **kwargs) -> str:
         payload = {
@@ -151,12 +157,11 @@ class OllamaRemoteProvider(LLMProvider):
             {"Authorization": f"Bearer {self.embedding_api_key}"} if self.embedding_api_key else {}
         )
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                resp = await client.post(
-                    embed_url,
-                    json=payload,
-                    headers=headers,
-                )
+            resp = await self._embed_client.post(
+                embed_url,
+                json=payload,
+                headers=headers,
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 embeddings = data.get("embeddings", [])
@@ -231,26 +236,25 @@ class OllamaRemoteProvider(LLMProvider):
         # a single hiccup doesn't permanently drop a memory's vector.
         retryable_status = {429, 500, 502, 503, 504}
         last_exc: Exception | None = None
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            for attempt in range(3):
-                try:
-                    resp = await client.post(url, json=payload, headers=headers)
-                    resp.raise_for_status()
-                    data = resp.json()
-                    # HF returns a list of vectors (one per sentence) or a single vector
-                    if isinstance(data, list) and len(data) > 0:
-                        if isinstance(data[0], list):
-                            return list(data[0])  # list of vectors → first vector
-                        return list(data)  # single vector
-                    raise ValueError(f"Unexpected HF response: {data}")
-                except httpx.HTTPStatusError as exc:
-                    if exc.response.status_code not in retryable_status:
-                        raise
-                    last_exc = exc
-                except httpx.TransportError as exc:
-                    last_exc = exc
-                if attempt < 2:
-                    await asyncio.sleep(0.5 * 2**attempt)
+        for attempt in range(3):
+            try:
+                resp = await self._embed_client.post(url, json=payload, headers=headers)
+                resp.raise_for_status()
+                data = resp.json()
+                # HF returns a list of vectors (one per sentence) or a single vector
+                if isinstance(data, list) and len(data) > 0:
+                    if isinstance(data[0], list):
+                        return list(data[0])  # list of vectors → first vector
+                    return list(data)  # single vector
+                raise ValueError(f"Unexpected HF response: {data}")
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code not in retryable_status:
+                    raise
+                last_exc = exc
+            except httpx.TransportError as exc:
+                last_exc = exc
+            if attempt < 2:
+                await asyncio.sleep(0.5 * 2**attempt)
         assert last_exc is not None
         raise last_exc
 

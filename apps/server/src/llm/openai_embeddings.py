@@ -37,14 +37,17 @@ class OpenAIEmbeddingProvider(LLMProvider):
         self.model = model
         self.strict_embeddings = strict_embeddings
         self._embedding_fallback_dim = embedding_fallback_dim
+        self._client = httpx.AsyncClient(
+            timeout=30.0,
+            headers={"Authorization": f"Bearer {api_key}"} if api_key else {},
+        )
 
     async def embed(self, text: str) -> list[float]:
         embed_url = join(self.base_url, OPENAI_EMBEDDINGS, dialect="openai")
         headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
         payload = {"model": self.model, "input": text}
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                resp = await client.post(embed_url, json=payload, headers=headers)
+            resp = await self._client.post(embed_url, json=payload, headers=headers)
             if resp.status_code == 200:
                 data = resp.json().get("data", [])
                 if data:
