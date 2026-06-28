@@ -1,4 +1,5 @@
 """Tests for lifespan background task and service initialization."""
+
 from __future__ import annotations
 
 import asyncio
@@ -12,6 +13,7 @@ class TestLifespanServices:
 
     def test_health_endpoint_available(self):
         from src.main import app
+
         with TestClient(app) as client:
             resp = client.get("/health")
             assert resp.status_code == 200
@@ -19,18 +21,21 @@ class TestLifespanServices:
 
     def test_app_state_has_event_bus(self):
         from src.main import app
+
         with TestClient(app) as client:
             assert hasattr(client.app.state, "event_bus")
             assert client.app.state.event_bus is not None
 
     def test_app_state_has_knowledge_graph(self):
         from src.main import app
+
         with TestClient(app) as client:
             assert hasattr(client.app.state, "knowledge_graph")
             assert client.app.state.knowledge_graph is not None
 
     def test_app_state_has_embedding_store(self):
         from src.main import app
+
         with TestClient(app) as client:
             assert hasattr(client.app.state, "embedding_store")
             assert client.app.state.embedding_store is not None
@@ -68,26 +73,25 @@ class TestCORSAllowlist:
 
     def test_allowed_origin_is_reflected(self):
         from src.main import app
+
         with TestClient(app) as client:
-            resp = client.get(
-                "/health", headers={"Origin": "http://localhost:3369"}
-            )
+            resp = client.get("/health", headers={"Origin": "http://localhost:3369"})
             allow_origin = resp.headers.get("access-control-allow-origin")
             assert allow_origin == "http://localhost:3369"
             assert allow_origin != "*"
 
     def test_disallowed_origin_is_not_reflected(self):
         from src.main import app
+
         with TestClient(app) as client:
-            resp = client.get(
-                "/health", headers={"Origin": "http://evil.example.com"}
-            )
+            resp = client.get("/health", headers={"Origin": "http://evil.example.com"})
             allow_origin = resp.headers.get("access-control-allow-origin")
             assert allow_origin != "http://evil.example.com"
             assert allow_origin != "*"
 
     def test_preflight_allowed_origin_reflected(self):
         from src.main import app
+
         with TestClient(app) as client:
             resp = client.options(
                 "/api/notes/",
@@ -96,10 +100,7 @@ class TestCORSAllowlist:
                     "Access-Control-Request-Method": "POST",
                 },
             )
-            assert (
-                resp.headers.get("access-control-allow-origin")
-                == "http://localhost:3369"
-            )
+            assert resp.headers.get("access-control-allow-origin") == "http://localhost:3369"
 
 
 class TestConsolidationWorker:
@@ -114,9 +115,7 @@ class TestConsolidationWorker:
         # (llm_provider is None) -> it skips cleanly. Verify it starts and
         # cancels without hanging.
         fake_app = SimpleNamespace(state=SimpleNamespace(llm_provider=None))
-        task = asyncio.create_task(
-            _consolidation_worker(fake_app, interval_hours=0)
-        )
+        task = asyncio.create_task(_consolidation_worker(fake_app, interval_hours=0))
         await asyncio.sleep(0.2)
         task.cancel()
         try:
@@ -138,9 +137,15 @@ class TestConsolidationWorker:
 
         # conftest.reset_app_state already points sqlite_db_path at a tmp db.
         memory_api._ensure_table()
-        seed = Memory(subject="Seed", predicate="is", object="Stored",
-                      confidence=0.9, source="conversation",
-                      vitality_score=0.9, tier=MemoryTier.warm)
+        seed = Memory(
+            subject="Seed",
+            predicate="is",
+            object="Stored",
+            confidence=0.9,
+            source="conversation",
+            vitality_score=0.9,
+            tier=MemoryTier.warm,
+        )
         memory_api._store_memories([seed])
 
         shared_graph = MagicMock(name="shared_graph")
@@ -163,8 +168,10 @@ class TestConsolidationWorker:
 
         event_bus = EventBus(str(tmp_path / "events.db"))
 
-        with patch("src.main.MemoryConsolidator", return_value=stub) as ctor, \
-             patch("src.main.KnowledgeGraph") as kg_cls:
+        with (
+            patch("src.main.MemoryConsolidator", return_value=stub) as ctor,
+            patch("src.main.KnowledgeGraph") as kg_cls,
+        ):
             summary = await _run_consolidation_once(
                 event_bus, graph=shared_graph, llm_provider=None
             )
@@ -179,3 +186,28 @@ class TestConsolidationWorker:
         rows = {r["id"]: r for r in memory_api._load_memories()}
         assert rows[seed.id]["tier"] == "hot"
         assert summary["output_count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_worker_skips_when_auto_consolidation_off(self):
+        """With the provider configured but the Settings switch off, the worker
+        must not run the LLM-heavy pass."""
+        from types import SimpleNamespace
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from src import main as main_mod
+
+        fake_app = SimpleNamespace(
+            state=SimpleNamespace(llm_provider=MagicMock(), cost_tracker=None)
+        )
+        with (
+            patch("src.runtime_config.auto_consolidation", return_value=False),
+            patch.object(main_mod, "_run_consolidation_once", new=AsyncMock()) as run_once,
+        ):
+            task = asyncio.create_task(main_mod._consolidation_worker(fake_app, interval_hours=0))
+            await asyncio.sleep(0.2)
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+        run_once.assert_not_awaited()
