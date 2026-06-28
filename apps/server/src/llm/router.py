@@ -58,6 +58,8 @@ class CostTracker:
         self._db_path = db_path
         self.daily_budget = daily_budget_usd
         self._init_db()
+        self._cached_cost: float | None = None
+        self._cached_cost_ts: float = 0.0
 
     def _init_db(self) -> None:
         with sqlite3.connect(self._db_path) as conn:
@@ -94,19 +96,21 @@ class CostTracker:
                     record.timestamp.isoformat(),
                 ),
             )
+        self._cached_cost = None  # invalidate
 
     def get_today_cost(self) -> float:
-        """Return total cost for today in USD."""
-        # Records are timestamped in UTC (CostRecord.timestamp), so the day
-        # boundary must be UTC too — date.today() is local and would drop today's
-        # UTC-stamped rows whenever the local date is ahead of the UTC date.
+        """Return total cost for today in USD (cached, 60s TTL)."""
+        if self._cached_cost is not None and (time.monotonic() - self._cached_cost_ts) < 60.0:
+            return self._cached_cost
         today = datetime.now(timezone.utc).date().isoformat()
         with sqlite3.connect(self._db_path) as conn:
             row = conn.execute(
                 "SELECT SUM(cost_usd) FROM llm_costs WHERE timestamp >= ?",
                 (today,),
             ).fetchone()
-        return row[0] or 0.0
+        self._cached_cost = row[0] or 0.0
+        self._cached_cost_ts = time.monotonic()
+        return self._cached_cost
 
     def estimate_cost(self, provider: str, prompt_tokens: int, completion_tokens: int) -> float:
         """Estimate cost in USD for a call."""
