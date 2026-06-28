@@ -28,7 +28,6 @@ dependencies = [
     "slowapi>=0.1.9",
     "mcp>=1.27,<2",
     "genanki>=0.13.0",
-    "llmlingua>=0.2.0",
     "gptcache>=0.1.43",
     "onnxruntime>=1.17",
 ]
@@ -60,7 +59,3 @@ line-length = 100
 [tool.mypy]
 python_version = "3.11"
 strict = true
-
-[[tool.mypy.overrides]]
-module = ["llmlingua", "llmlingua.*"]
-follow_untyped_imports = true

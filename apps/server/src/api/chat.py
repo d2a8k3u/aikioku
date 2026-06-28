@@ -31,7 +31,6 @@ from pydantic import BaseModel, field_validator
 from src.auth import UserInDB, require_auth
 from src.cache.semantic_cache import cache_get, cache_put
 from src.config import settings
-from src.llm.compression import compress_for_prompt
 from src.limiter import limiter
 from src.storage.note_store import NoteStore
 from src.api.websocket import get_broadcaster
@@ -471,9 +470,7 @@ async def _build_context_progressive(
             note = note_store.get(r.note_id)
             title = note.title if note else None
             raw = r.snippet or (note.content if note else "")
-            # Compress the raw snippet with LLMLingua (best-effort; falls back
-            # to raw text on failure or when compression is disabled).
-            content = await compress_for_prompt(raw, query=query)
+            content = raw
             context_entries.append({
                 "note_id": r.note_id,
                 "snippet": r.snippet or "",
