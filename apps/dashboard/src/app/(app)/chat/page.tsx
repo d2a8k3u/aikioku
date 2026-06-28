@@ -62,7 +62,9 @@ export default function ChatPage() {
   const [memoryCount, setMemoryCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
-  const [snippets, setSnippets] = useState<{ note_id: string; title: string; snippet: string }[]>([]);
+  const [snippets, setSnippets] = useState<{ note_id: string; title: string; snippet: string }[]>(
+    [],
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<(() => void) | null>(null);
   const oldestCreatedRef = useRef<string | null>(null);
@@ -182,15 +184,22 @@ export default function ChatPage() {
           },
           onDone: () => {
             clearInterval(elapsedInterval);
-            setMessages((prev) =>
-              prev.map((m) => {
-                if (m.id !== assistantId) return m;
-                // Drop placeholder with no content at all
-                if (m.text === '' && !m.chips?.length) return null;
-                // Citations arrived but no answer — show error
-                if (m.text === '') return { ...m, text: 'No response received. The backend may be busy. Try again.' };
-                return m;
-              }).filter(Boolean) as Message[]
+            setMessages(
+              (prev) =>
+                prev
+                  .map((m) => {
+                    if (m.id !== assistantId) return m;
+                    // Drop placeholder with no content at all
+                    if (m.text === '' && !m.chips?.length) return null;
+                    // Citations arrived but no answer — show error
+                    if (m.text === '')
+                      return {
+                        ...m,
+                        text: 'No response received. The backend may be busy. Try again.',
+                      };
+                    return m;
+                  })
+                  .filter(Boolean) as Message[],
             );
             setIsGenerating(false);
             setIsPreparing(false);
@@ -279,9 +288,7 @@ export default function ChatPage() {
       setMessages((prev) => {
         const updated = prev.map((m) => {
           if (m.id !== detail.message_id) return m;
-          const chips = (detail.citations || []).map(
-            (c) => `note: ${c.title || c.note_id}`,
-          );
+          const chips = (detail.citations || []).map((c) => `note: ${c.title || c.note_id}`);
           return {
             ...m,
             text: detail.content,

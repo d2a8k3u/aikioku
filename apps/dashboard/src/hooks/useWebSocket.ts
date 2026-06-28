@@ -101,9 +101,7 @@ export function useWebSocket() {
           // A placeholder was promoted to final content — dispatch a DOM event
           // so the chat page can update the message in-place without polling.
           if (typeof window !== 'undefined') {
-            window.dispatchEvent(
-              new CustomEvent('aikioku:message_updated', { detail: msg }),
-            );
+            window.dispatchEvent(new CustomEvent('aikioku:message_updated', { detail: msg }));
           }
           break;
         }
