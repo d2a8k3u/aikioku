@@ -28,3 +28,7 @@ class LLMProvider(ABC):
     def is_available(self) -> bool:
         """Check if the provider is properly configured and available."""
         ...
+
+    async def aclose(self) -> None:
+        """Close any underlying connections. Default no-op."""
+        return None

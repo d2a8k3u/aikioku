@@ -79,6 +79,9 @@ class OpenAIEmbeddingProvider(LLMProvider):
         raise NotImplementedError("OpenAIEmbeddingProvider does not serve completions")
         yield ""  # pragma: no cover — makes this an async generator
 
+    async def aclose(self) -> None:
+        await self._client.aclose()
+
     def is_available(self) -> bool:
         if not self.api_key:
             return False

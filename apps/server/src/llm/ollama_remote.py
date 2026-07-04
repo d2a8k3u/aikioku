@@ -258,6 +258,10 @@ class OllamaRemoteProvider(LLMProvider):
         assert last_exc is not None
         raise last_exc
 
+    async def aclose(self) -> None:
+        await self._client.aclose()
+        await self._embed_client.aclose()
+
     def is_available(self) -> bool:
         try:
             import urllib.request
