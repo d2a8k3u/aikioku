@@ -185,6 +185,21 @@ def build_runtime(app: FastAPI) -> None:
     restart. Requires ``embedding_store``/``knowledge_graph`` to already exist on
     ``app.state`` (path-only services initialised in ``lifespan``).
     """
+    import asyncio
+
+    old_llm = getattr(app.state, "llm_provider", None)
+    old_emb = getattr(app.state, "embedding_provider", None)
+    if old_llm is not None:
+        try:
+            asyncio.ensure_future(old_llm.aclose())
+        except Exception:
+            logger.warning("build_runtime.old_llm_close_failed", exc_info=True)
+    if old_emb is not None and old_emb is not old_llm:
+        try:
+            asyncio.ensure_future(old_emb.aclose())
+        except Exception:
+            logger.warning("build_runtime.old_emb_close_failed", exc_info=True)
+
     from src.llm.factory import build_embedding_provider, build_llm_provider
     from src.llm.router import CostTracker
 
