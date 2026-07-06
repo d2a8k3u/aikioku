@@ -372,6 +372,13 @@ class LLMRouter(LLMProvider):
         )
         self._cost_tracker.record(record)
 
+    async def aclose(self) -> None:
+        for provider in self._providers:
+            try:
+                await provider.aclose()
+            except Exception as exc:
+                logger.warning("aclose_failed: %s - %s", type(provider).__name__, str(exc))
+
     def get_circuit_states(self) -> list[dict[str, Any]]:
         """Return current circuit breaker states."""
         return [

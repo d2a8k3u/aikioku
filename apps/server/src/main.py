@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse, Response
 from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.routing import Route
-from starlette.types import ASGIApp, Receive, Scope, Send
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 import structlog
 
 if TYPE_CHECKING:
@@ -185,6 +185,21 @@ def build_runtime(app: FastAPI) -> None:
     restart. Requires ``embedding_store``/``knowledge_graph`` to already exist on
     ``app.state`` (path-only services initialised in ``lifespan``).
     """
+    import asyncio
+
+    old_llm = getattr(app.state, "llm_provider", None)
+    old_emb = getattr(app.state, "embedding_provider", None)
+    if old_llm is not None:
+        try:
+            asyncio.ensure_future(old_llm.aclose())
+        except Exception:
+            logger.warning("build_runtime.old_llm_close_failed", exc_info=True)
+    if old_emb is not None and old_emb is not old_llm:
+        try:
+            asyncio.ensure_future(old_emb.aclose())
+        except Exception:
+            logger.warning("build_runtime.old_emb_close_failed", exc_info=True)
+
     from src.llm.factory import build_embedding_provider, build_llm_provider
     from src.llm.router import CostTracker
 
@@ -381,7 +396,66 @@ app = FastAPI(
 # from the lifespan above (references the `mcp` global at startup).
 mcp = build_mcp(app)
 _mcp_app = mcp.streamable_http_app()
-app.mount("/mcp", _mcp_app)
+
+
+class _MCPClientDisconnectGuard:
+    """Buffer the /mcp POST body so a benign client disconnect is handled here,
+    not misclassified as a 500 by the MCP SDK.
+
+    ``_handle_post_request`` reads the body off the live receive channel; when a
+    client hangs up first — cancellation, idle/LB timeout, network blip, all
+    normal — Starlette raises ``ClientDisconnect``, which the SDK logs as a full
+    ERROR traceback and answers with a doomed HTTP 500 (upstream python-sdk
+    #1648, unfixed as of mcp 1.28). A departed client is not a server error.
+
+    Reading the whole body up front (before the SDK runs) means a mid-body
+    disconnect is caught here and answered with silence — the client is gone —
+    while a clean body is replayed to the SDK, whose ``body()`` then returns
+    instantly and never disconnects. Only POST is intercepted: the GET/SSE stream
+    needs its own live receive channel as a disconnect monitor. Buffering suits
+    the JSON-RPC-sized payloads that are the only /mcp traffic.
+    """
+
+    __name__ = "mcp_client_disconnect_guard"  # SlowAPIMiddleware reads handler.__name__
+
+    def __init__(self, asgi_app: ASGIApp) -> None:
+        self._app = asgi_app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or scope.get("method") != "POST":
+            await self._app(scope, receive, send)
+            return
+
+        chunks: list[bytes] = []
+        more_body = True
+        while more_body:
+            message = await receive()
+            if message["type"] == "http.disconnect":
+                logger.debug("mcp.client_disconnect", path=scope.get("path"))
+                # The client is gone, but the BaseHTTPMiddleware layers in front
+                # (auth/metrics/slowapi) raise "No response returned." unless one
+                # is sent — so answer 499 (Client Closed Request). The bytes drop
+                # at the dead socket; the point is a clean, log-free short-circuit.
+                await send({"type": "http.response.start", "status": 499, "headers": []})
+                await send({"type": "http.response.body", "body": b""})
+                return
+            chunks.append(message.get("body", b""))
+            more_body = message.get("more_body", False)
+        body = b"".join(chunks)
+        replayed = False
+
+        async def replay() -> Message:
+            nonlocal replayed
+            if not replayed:
+                replayed = True
+                return {"type": "http.request", "body": body, "more_body": False}
+            return {"type": "http.disconnect"}
+
+        await self._app(scope, replay, send)
+
+
+_mcp_guarded = _MCPClientDisconnectGuard(_mcp_app)
+app.mount("/mcp", _mcp_guarded)
 
 
 class _MCPBarePath:
@@ -416,7 +490,7 @@ class _MCPBarePath:
 # Insert before the Mount (appended above) so the exact-match shim wins over the
 # mount's slash redirect for the bare path. Matches "/mcp" only — no sibling routes
 # are shadowed. Auth still applies: enforce_auth runs in middleware, before routing.
-app.router.routes.insert(0, Route("/mcp", _MCPBarePath(_mcp_app)))
+app.router.routes.insert(0, Route("/mcp", _MCPBarePath(_mcp_guarded)))
 
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)

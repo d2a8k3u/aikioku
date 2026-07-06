@@ -22,11 +22,11 @@ import asyncio
 import json
 import logging
 import uuid
-from collections.abc import AsyncIterator, Coroutine
+from collections.abc import AsyncIterator
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, cast
 
-from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, field_validator
 
@@ -37,6 +37,7 @@ from src.config import settings
 from src.limiter import limiter
 from src.storage.note_store import NoteStore
 from src.api.websocket import get_broadcaster
+from src.utils.background import spawn_background as _spawn_background
 
 if TYPE_CHECKING:
     from src.models.memory import Memory
@@ -55,21 +56,6 @@ _HISTORY_LIMIT = 10
 # When exceeded, the stream begins with raw retrieval snippets and the
 # condensed context is discarded — the user gets an answer, not silence.
 _CONTEXT_BUILD_TIMEOUT_S = 10.0
-
-
-def _spawn_background(app: FastAPI, coro: Coroutine[Any, Any, Any]) -> asyncio.Task[Any]:
-    """Spawn a fire-and-forget background task with strong reference.
-
-    Python 3.12+ holds only weak references to asyncio tasks, so
-    ensure_future/create_task can be silently GC'd. This keeps a strong
-    reference in app.state._bg_tasks and auto-removes on completion.
-    """
-    task = asyncio.ensure_future(coro)
-    bg = getattr(app.state, "_bg_tasks", None)
-    if bg is not None:
-        bg.add(task)
-        task.add_done_callback(bg.discard)
-    return task
 
 
 def _persist_memories(memories: list[Memory]) -> None:

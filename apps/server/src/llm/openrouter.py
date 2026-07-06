@@ -131,6 +131,10 @@ class OpenRouterProvider(LLMProvider):
     async def embed(self, text: str) -> list[float]:
         return await self._embedder.embed(text)
 
+    async def aclose(self) -> None:
+        await self._client.aclose()
+        await self._embedder.aclose()
+
     def is_available(self) -> bool:
         if not self.api_key:
             return False

@@ -64,6 +64,9 @@ class OllamaProvider(LLMProvider):
         resp.raise_for_status()
         return cast("list[float]", resp.json().get("embedding", []))
 
+    async def aclose(self) -> None:
+        await self._client.aclose()
+
     def is_available(self) -> bool:
         try:
             import urllib.request

@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 from src import runtime_config, secrets_store
 from src.auth import UserInDB, require_auth
+from src.utils.background import spawn_background
 
 logger = logging.getLogger(__name__)
 
@@ -101,8 +102,6 @@ def _settings_to_dict() -> dict[str, Any]:
 
 def _maybe_rebuild(request: Request) -> None:
     if getattr(request.app.state, "configured", False):
-        import asyncio
-
         from src.main import build_runtime
 
         build_runtime(request.app)
@@ -111,7 +110,7 @@ def _maybe_rebuild(request: Request) -> None:
         # repeated question would return a stale answer until the cache TTL expires.
         from src.cache.semantic_cache import cache_invalidate
 
-        asyncio.ensure_future(cache_invalidate())
+        spawn_background(request.app, cache_invalidate())
         # If the change altered the effective embedding config, rebuild the
         # vector store in the background (atomic swap, no search blackout).
         from src.knowledge.reembed import maybe_schedule_reembed
