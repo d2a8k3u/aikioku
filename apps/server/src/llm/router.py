@@ -377,9 +377,7 @@ class LLMRouter(LLMProvider):
             try:
                 await provider.aclose()
             except Exception as exc:
-                logger.warning(
-                    "aclose_failed: %s - %s", type(provider).__name__, str(exc)
-                )
+                logger.warning("aclose_failed: %s - %s", type(provider).__name__, str(exc))
 
     def get_circuit_states(self) -> list[dict[str, Any]]:
         """Return current circuit breaker states."""

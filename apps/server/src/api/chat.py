@@ -37,6 +37,7 @@ from src.config import settings
 from src.limiter import limiter
 from src.storage.note_store import NoteStore
 from src.api.websocket import get_broadcaster
+from src.utils.background import spawn_background as _spawn_background
 
 if TYPE_CHECKING:
     from src.models.memory import Memory
@@ -55,9 +56,6 @@ _HISTORY_LIMIT = 10
 # When exceeded, the stream begins with raw retrieval snippets and the
 # condensed context is discarded — the user gets an answer, not silence.
 _CONTEXT_BUILD_TIMEOUT_S = 10.0
-
-
-from src.utils.background import spawn_background as _spawn_background
 
 
 def _persist_memories(memories: list[Memory]) -> None:

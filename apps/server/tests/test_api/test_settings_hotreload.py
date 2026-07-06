@@ -37,12 +37,8 @@ class TestCacheInvalidateUsesSpawnBackground:
     """Verify spawn_background is used (not raw asyncio.ensure_future)."""
 
     def test_cache_invalidate_uses_spawn_background(self, configured_client):
-        with patch(
-            "src.api.settings.spawn_background"
-        ) as mock_spawn:
-            response = configured_client.put(
-                "/api/settings", json={"llm_model": "llama3"}
-            )
+        with patch("src.api.settings.spawn_background") as mock_spawn:
+            response = configured_client.put("/api/settings", json={"llm_model": "llama3"})
 
             assert response.status_code == 200
             mock_spawn.assert_called_once()
@@ -52,9 +48,7 @@ class TestModelSwitchNewRequestsSucceed:
     """Verify the settings API returns 200 after a model switch."""
 
     def test_model_switch_new_requests_succeed(self, configured_client):
-        response = configured_client.put(
-            "/api/settings", json={"llm_provider": "openrouter"}
-        )
+        response = configured_client.put("/api/settings", json={"llm_provider": "openrouter"})
 
         assert response.status_code == 200
         data = response.json()

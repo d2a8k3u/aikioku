@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 
 def _setup_minimal_app_state(app):
     """Set up the minimum app.state attributes that build_runtime() needs."""
@@ -65,9 +63,7 @@ class TestBuildRuntimeCleanup:
 
         assert app.state.llm_provider is new_llm
         assert app.state.embedding_provider is new_emb
-        mock_warning.assert_called_once_with(
-            "build_runtime.old_llm_close_failed", exc_info=True
-        )
+        mock_warning.assert_called_once_with("build_runtime.old_llm_close_failed", exc_info=True)
 
     def test_build_runtime_no_old_providers(self):
         """When app.state has no old providers, build_runtime() succeeds."""
