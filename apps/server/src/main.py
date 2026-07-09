@@ -232,6 +232,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Drain LLM work deferred while the daily budget was exhausted, once it resets.
     app.state._budget_drain_task = asyncio.create_task(_budget_drain_worker(app))
 
+    from src.processing.consolidation_worker import _consolidation_worker
+
+    app.state._consolidation_task = asyncio.create_task(_consolidation_worker(app))
+
     # Strong-reference set for fire-and-forget background tasks (Python 3.12+
     # holds only weak references to tasks, so ensure_future/create_task can be
     # silently GC'd). Populated by _spawn_background() in chat.py.
@@ -263,6 +267,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
     # Shutdown
     app.state._budget_drain_task.cancel()
+    consolidation_task = getattr(app.state, "_consolidation_task", None)
+    if consolidation_task is not None:
+        consolidation_task.cancel()
     reembed_task = getattr(app.state, "_reembed_task", None)
     if reembed_task is not None:
         reembed_task.cancel()
