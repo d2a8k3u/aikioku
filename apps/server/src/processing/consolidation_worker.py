@@ -1,11 +1,4 @@
-"""Background worker loop for hidden-notes consolidation.
-
-Polls every ``poll_seconds`` and, when all guards pass, delegates to
-``consolidation.run_consolidation`` then records the run timestamp. The loop
-follows the same pattern as ``_budget_drain_worker`` in ``main.py``: an initial
-settle delay, a ``try/except`` per iteration, and ``logger.exception`` on
-failure so the loop never crashes.
-"""
+"""Background worker loop for hidden-notes consolidation."""
 
 from __future__ import annotations
 

@@ -57,12 +57,7 @@ def _make_app() -> MagicMock:
 
 
 async def _run_one_iteration(app, monkeypatch, **overrides):
-    """Run the worker for exactly one loop iteration, returning call spies.
-
-    Patches ``asyncio.sleep`` so the second call (after the initial settle
-    delay) raises ``StopIteration`` — breaking the infinite loop after the
-    first body runs.
-    """
+    """Run the worker for exactly one loop iteration, returning call spies."""
     import asyncio
 
     from src import runtime_config
