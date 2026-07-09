@@ -7,7 +7,6 @@ from src.api.search import router as search_router
 from src.api.import_export import router as import_export_router
 from src.api.review import router as review_router
 from src.api.graph import router as graph_router
-from src.api.memory import router as memory_router
 from src.api.settings import router as settings_router
 from src.api.tokens import router as tokens_router
 from src.api.setup import router as setup_router
@@ -39,7 +38,6 @@ __all__ = [
     "import_export_router",
     "review_router",
     "graph_router",
-    "memory_router",
     "settings_router",
     "tokens_router",
     "setup_router",
