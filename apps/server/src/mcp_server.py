@@ -195,20 +195,8 @@ def build_mcp(app: FastAPI) -> FastMCP:
         return await _call(rec, "GET", "/api/graph/stats")
 
     @mcp.tool()
-    async def list_memories(ctx: _Ctx, entity: str | None = None) -> Any:
-        """List stored memories, optionally filtered by entity."""
-        rec = _authorize(ctx, write=False)
-        return await _call(rec, "GET", "/api/memory/", params={"entity": entity})
-
-    @mcp.tool()
-    async def memory_stats(ctx: _Ctx) -> Any:
-        """Memory statistics: total and tier (hot/warm/cold) counts."""
-        rec = _authorize(ctx, write=False)
-        return await _call(rec, "GET", "/api/memory/stats")
-
-    @mcp.tool()
     async def stats(ctx: _Ctx) -> Any:
-        """System-wide counts: notes, entities, relations, memories, cards."""
+        """System-wide counts: notes, entities, relations, cards."""
         rec = _authorize(ctx, write=False)
         return await _call(rec, "GET", "/api/stats/")
 
@@ -251,7 +239,7 @@ def build_mcp(app: FastAPI) -> FastMCP:
 
     @mcp.tool()
     async def export_json(ctx: _Ctx) -> Any:
-        """Export all system data (notes, entities, relations, memories, cards, settings) as JSON."""
+        """Export all system data (notes, entities, relations, cards, settings) as JSON."""
         rec = _authorize(ctx, write=False)
         return await _call(rec, "GET", "/api/export/json")
 
@@ -266,18 +254,6 @@ def build_mcp(app: FastAPI) -> FastMCP:
         """Get spaced-repetition card collection statistics (total, due, new, learning, review, suspended)."""
         rec = _authorize(ctx, write=False)
         return await _call(rec, "GET", "/api/review/stats")
-
-    @mcp.tool()
-    async def search_memories(ctx: _Ctx, q: str, limit: int = 20) -> Any:
-        """Semantic search over stored memory triples (subject-predicate-object). Returns memories ranked by embedding similarity, each with a score."""
-        rec = _authorize(ctx, write=False)
-        return await _call(rec, "GET", "/api/memory/search", params={"q": q, "limit": limit})
-
-    @mcp.tool()
-    async def get_memory(ctx: _Ctx, memory_id: str) -> Any:
-        """Fetch a single memory triple by its id."""
-        rec = _authorize(ctx, write=False)
-        return await _call(rec, "GET", f"/api/memory/{memory_id}")
 
     @mcp.tool()
     async def generate_questions(ctx: _Ctx, note_id: str, count: int = 5) -> Any:
@@ -346,12 +322,6 @@ def build_mcp(app: FastAPI) -> FastMCP:
         return await _call(rec, "DELETE", f"/api/notes/{note_id}")
 
     @mcp.tool()
-    async def extract_memories(ctx: _Ctx, note_id: str) -> Any:
-        """Extract memories from a note via the LLM. Requires a full-scope token."""
-        rec = _authorize(ctx, write=True)
-        return await _call(rec, "POST", "/api/memory/extract", json={"note_id": note_id})
-
-    @mcp.tool()
     async def summarize_note(ctx: _Ctx, note_id: str) -> Any:
         """Generate a multi-level summary for a note. Requires a full-scope token."""
         rec = _authorize(ctx, write=True)
@@ -407,43 +377,6 @@ def build_mcp(app: FastAPI) -> FastMCP:
             "frontmatter": {"memory_source": source},
         }
         return await _call(rec, "POST", "/api/notes/", json=body)
-
-    @mcp.tool()
-    async def update_memory(
-        ctx: _Ctx,
-        memory_id: str,
-        subject: str | None = None,
-        predicate: str | None = None,
-        object: str | None = None,
-        confidence: float | None = None,
-        tier: str | None = None,
-    ) -> Any:
-        """Update a memory's subject/predicate/object/confidence/tier. Requires a full-scope token."""
-        rec = _authorize(ctx, write=True)
-        body = {
-            k: v
-            for k, v in {
-                "subject": subject,
-                "predicate": predicate,
-                "object": object,
-                "confidence": confidence,
-                "tier": tier,
-            }.items()
-            if v is not None
-        }
-        return await _call(rec, "PUT", f"/api/memory/{memory_id}", json=body)
-
-    @mcp.tool()
-    async def delete_memory(ctx: _Ctx, memory_id: str) -> Any:
-        """Delete a memory triple by id. Requires a full-scope token."""
-        rec = _authorize(ctx, write=True)
-        return await _call(rec, "DELETE", f"/api/memory/{memory_id}")
-
-    @mcp.tool()
-    async def consolidate_memories(ctx: _Ctx) -> Any:
-        """Run the memory consolidation pipeline (dedup, merge, tiering). Requires a full-scope token."""
-        rec = _authorize(ctx, write=True)
-        return await _call(rec, "POST", "/api/memory/consolidate")
 
     @mcp.tool()
     async def auto_tag_note(ctx: _Ctx, note_id: str) -> Any:
