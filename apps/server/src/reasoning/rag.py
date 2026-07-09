@@ -8,8 +8,6 @@ from typing import TYPE_CHECKING, Any
 
 from src.llm.base import LLMProvider
 from src.llm.long_text import condense_for_prompt
-from src.memory.extraction import MemoryExtractor
-from src.models.memory import Memory
 
 if TYPE_CHECKING:
     from src.retrieval.conversation_retrieval import ConversationRetriever
@@ -26,7 +24,7 @@ _CONTEXT_TOP_K = 5
 class RAGGenerator:
     """Retrieval-Augmented Generation pipeline.
 
-    Combines hybrid retrieval with LLM generation and memory extraction
+    Combines hybrid retrieval with LLM generation
     to produce cited, context-aware responses.
     """
 
@@ -34,7 +32,6 @@ class RAGGenerator:
         self,
         fusion: HybridFusion,
         llm_provider: LLMProvider,
-        memory_extractor: MemoryExtractor,
         conversation_retriever: "ConversationRetriever | None" = None,
     ) -> None:
         """Create a RAGGenerator.
@@ -42,8 +39,6 @@ class RAGGenerator:
         Args:
             fusion: The hybrid fusion retriever for searching notes.
             llm_provider: The LLM provider for generating responses.
-            memory_extractor: The memory extractor for extracting
-                structured memories from the generated response.
             conversation_retriever: Optional retriever over past chat turns.
                 When supplied, similar past turns (with their dates) are added to
                 the grounding context so the assistant can answer questions about
@@ -52,7 +47,6 @@ class RAGGenerator:
         """
         self._fusion = fusion
         self._llm = llm_provider
-        self._memory_extractor = memory_extractor
         self._conversation_retriever = conversation_retriever
 
     async def build_context(
@@ -118,7 +112,6 @@ class RAGGenerator:
         query: str,
         note_store: NoteStore,
         *,
-        extract_memories: bool = True,
         history: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Generate a RAG response for the given query.
@@ -126,25 +119,16 @@ class RAGGenerator:
         Steps:
             1. Build grounding context (retrieve + system prompt + citations).
             2. Call llm_provider.complete() to generate response.
-            3. Optionally extract memories from the response.
-            4. Return response, citations, and memories.
+            3. Return response and citations.
 
         Args:
             query: The user's question.
             note_store: The note store (used for context lookup).
-            extract_memories: When True (default), run a second LLM pass to
-                extract memories from the answer. Callers that fan many
-                ``generate`` calls out concurrently under a tight timeout
-                (e.g. multi-hop sub-questions) pass False: the extra LLM call
-                doubles backend load and, when wrapped in a per-call timeout,
-                can discard an already-generated answer because its trailing
-                extraction call is still queued. Such callers extract memories
-                once from the final answer instead.
+            history: Optional recent conversation turns (chronological) injected
+                into the system prompt for short-term continuity.
 
         Returns:
-            A dict with keys: response (str), citations (list[dict]),
-            memories (list[Memory]). ``memories`` is empty when
-            ``extract_memories`` is False.
+            A dict with keys: response (str), citations (list[dict]).
         """
         # Step 1: Build grounding context (retrieval + system prompt + citations).
         system_prompt, citations = await self.build_context(query, note_store, history=history)
@@ -156,33 +140,9 @@ class RAGGenerator:
             system=system_prompt,
         )
 
-        # Step 3: Extract memories from the conversation (best-effort, opt-out).
-        # A failure here (e.g. a ReadTimeout against the remote LLM) must never
-        # discard the already-generated answer.
-        #
-        # Only the conversational exchange (user question + assistant answer) is
-        # passed to extraction. The system prompt embeds the FULL retrieved note
-        # content; including it would re-derive every fact
-        # from every retrieved note, polluting captured memory with dozens of
-        # note facts instead of what was actually asked and answered.
-        memories: list[Memory] = []
-        if extract_memories:
-            messages = [
-                {"role": "user", "content": user_prompt},
-                {"role": "assistant", "content": response},
-            ]
-            try:
-                memories = await self._memory_extractor.extract_from_conversation(messages)
-            except Exception:
-                logger.warning(
-                    "Memory extraction failed; returning answer without memories.", exc_info=True
-                )
-                memories = []
-
         return {
             "response": response,
             "citations": citations,
-            "memories": memories,
         }
 
     async def _build_context_entry(

@@ -1,7 +1,7 @@
 """Chat API endpoint: RAG and multi-hop reasoning with SSE streaming.
 
 Every turn is persisted to the DB (single continuous thread per user) and fed
-into the memory pipeline:
+into the indexing pipeline:
 
 - The incoming user message is stored synchronously before generation, and the
   user's recent history is loaded to ground the answer (so in-session recall like
@@ -12,8 +12,8 @@ into the memory pipeline:
   an incomplete chat.
 - After the answer is produced, ``_capture_turn`` runs in the background: it
   updates the placeholder with the final content, embeds the turn into the
-  ``"conversations"`` vector store (cross-conversation recall), and persists
-  extracted memories (factual triples + a deterministic episodic record).
+  ``"conversations"`` vector store (cross-conversation recall), and extracts
+  knowledge-graph entities.
 """
 
 from __future__ import annotations
@@ -40,7 +40,6 @@ from src.api.websocket import get_broadcaster
 from src.utils.background import spawn_background as _spawn_background
 
 if TYPE_CHECKING:
-    from src.models.memory import Memory
     from src.reasoning.multi_hop import MultiHopReasoner
     from src.reasoning.rag import RAGGenerator
     from src.retrieval.search_result import SearchResult
@@ -56,22 +55,6 @@ _HISTORY_LIMIT = 10
 # When exceeded, the stream begins with raw retrieval snippets and the
 # condensed context is discarded — the user gets an answer, not silence.
 _CONTEXT_BUILD_TIMEOUT_S = 10.0
-
-
-def _persist_memories(memories: list[Memory]) -> None:
-    """Persist chat-extracted memories to SQLite (best-effort).
-
-    A failure here (e.g. a locked DB) must never surface to the client, so all
-    errors are swallowed and logged.
-    """
-    if not memories:
-        return
-    try:
-        from src.api.memory import _store_memories
-
-        _store_memories(memories)
-    except Exception:
-        logger.warning("Failed to persist chat memories.", exc_info=True)
 
 
 class ChatRequest(BaseModel):
@@ -117,18 +100,15 @@ def _build_rag_generator(request: Request) -> RAGGenerator:
 
 def _build_multi_hop_reasoner(request: Request) -> MultiHopReasoner:
     """Build and return a MultiHopReasoner instance using app.state singletons."""
-    from src.memory.extraction import MemoryExtractor
     from src.reasoning.multi_hop import MultiHopReasoner
 
     llm = request.app.state.llm_provider
     graph = request.app.state.knowledge_graph
-    memory_extractor = MemoryExtractor(llm, request.app.state.event_bus)
     rag = _build_rag_generator(request)
     return MultiHopReasoner(
         graph=graph,
         llm_provider=llm,
         rag=rag,
-        memory_extractor=memory_extractor,
     )
 
 
@@ -153,27 +133,6 @@ async def _embed_turn(
         store.add(note_id=turn_id, text=text, embedding=embedding)
     except Exception:
         logger.warning("Failed to embed conversation turn.", exc_info=True)
-
-
-async def _extract_factual(request: Request, user_q: str, assistant_a: str) -> list[Memory]:
-    """Extract factual memory triples from a turn (best-effort)."""
-    llm = getattr(request.app.state, "llm_provider", None)
-    if llm is None:
-        return []
-    try:
-        from src.memory.extraction import MemoryExtractor
-
-        event_bus = getattr(request.app.state, "event_bus", None)
-        extractor = MemoryExtractor(llm, event_bus)  # type: ignore[arg-type]
-        return await extractor.extract_from_conversation(
-            [
-                {"role": "user", "content": user_q},
-                {"role": "assistant", "content": assistant_a},
-            ]
-        )
-    except Exception:
-        logger.warning("Factual memory extraction failed.", exc_info=True)
-        return []
 
 
 def _extract_graph_entities(request: Request, turn_id: str, user_q: str, assistant_a: str) -> None:
@@ -217,22 +176,14 @@ async def _capture_turn(
     turn_id: str,
     citations: list[dict[str, Any]],
     sub_questions: list[str],
-    memories: list[Memory] | None = None,
 ) -> None:
     """Persist + index a completed turn. Runs in the background; never fails the chat.
 
     Steps: promote the pre-created ``in_progress`` assistant placeholder to its
-    final content, embed the turn for cross-conversation recall, and persist
-    memories.
-
-    Args:
-        memories: Factual memories already extracted during generation (non-stream
-            and multi-hop paths return them). When None (the simple streaming
-            path, which generates no memories), factual memories are extracted
-            here. A deterministic episodic memory is always added.
+    final content, embed the turn for cross-conversation recall, and extract
+    knowledge-graph entities.
     """
     from src.api.conversations import update_message
-    from src.memory.extraction import build_episodic_memory
 
     # Outer guard: this often runs fire-and-forget (streaming path), so an
     # unhandled error here would surface only as an orphaned-task warning.
@@ -269,15 +220,6 @@ async def _capture_turn(
         await _embed_turn(request, turn_id, created, user_q, assistant_a)
         if runtime_config.auto_entity_extraction():
             _extract_graph_entities(request, turn_id, user_q, assistant_a)
-
-        captured = list(memories) if memories else []
-        if memories is None and runtime_config.auto_memory_extraction():
-            captured.extend(await _extract_factual(request, user_q, assistant_a))
-        try:
-            captured.append(build_episodic_memory(user_q, created=created))
-        except Exception:
-            logger.warning("Failed to build episodic memory.", exc_info=True)
-        _persist_memories(captured)
     except Exception:
         logger.warning("Failed to capture conversation turn.", exc_info=True)
 
@@ -372,7 +314,6 @@ async def chat(
         turn_id,
         citations,
         sub_questions,
-        result.get("memories", []),
     )
 
     return {
@@ -545,7 +486,6 @@ async def _stream_chat(
                         turn_id,
                         citations_data,
                         sub_qs,
-                        None,
                     ),
                 )
                 if broadcaster:
@@ -678,10 +618,9 @@ async def _stream_chat(
                     yield _sse("message", {"chunk": system_prompt})
 
                 answer = "".join(answer_parts)
-                # Simple streaming generates no memories; _capture_turn extracts them.
                 _spawn_background(
                     request.app,
-                    _capture_turn(request, user_id, query, answer, turn_id, citations, [], None),
+                    _capture_turn(request, user_id, query, answer, turn_id, citations, []),
                 )
                 # Store in semantic cache for future hits (fire-and-forget).
                 _spawn_background(
@@ -709,7 +648,6 @@ async def _stream_chat(
         answer = result.get("response", "")
         citations = result.get("citations", [])
         sub_questions = result.get("sub_questions", [])
-        memories = result.get("memories", [])
 
         async def _event_stream() -> AsyncIterator[str]:
             _completed = False
@@ -741,7 +679,6 @@ async def _stream_chat(
                         turn_id,
                         citations,
                         sub_questions,
-                        memories,
                     ),
                 )
                 # Store in semantic cache for future hits (fire-and-forget).

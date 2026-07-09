@@ -11,9 +11,7 @@ from src.llm.json_parse import LLMOutputParseError, parse_llm_json
 
 if TYPE_CHECKING:
     from src.knowledge.graph import KnowledgeGraph
-    from src.memory.extraction import MemoryExtractor
     from src.models.entity import Entity
-    from src.models.memory import Memory
     from src.reasoning.rag import RAGGenerator
     from src.storage.note_store import NoteStore
 
@@ -60,7 +58,6 @@ class MultiHopReasoner:
         graph: KnowledgeGraph,
         llm_provider: LLMProvider,
         rag: RAGGenerator,
-        memory_extractor: MemoryExtractor | None = None,
     ) -> None:
         """Create a MultiHopReasoner.
 
@@ -68,16 +65,10 @@ class MultiHopReasoner:
             graph: The knowledge graph for entity/relation lookups.
             llm_provider: The LLM provider for decomposition and synthesis.
             rag: The RAG generator for answering sub-questions.
-            memory_extractor: Optional extractor used to capture memories once
-                from the final synthesized answer. When None, the success path
-                returns no memories. Sub-questions never extract memories
-                themselves (see ``_answer_sub_questions``), so this is the only
-                memory source for a successful multi-hop answer.
         """
         self._graph = graph
         self._llm = llm_provider
         self._rag = rag
-        self._memory_extractor = memory_extractor
 
     async def reason(
         self,
@@ -119,19 +110,12 @@ class MultiHopReasoner:
                 "response": fallback.get("response", ""),
                 "citations": fallback.get("citations", []),
                 "sub_questions": sub_questions,
-                "memories": fallback.get("memories", []),
             }
 
         # Step 3: Ground with graph facts and synthesize.
         graph_context = self._graph_context(query)
         combined = await self._synthesize(query, sub_questions, answers, graph_context, history)
         combined["sub_questions"] = sub_questions
-        # Capture memories once, from the final synthesized answer. Sub-questions
-        # deliberately skip extraction (it doubled the concurrent LLM load and,
-        # under the per-sub-question timeout, discarded answers whose trailing
-        # extraction call was still queued). The synthesized answer is also a
-        # cleaner extraction source than the fragmented intermediate sub-answers.
-        combined["memories"] = await self._extract_memories(query, combined.get("response", ""))
 
         return combined
 
@@ -150,14 +134,8 @@ class MultiHopReasoner:
 
         async def _answer(sub_q: str) -> dict[str, Any] | None:
             try:
-                # extract_memories=False: the 45s budget must cover only
-                # retrieval + the answer generate. Memory extraction is a second
-                # LLM call; fanning it out per sub-question doubled the load on a
-                # single local backend and let a still-queued extraction discard
-                # an already-produced answer. Memories are taken once from the
-                # final synthesized answer instead (see reason()).
                 return await asyncio.wait_for(
-                    self._rag.generate(sub_q, note_store, extract_memories=False),
+                    self._rag.generate(sub_q, note_store),
                     timeout=_SUB_Q_TIMEOUT_S,
                 )
             except asyncio.TimeoutError:
@@ -169,34 +147,6 @@ class MultiHopReasoner:
 
         results = await asyncio.gather(*[_answer(sq) for sq in sub_questions])
         return [r for r in results if r is not None]
-
-    async def _extract_memories(self, query: str, answer: str) -> list[Memory]:
-        """Extract memories from the final answer (best-effort, single LLM call).
-
-        Returns ``[]`` when no extractor is configured, the answer is empty, or
-        extraction fails — capturing memories must never fail the chat response.
-
-        Args:
-            query: The original user query.
-            answer: The synthesized final answer.
-
-        Returns:
-            A list of extracted Memory objects (possibly empty).
-        """
-        if self._memory_extractor is None or not answer:
-            return []
-        messages = [
-            {"role": "user", "content": query},
-            {"role": "assistant", "content": answer},
-        ]
-        try:
-            return await self._memory_extractor.extract_from_conversation(messages)
-        except Exception:
-            logger.warning(
-                "Final memory extraction failed; continuing without memories.",
-                exc_info=True,
-            )
-            return []
 
     async def _decompose_query(self, query: str) -> list[str]:
         """Decompose a complex query into sub-questions using the LLM.
