@@ -2,8 +2,6 @@
 
 Wires together LLM-based entity extraction, entity resolution,
 KG storage, relation creation, and embedding storage.
-
-Follows the MemoryExtractor pattern: build prompt -> call LLM -> parse response.
 """
 
 from __future__ import annotations
