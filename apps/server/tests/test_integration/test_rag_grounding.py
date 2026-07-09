@@ -151,13 +151,6 @@ def _make_mock_llm() -> AsyncMock:
     return llm
 
 
-def _make_mock_memory_extractor() -> MagicMock:
-    """Return a mock MemoryExtractor whose extract_from_conversation returns []."""
-    extractor = MagicMock()
-    extractor.extract_from_conversation = AsyncMock(return_value=[])
-    return extractor
-
-
 def _make_empty_async_retriever() -> AsyncMock:
     """Return a mock dense retriever whose async search() returns an empty list.
 
@@ -235,12 +228,10 @@ async def test_rag_retrieves_conversation_derived_entity(tmp_db_path, empty_note
     fusion = HybridFusion(dense=mock_dense, sparse=mock_sparse, graph=graph_retriever)
 
     mock_llm = _make_mock_llm()
-    mock_extractor = _make_mock_memory_extractor()
 
     generator = RAGGenerator(
         fusion=fusion,
         llm_provider=mock_llm,
-        memory_extractor=mock_extractor,
     )
 
     # --- Run generate ---
@@ -323,12 +314,10 @@ async def test_rag_retrieves_entity_by_alias(tmp_db_path, empty_note_store):
     fusion = HybridFusion(dense=mock_dense, sparse=mock_sparse, graph=graph_retriever)
 
     mock_llm = _make_mock_llm()
-    mock_extractor = _make_mock_memory_extractor()
 
     generator = RAGGenerator(
         fusion=fusion,
         llm_provider=mock_llm,
-        memory_extractor=mock_extractor,
     )
 
     # --- Run generate with a natural-language query containing the alias ---
