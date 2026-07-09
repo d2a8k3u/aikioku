@@ -170,16 +170,8 @@ def auto_extract() -> bool:
     return _bool("auto_extract", settings.auto_extract)
 
 
-def auto_consolidation() -> bool:
-    return _bool("auto_consolidation", settings.auto_consolidation)
-
-
 def auto_entity_extraction() -> bool:
     return _bool("auto_entity_extraction", settings.auto_entity_extraction)
-
-
-def auto_memory_extraction() -> bool:
-    return _bool("auto_memory_extraction", settings.auto_memory_extraction)
 
 
 def auto_title() -> bool:

@@ -46,7 +46,6 @@ _CONFIG_FIELDS = (
     "openai_base_url",
     "openai_embedding_model",
     "auto_extract",
-    "auto_consolidation",
     "llm_daily_budget_usd",
     "cors_origins",
 )
@@ -74,7 +73,6 @@ class SetupPayload(BaseModel):
     openai_base_url: str | None = None
     openai_embedding_model: str | None = None
     auto_extract: bool | None = None
-    auto_consolidation: bool | None = None
     llm_daily_budget_usd: float | None = None
     cors_origins: str | None = None
     # Secrets (encrypted)

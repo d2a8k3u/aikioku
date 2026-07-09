@@ -59,7 +59,6 @@ class SettingsUpdate(BaseModel):
     openai_base_url: str | None = None
     openai_embedding_model: str | None = None
     auto_extract: bool | None = None
-    auto_consolidation: bool | None = None
     llm_daily_budget_usd: float | None = None
     cors_origins: str | None = None
 
@@ -92,7 +91,6 @@ def _settings_to_dict() -> dict[str, Any]:
         "openai_base_url": runtime_config.openai_base_url(),
         "openai_embedding_model": runtime_config.openai_embedding_model(),
         "auto_extract": runtime_config.auto_extract(),
-        "auto_consolidation": runtime_config.auto_consolidation(),
         "llm_daily_budget_usd": runtime_config.llm_daily_budget_usd(),
         "auth_required": runtime_config.auth_required(),
         "cors_origins": ",".join(runtime_config.cors_origins()),
