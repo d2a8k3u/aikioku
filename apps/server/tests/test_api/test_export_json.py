@@ -53,7 +53,6 @@ class TestExportJson:
         assert "notes" in data
         assert "entities" in data
         assert "relations" in data
-        assert "memories" in data
         assert "cards" in data
         assert "version" in data
         assert data["version"] == "0.1.0"
@@ -97,7 +96,6 @@ class TestExportJson:
         assert data["notes"] == []
         assert data["entities"] == []
         assert data["relations"] == []
-        assert data["memories"] == []
         assert data["cards"] == []
         assert data["version"] == "0.1.0"
 
