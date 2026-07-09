@@ -25,10 +25,10 @@ class TestGetSettings:
         data = response.json()
         assert "llm_provider" in data
         assert "embedding_model" in data
-        assert "auto_entity_extraction" in data
+        assert "auto_extract" in data
         assert isinstance(data["llm_provider"], str)
         assert isinstance(data["embedding_model"], str)
-        assert isinstance(data["auto_entity_extraction"], bool)
+        assert isinstance(data["auto_extract"], bool)
 
 
 class TestUpdateSettings:

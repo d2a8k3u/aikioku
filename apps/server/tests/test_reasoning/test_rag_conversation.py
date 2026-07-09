@@ -18,7 +18,7 @@ def fusion():
 async def test_history_injected_into_system_prompt(fusion):
     from src.reasoning.rag import RAGGenerator
 
-    rag = RAGGenerator(fusion=fusion, llm_provider=AsyncMock(), memory_extractor=AsyncMock())
+    rag = RAGGenerator(fusion=fusion, llm_provider=AsyncMock())
     history = [
         {"role": "user", "content": "previous question"},
         {"role": "assistant", "content": "previous answer"},
@@ -47,7 +47,6 @@ async def test_conversation_recall_injected(fusion):
     rag = RAGGenerator(
         fusion=fusion,
         llm_provider=AsyncMock(),
-        memory_extractor=AsyncMock(),
         conversation_retriever=conv_retriever,
     )
 
@@ -63,7 +62,7 @@ async def test_conversation_recall_injected(fusion):
 async def test_no_conversation_retriever_is_safe(fusion):
     from src.reasoning.rag import RAGGenerator
 
-    rag = RAGGenerator(fusion=fusion, llm_provider=AsyncMock(), memory_extractor=AsyncMock())
+    rag = RAGGenerator(fusion=fusion, llm_provider=AsyncMock())
     system_prompt, citations = await rag.build_context("hello", note_store=MagicMock())
     assert "Relevant past conversations" not in system_prompt
     assert citations == []
