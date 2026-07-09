@@ -1,7 +1,4 @@
-"""Core consolidation logic: similarity detection, clustering, LLM merge, CRUD orchestration.
-
-Pure functions where possible (testable without the worker loop).
-"""
+"""Core consolidation logic: similarity detection, clustering, LLM merge, CRUD orchestration."""
 
 from __future__ import annotations
 
