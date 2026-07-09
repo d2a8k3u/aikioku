@@ -25,12 +25,10 @@ class TestGetSettings:
         data = response.json()
         assert "llm_provider" in data
         assert "embedding_model" in data
-        assert "auto_extract" in data
-        assert "auto_consolidation" in data
+        assert "auto_entity_extraction" in data
         assert isinstance(data["llm_provider"], str)
         assert isinstance(data["embedding_model"], str)
-        assert isinstance(data["auto_extract"], bool)
-        assert isinstance(data["auto_consolidation"], bool)
+        assert isinstance(data["auto_entity_extraction"], bool)
 
 
 class TestUpdateSettings:
@@ -41,8 +39,6 @@ class TestUpdateSettings:
         update_payload = {
             "llm_provider": "ollama_remote",
             "embedding_model": "mxbai-embed-large",
-            "auto_extract": False,
-            "auto_consolidation": True,
         }
 
         response = client.put("/api/settings", json=update_payload)
@@ -51,8 +47,6 @@ class TestUpdateSettings:
         data = response.json()
         assert data["llm_provider"] == "ollama_remote"
         assert data["embedding_model"] == "mxbai-embed-large"
-        assert data["auto_extract"] is False
-        assert data["auto_consolidation"] is True
 
     def test_partial_update(self, client):
         """PUT /api/settings with partial fields should update only those fields."""
