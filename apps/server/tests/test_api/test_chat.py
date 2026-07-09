@@ -17,7 +17,6 @@ def mock_rag_generator():
         "citations": [
             {"note_id": "note-1", "score": 0.95, "snippet": "Python is a language"},
         ],
-        "memories": [],
     }
     mock.build_context.return_value = (
         "SYSTEM PROMPT WITH NOTE CONTENT",
@@ -122,109 +121,8 @@ class TestChatEndpoint:
         assert response.status_code == 422
 
 
-class TestChatCapturesMemories:
-    """POST /api/chat/ must persist the memories RAG extracted."""
-
-    def test_simple_chat_persists_extracted_memory(self, client):
-        from src.models.memory import Memory
-        from src.api import memory as memory_api
-
-        cli, mock_rag, mock_multi = client
-
-        mem = Memory(
-            subject="Python",
-            predicate="created_by",
-            object="Guido van Rossum",
-            confidence=0.93,
-            source="conversation",
-        )
-        mock_rag.generate.return_value = {
-            "response": "Python was created by Guido van Rossum.",
-            "citations": [],
-            "memories": [mem],
-        }
-
-        # Nothing persisted yet (fresh per-test SQLite from conftest).
-        assert memory_api._load_memories() == []
-
-        response = cli.post(
-            "/api/chat",
-            json={"query": "Who created Python?", "mode": "simple"},
-        )
-        assert response.status_code == 200
-
-        # TestClient runs background tasks after the response returns.
-        stored = memory_api._load_memories()
-        ids = {row["id"] for row in stored}
-        assert mem.id in ids
-        row = next(r for r in stored if r["id"] == mem.id)
-        assert row["subject"] == "Python"
-        assert row["object"] == "Guido van Rossum"
-
-    def test_persistence_error_does_not_500_the_chat(self, client):
-        from unittest.mock import patch as _patch
-        from src.models.memory import Memory
-
-        cli, mock_rag, mock_multi = client
-
-        mem = Memory(
-            subject="A",
-            predicate="b",
-            object="C",
-            confidence=0.5,
-            source="conversation",
-        )
-        mock_rag.generate.return_value = {
-            "response": "answer",
-            "citations": [],
-            "memories": [mem],
-        }
-
-        # A failing persistence task must NOT fail the already-sent response.
-        with _patch(
-            "src.api.memory._store_memories",
-            side_effect=RuntimeError("db down"),
-        ):
-            response = cli.post(
-                "/api/chat",
-                json={"query": "anything", "mode": "simple"},
-            )
-
-        assert response.status_code == 200
-        assert response.json()["response"] == "answer"
-
-    def test_multi_hop_chat_persists_aggregated_memory(self, client):
-        from src.models.memory import Memory
-        from src.api import memory as memory_api
-
-        cli, mock_rag, mock_multi = client
-
-        mem = Memory(
-            subject="Rust",
-            predicate="is_a",
-            object="systems language",
-            confidence=0.9,
-            source="conversation",
-        )
-        mock_multi.reason.return_value = {
-            "response": "Combined answer",
-            "citations": [],
-            "sub_questions": ["q1", "q2"],
-            "memories": [mem],
-        }
-
-        response = cli.post(
-            "/api/chat",
-            json={"query": "Compare Python and Rust", "mode": "multi_hop"},
-        )
-        assert response.status_code == 200
-
-        ids = {row["id"] for row in memory_api._load_memories()}
-        assert mem.id in ids
-
-
 class TestChatPersistsConversation:
-    """POST /api/chat/ must persist the user + assistant turn and an episodic memory."""
+    """POST /api/chat/ must persist the user + assistant turn (conversation embedding)."""
 
     def test_persists_user_and_assistant_messages(self, client):
         from src.api import conversations as conv
@@ -233,7 +131,6 @@ class TestChatPersistsConversation:
         mock_rag.generate.return_value = {
             "response": "the answer",
             "citations": [],
-            "memories": [],
         }
 
         response = cli.post(
@@ -246,26 +143,6 @@ class TestChatPersistsConversation:
         pairs = {(r["role"], r["content"]) for r in rows}
         assert ("user", "my question") in pairs
         assert ("assistant", "the answer") in pairs
-
-    def test_records_episodic_memory_for_the_question(self, client):
-        from src.api import memory as memory_api
-
-        cli, mock_rag, mock_multi = client
-        mock_rag.generate.return_value = {
-            "response": "April 15",
-            "citations": [],
-            "memories": [],
-        }
-
-        response = cli.post(
-            "/api/chat",
-            json={"query": "When is the deadline?", "mode": "simple"},
-        )
-        assert response.status_code == 200
-
-        stored = memory_api._load_memories()
-        episodic = [m for m in stored if m["subject"] == "user" and m["predicate"] == "asked_about"]
-        assert any(m["object"] == "When is the deadline?" for m in episodic)
 
 
 class _FakeStreamingLLM:

@@ -27,9 +27,6 @@ class TestGetStats:
             patch(
                 "src.api.stats._get_relation_count", new_callable=AsyncMock, return_value=2
             ) as mock_relations,
-            patch(
-                "src.api.stats._get_memory_count", new_callable=AsyncMock, return_value=10
-            ) as mock_memories,
             patch("src.api.stats._get_card_count", return_value=4) as mock_cards,
         ):
             response = client.get("/api/stats")
@@ -39,13 +36,11 @@ class TestGetStats:
         assert data["notes"] == 5
         assert data["entities"] == 3
         assert data["relations"] == 2
-        assert data["memories"] == 10
         assert data["cards"] == 4
         assert data["version"] == "0.1.0"
         mock_notes.assert_awaited_once()
         mock_entities.assert_awaited_once()
         mock_relations.assert_awaited_once()
-        mock_memories.assert_awaited_once()
         mock_cards.assert_called_once()
 
     def test_zero_counts_when_empty(self, client):
@@ -53,7 +48,6 @@ class TestGetStats:
             patch("src.api.stats._get_note_count", new_callable=AsyncMock, return_value=0),
             patch("src.api.stats._get_entity_count", new_callable=AsyncMock, return_value=0),
             patch("src.api.stats._get_relation_count", new_callable=AsyncMock, return_value=0),
-            patch("src.api.stats._get_memory_count", new_callable=AsyncMock, return_value=0),
             patch("src.api.stats._get_card_count", return_value=0),
         ):
             response = client.get("/api/stats")
@@ -63,6 +57,5 @@ class TestGetStats:
         assert data["notes"] == 0
         assert data["entities"] == 0
         assert data["relations"] == 0
-        assert data["memories"] == 0
         assert data["cards"] == 0
         assert data["version"] == "0.1.0"

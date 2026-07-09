@@ -42,7 +42,6 @@ def mock_rag() -> AsyncMock:
         return_value={
             "response": "Python is a programming language.",
             "citations": [{"note_id": "note-1", "score": 0.9, "snippet": "Python info."}],
-            "memories": [],
         }
     )
     return rag
@@ -70,17 +69,14 @@ class TestMultiHopReasoner:
                 {
                     "response": "Python is a programming language.",
                     "citations": [{"note_id": "note-1", "score": 0.9, "snippet": "Python info."}],
-                    "memories": [],
                 },
                 {
                     "response": "Python features include dynamic typing.",
                     "citations": [{"note_id": "note-2", "score": 0.8, "snippet": "Features."}],
-                    "memories": [],
                 },
                 {
                     "response": "Python was created by Guido van Rossum.",
                     "citations": [{"note_id": "note-3", "score": 0.7, "snippet": "Creator info."}],
-                    "memories": [],
                 },
             ]
         )
@@ -102,110 +98,6 @@ class TestMultiHopReasoner:
         assert len(result["sub_questions"]) == 3
         assert len(result["citations"]) == 3
         assert len(result["response"]) > 0
-
-    @pytest.mark.asyncio
-    async def test_reason_extracts_memories_from_final_answer(
-        self, mock_graph, mock_llm_provider, mock_rag, mock_note_store
-    ):
-        """Memories are extracted once from the final synthesized answer (via the
-        configured memory_extractor), not per sub-answer, so the chat path can
-        persist them. Sub-questions skip extraction to bound concurrent LLM load."""
-        from src.reasoning.multi_hop import MultiHopReasoner
-        from src.memory.extraction import MemoryExtractor
-        from src.models.memory import Memory
-
-        m1 = Memory(
-            subject="Python",
-            predicate="is_a",
-            object="language",
-            confidence=0.9,
-            source="conversation",
-        )
-        m2 = Memory(
-            subject="Python",
-            predicate="created_by",
-            object="Guido",
-            confidence=0.8,
-            source="conversation",
-        )
-
-        mock_llm_provider.complete = AsyncMock(side_effect=['["q1", "q2"]', "synthesized answer"])
-        # Sub-answers carry no memories now — extraction happens once at the end.
-        mock_rag.generate = AsyncMock(
-            side_effect=[
-                {"response": "a1", "citations": [], "memories": []},
-                {"response": "a2", "citations": [], "memories": []},
-            ]
-        )
-        extractor = AsyncMock(spec=MemoryExtractor)
-        extractor.extract_from_conversation = AsyncMock(return_value=[m1, m2])
-
-        reasoner = MultiHopReasoner(
-            graph=mock_graph,
-            llm_provider=mock_llm_provider,
-            rag=mock_rag,
-            memory_extractor=extractor,
-        )
-
-        result = await reasoner.reason("Tell me about Python", mock_note_store)
-
-        assert result["memories"] == [m1, m2]
-        # Sub-questions must NOT extract memories (load control).
-        for call in mock_rag.generate.await_args_list:
-            assert call.kwargs.get("extract_memories") is False
-        # Extraction ran exactly once, over the synthesized final answer.
-        extractor.extract_from_conversation.assert_awaited_once()
-        passed = extractor.extract_from_conversation.await_args.args[0]
-        assert any(msg.get("content") == "synthesized answer" for msg in passed)
-
-    @pytest.mark.asyncio
-    async def test_reason_without_extractor_returns_no_memories(
-        self, mock_graph, mock_llm_provider, mock_rag, mock_note_store
-    ):
-        """With no memory_extractor configured, a successful answer carries no
-        memories (and never crashes)."""
-        from src.reasoning.multi_hop import MultiHopReasoner
-
-        mock_llm_provider.complete = AsyncMock(side_effect=['["q1", "q2"]', "synthesized answer"])
-        mock_rag.generate = AsyncMock(
-            return_value={"response": "a", "citations": [], "memories": []}
-        )
-
-        reasoner = MultiHopReasoner(graph=mock_graph, llm_provider=mock_llm_provider, rag=mock_rag)
-
-        result = await reasoner.reason("Tell me about Python", mock_note_store)
-
-        assert result["memories"] == []
-
-    @pytest.mark.asyncio
-    async def test_fallback_carries_memories(self, mock_graph, mock_llm_provider, mock_note_store):
-        """When all sub-questions fail, the fallback's memories are carried out."""
-        from src.reasoning.multi_hop import MultiHopReasoner
-        from src.models.memory import Memory
-
-        fb_mem = Memory(
-            subject="X", predicate="is", object="Y", confidence=0.7, source="conversation"
-        )
-        fallback = {
-            "response": "fallback answer",
-            "citations": [],
-            "memories": [fb_mem],
-        }
-
-        async def _generate(sub_q, note_store, **kwargs):
-            if sub_q == "complex query":
-                return fallback
-            raise RuntimeError("boom")
-
-        rag = AsyncMock(spec=RAGGenerator)
-        rag.generate = AsyncMock(side_effect=_generate)
-        mock_llm_provider.complete = AsyncMock(return_value='["q1", "q2"]')
-
-        reasoner = MultiHopReasoner(graph=mock_graph, llm_provider=mock_llm_provider, rag=rag)
-
-        result = await reasoner.reason("complex query", mock_note_store)
-
-        assert result["memories"] == [fb_mem]
 
     @pytest.mark.asyncio
     async def test_decompose_query_returns_list_of_sub_questions(
@@ -296,7 +188,7 @@ class TestMultiHopConcurrencyAndResilience:
 
         async def _slow_generate(sub_q, note_store, **kwargs):
             await asyncio.sleep(0.3)
-            return {"response": f"answer to {sub_q}", "citations": [], "memories": []}
+            return {"response": f"answer to {sub_q}", "citations": []}
 
         mock_rag.generate = AsyncMock(side_effect=_slow_generate)
 
@@ -350,7 +242,6 @@ class TestMultiHopConcurrencyAndResilience:
             return {
                 "response": f"ok {sub_q}",
                 "citations": [{"note_id": f"n{call_state['n']}", "score": 0.5}],
-                "memories": [],
             }
 
         mock_rag.generate = AsyncMock(side_effect=_flaky_generate)
@@ -378,7 +269,6 @@ class TestMultiHopConcurrencyAndResilience:
         fallback = {
             "response": "fallback single-pass answer",
             "citations": [{"note_id": "fb", "score": 0.4}],
-            "memories": [],
         }
 
         async def _generate(sub_q, note_store, **kwargs):
@@ -423,8 +313,8 @@ class TestMultiHopConcurrencyAndResilience:
 
         mock_rag.generate = AsyncMock(
             side_effect=[
-                {"response": "First part.", "citations": [], "memories": []},
-                {"response": "Second part.", "citations": [], "memories": []},
+                {"response": "First part.", "citations": []},
+                {"response": "Second part.", "citations": []},
             ]
         )
 

@@ -352,32 +352,3 @@ class TestWebSocketEndpoint:
         with TestClient(app) as client:
             with client.websocket_connect("/ws/events") as ws:
                 ws.send_text("ping")
-
-
-# ---------------------------------------------------------------------------
-# Memory consolidation stage 4 (summarize)
-# ---------------------------------------------------------------------------
-
-
-class TestMemoryConsolidationStage4:
-    @pytest.mark.asyncio
-    async def test_stage_summarize_runs(self):
-        from src.memory.consolidation import MemoryConsolidator
-        from src.models.memory import Memory
-
-        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-            path = f.name
-        from src.events import EventBus
-
-        eb = EventBus(path)
-        mc = MemoryConsolidator(None, eb)
-        memories = [
-            Memory(
-                subject="Alice", predicate="knows", object="Bob", confidence=0.9, source="note1"
-            ),
-            Memory(
-                subject="Alice", predicate="knows", object="Charlie", confidence=0.8, source="note2"
-            ),
-        ]
-        result = await mc.stage_summarize(memories)
-        assert isinstance(result, list)

@@ -7,8 +7,6 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.llm.base import LLMProvider
-from src.memory.extraction import MemoryExtractor
-from src.models.memory import Memory
 from src.models.note import Note
 from src.retrieval.fusion import HybridFusion
 from src.retrieval.search_result import SearchResult
@@ -49,142 +47,37 @@ def mock_llm_provider() -> AsyncMock:
 
 
 @pytest.fixture
-def mock_memory_extractor() -> MagicMock:
-    """Return a mock MemoryExtractor."""
-    extractor = MagicMock(spec=MemoryExtractor)
-    extractor.extract_from_conversation = AsyncMock(
-        return_value=[
-            Memory(
-                subject="Python",
-                predicate="is_a",
-                object="versatile programming language",
-                confidence=0.9,
-                source="conversation",
-            ),
-        ]
-    )
-    return extractor
-
-
-@pytest.fixture
 def mock_note_store(tmp_path) -> NoteStore:
     """Return a NoteStore backed by a temp directory."""
     return NoteStore(str(tmp_path / "notes"))
 
 
 class TestRAGGenerator:
-    """Test RAGGenerator.generate returns response with citations and memories."""
+    """Test RAGGenerator.generate returns response with citations."""
 
     @pytest.mark.asyncio
     async def test_generate_returns_response_with_citations(
-        self, mock_fusion, mock_llm_provider, mock_memory_extractor, mock_note_store
+        self, mock_fusion, mock_llm_provider, mock_note_store
     ):
-        """generate() should return a dict with response, citations, and memories."""
+        """generate() should return a dict with response and citations."""
         from src.reasoning.rag import RAGGenerator
 
         generator = RAGGenerator(
             fusion=mock_fusion,
             llm_provider=mock_llm_provider,
-            memory_extractor=mock_memory_extractor,
         )
 
         result = await generator.generate("What is Python?", mock_note_store)
 
         assert "response" in result
         assert "citations" in result
-        assert "memories" in result
         assert isinstance(result["response"], str)
         assert isinstance(result["citations"], list)
-        assert isinstance(result["memories"], list)
         assert len(result["response"]) > 0
-
-    @pytest.mark.asyncio
-    async def test_generate_extracts_memories(
-        self, mock_fusion, mock_llm_provider, mock_memory_extractor, mock_note_store
-    ):
-        """generate() should call memory_extractor and return memories."""
-        from src.reasoning.rag import RAGGenerator
-
-        generator = RAGGenerator(
-            fusion=mock_fusion,
-            llm_provider=mock_llm_provider,
-            memory_extractor=mock_memory_extractor,
-        )
-
-        result = await generator.generate("What is Python?", mock_note_store)
-
-        mock_memory_extractor.extract_from_conversation.assert_called_once()
-        assert len(result["memories"]) == 1
-        assert result["memories"][0].subject == "Python"
-
-    @pytest.mark.asyncio
-    async def test_generate_skips_extraction_when_disabled(
-        self, mock_fusion, mock_llm_provider, mock_memory_extractor, mock_note_store
-    ):
-        """extract_memories=False must skip the second LLM call entirely and
-        return no memories, while still producing the answer + citations.
-
-        Used by multi-hop sub-questions to halve concurrent backend load and keep
-        the answer generate inside its per-sub-question timeout budget.
-        """
-        from src.reasoning.rag import RAGGenerator
-
-        generator = RAGGenerator(
-            fusion=mock_fusion,
-            llm_provider=mock_llm_provider,
-            memory_extractor=mock_memory_extractor,
-        )
-
-        result = await generator.generate(
-            "What is Python?", mock_note_store, extract_memories=False
-        )
-
-        mock_memory_extractor.extract_from_conversation.assert_not_called()
-        assert result["memories"] == []
-        assert len(result["response"]) > 0
-        assert isinstance(result["citations"], list)
-        # The answer generate itself must still run exactly once.
-        mock_llm_provider.complete.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    async def test_generate_memory_extraction_excludes_system_context(
-        self, mock_fusion, mock_llm_provider, mock_memory_extractor, mock_note_store
-    ):
-        """Memory extraction must run over the conversational exchange ONLY.
-
-        The system prompt now embeds the full retrieved note content.
-        Feeding it to the extractor causes it to re-derive every fact from every
-        retrieved note (noise). The extractor must therefore be called with only
-        the user + assistant messages: no message may have role 'system', and the
-        retrieved note text (which appears in the system prompt) must not leak
-        into the messages handed to the extractor.
-        """
-        from src.reasoning.rag import RAGGenerator
-
-        generator = RAGGenerator(
-            fusion=mock_fusion,
-            llm_provider=mock_llm_provider,
-            memory_extractor=mock_memory_extractor,
-        )
-
-        await generator.generate("What is Python?", mock_note_store)
-
-        mock_memory_extractor.extract_from_conversation.assert_called_once()
-        (messages,) = mock_memory_extractor.extract_from_conversation.call_args.args
-
-        roles = [m["role"] for m in messages]
-        assert "system" not in roles, f"system message leaked into extraction: {roles}"
-        assert roles == ["user", "assistant"]
-
-        # The retrieved-note context (only present in the system prompt) must not
-        # appear in any message handed to the extractor.
-        joined = "\n".join(m["content"] for m in messages)
-        assert "Python is a programming language." not in joined
-        assert "Machine learning uses algorithms." not in joined
 
     @pytest.mark.asyncio
     async def test_generate_system_prompt_includes_context(
-        self, mock_fusion, mock_llm_provider, mock_memory_extractor, mock_note_store
+        self, mock_fusion, mock_llm_provider, mock_note_store
     ):
         """The system prompt passed to the LLM should include the retrieved context."""
         from src.reasoning.rag import RAGGenerator
@@ -192,7 +85,6 @@ class TestRAGGenerator:
         generator = RAGGenerator(
             fusion=mock_fusion,
             llm_provider=mock_llm_provider,
-            memory_extractor=mock_memory_extractor,
         )
 
         await generator.generate("What is Python?", mock_note_store)
@@ -205,7 +97,7 @@ class TestRAGGenerator:
 
     @pytest.mark.asyncio
     async def test_generate_empty_context_still_works(
-        self, mock_fusion, mock_llm_provider, mock_memory_extractor, mock_note_store
+        self, mock_fusion, mock_llm_provider, mock_note_store
     ):
         """generate() should work even when no chunks are retrieved."""
         from src.reasoning.rag import RAGGenerator
@@ -215,20 +107,18 @@ class TestRAGGenerator:
         generator = RAGGenerator(
             fusion=mock_fusion,
             llm_provider=mock_llm_provider,
-            memory_extractor=mock_memory_extractor,
         )
 
         result = await generator.generate("obscure query", mock_note_store)
 
         assert "response" in result
         assert "citations" in result
-        assert "memories" in result
         assert isinstance(result["response"], str)
         assert len(result["response"]) > 0
 
     @pytest.mark.asyncio
     async def test_generate_calls_fusion_search_with_query(
-        self, mock_fusion, mock_llm_provider, mock_memory_extractor, mock_note_store
+        self, mock_fusion, mock_llm_provider, mock_note_store
     ):
         """generate() should pass the query to fusion.search()."""
         from src.reasoning.rag import RAGGenerator
@@ -236,7 +126,6 @@ class TestRAGGenerator:
         generator = RAGGenerator(
             fusion=mock_fusion,
             llm_provider=mock_llm_provider,
-            memory_extractor=mock_memory_extractor,
         )
 
         await generator.generate("test query", mock_note_store)
@@ -245,7 +134,7 @@ class TestRAGGenerator:
 
     @pytest.mark.asyncio
     async def test_build_system_prompt_includes_instructions(
-        self, mock_fusion, mock_llm_provider, mock_memory_extractor, mock_note_store
+        self, mock_fusion, mock_llm_provider, mock_note_store
     ):
         """_build_system_prompt should include instructions for the LLM."""
         from src.reasoning.rag import RAGGenerator
@@ -253,7 +142,6 @@ class TestRAGGenerator:
         generator = RAGGenerator(
             fusion=mock_fusion,
             llm_provider=mock_llm_provider,
-            memory_extractor=mock_memory_extractor,
         )
 
         context = [
@@ -265,7 +153,7 @@ class TestRAGGenerator:
 
     @pytest.mark.asyncio
     async def test_build_user_prompt_formats_query(
-        self, mock_fusion, mock_llm_provider, mock_memory_extractor, mock_note_store
+        self, mock_fusion, mock_llm_provider, mock_note_store
     ):
         """_build_user_prompt should include the user query."""
         from src.reasoning.rag import RAGGenerator
@@ -273,7 +161,6 @@ class TestRAGGenerator:
         generator = RAGGenerator(
             fusion=mock_fusion,
             llm_provider=mock_llm_provider,
-            memory_extractor=mock_memory_extractor,
         )
 
         prompt = generator._build_user_prompt("What is Python?")
@@ -281,7 +168,7 @@ class TestRAGGenerator:
 
     @pytest.mark.asyncio
     async def test_extract_citations_returns_citation_dicts(
-        self, mock_fusion, mock_llm_provider, mock_memory_extractor, mock_note_store
+        self, mock_fusion, mock_llm_provider, mock_note_store
     ):
         """_extract_citations should return a list of citation dicts."""
         from src.reasoning.rag import RAGGenerator
@@ -289,7 +176,6 @@ class TestRAGGenerator:
         generator = RAGGenerator(
             fusion=mock_fusion,
             llm_provider=mock_llm_provider,
-            memory_extractor=mock_memory_extractor,
         )
 
         context = [
@@ -306,35 +192,8 @@ class TestRAGGenerator:
         assert citations[0]["score"] == 0.85
 
     @pytest.mark.asyncio
-    async def test_generate_survives_memory_extractor_failure(
-        self, mock_fusion, mock_llm_provider, mock_note_store
-    ):
-        """If memory extraction raises (e.g. LLM ReadTimeout), the already-generated
-        response and citations must still be returned and memories falls back to []."""
-        from src.reasoning.rag import RAGGenerator
-
-        failing_extractor = MagicMock(spec=MemoryExtractor)
-        failing_extractor.extract_from_conversation = AsyncMock(
-            side_effect=RuntimeError("ReadTimeout against remote LLM")
-        )
-
-        generator = RAGGenerator(
-            fusion=mock_fusion,
-            llm_provider=mock_llm_provider,
-            memory_extractor=failing_extractor,
-        )
-
-        result = await generator.generate("What is Python?", mock_note_store)
-
-        assert result["response"] is not None
-        assert len(result["response"]) > 0
-        assert isinstance(result["citations"], list)
-        assert len(result["citations"]) >= 1
-        assert result["memories"] == []
-
-    @pytest.mark.asyncio
     async def test_generate_uses_full_note_content_in_prompt(
-        self, mock_llm_provider, mock_memory_extractor, mock_note_store
+        self, mock_llm_provider, mock_note_store
     ):
         """When fusion returns a result with an empty snippet but note_store.get
         resolves a real note, the system prompt must contain the note's content."""
@@ -355,7 +214,6 @@ class TestRAGGenerator:
         generator = RAGGenerator(
             fusion=fusion,
             llm_provider=mock_llm_provider,
-            memory_extractor=mock_memory_extractor,
         )
 
         await generator.generate("What is Docker?", mock_note_store)
@@ -366,7 +224,7 @@ class TestRAGGenerator:
 
     @pytest.mark.asyncio
     async def test_extract_citations_deduplicates_by_note_id(
-        self, mock_fusion, mock_llm_provider, mock_memory_extractor, mock_note_store
+        self, mock_fusion, mock_llm_provider, mock_note_store
     ):
         """_extract_citations must yield at most one citation per note_id."""
         from src.reasoning.rag import RAGGenerator
@@ -374,7 +232,6 @@ class TestRAGGenerator:
         generator = RAGGenerator(
             fusion=mock_fusion,
             llm_provider=mock_llm_provider,
-            memory_extractor=mock_memory_extractor,
         )
 
         context = [
@@ -390,7 +247,7 @@ class TestRAGGenerator:
 
     @pytest.mark.asyncio
     async def test_build_context_returns_system_prompt_and_citations(
-        self, mock_llm_provider, mock_memory_extractor, mock_note_store
+        self, mock_llm_provider, mock_note_store
     ):
         """build_context() retrieves once and returns (system_prompt, citations)
         without invoking the LLM for generation (single-pass streaming support)."""
@@ -411,7 +268,6 @@ class TestRAGGenerator:
         generator = RAGGenerator(
             fusion=fusion,
             llm_provider=mock_llm_provider,
-            memory_extractor=mock_memory_extractor,
         )
 
         system_prompt, citations = await generator.build_context("What is Docker?", mock_note_store)
@@ -440,12 +296,10 @@ class TestEntitySourceResults:
         note_store = NoteStore(str(tmp_path / "notes"))
         fusion = MagicMock(spec=HybridFusion)
         llm_provider = AsyncMock(spec=LLMProvider)
-        memory_extractor = MagicMock(spec=MemoryExtractor)
 
         generator = RAGGenerator(
             fusion=fusion,
             llm_provider=llm_provider,
-            memory_extractor=memory_extractor,
         )
 
         entity_result = SearchResult(
@@ -472,7 +326,7 @@ class TestEntitySourceResults:
 
     @pytest.mark.asyncio
     async def test_build_context_includes_entity_snippet(
-        self, mock_llm_provider, mock_memory_extractor, tmp_path
+        self, mock_llm_provider, tmp_path
     ):
         """The system prompt should contain the entity's snippet text when an
         entity result is in the context.
@@ -503,7 +357,6 @@ class TestEntitySourceResults:
         generator = RAGGenerator(
             fusion=fusion,
             llm_provider=mock_llm_provider,
-            memory_extractor=mock_memory_extractor,
         )
 
         await generator.generate("What is the Free Energy Principle?", note_store)
@@ -521,12 +374,10 @@ class TestEntitySourceResults:
 
         fusion = MagicMock(spec=HybridFusion)
         llm_provider = AsyncMock(spec=LLMProvider)
-        memory_extractor = MagicMock(spec=MemoryExtractor)
 
         generator = RAGGenerator(
             fusion=fusion,
             llm_provider=llm_provider,
-            memory_extractor=memory_extractor,
         )
 
         context = [
@@ -558,12 +409,10 @@ class TestEntitySourceResults:
 
         fusion = MagicMock(spec=HybridFusion)
         llm_provider = AsyncMock(spec=LLMProvider)
-        memory_extractor = MagicMock(spec=MemoryExtractor)
 
         generator = RAGGenerator(
             fusion=fusion,
             llm_provider=llm_provider,
-            memory_extractor=memory_extractor,
         )
 
         context = [
@@ -599,12 +448,10 @@ class TestEntitySourceResults:
 
         fusion = MagicMock(spec=HybridFusion)
         llm_provider = AsyncMock(spec=LLMProvider)
-        memory_extractor = MagicMock(spec=MemoryExtractor)
 
         generator = RAGGenerator(
             fusion=fusion,
             llm_provider=llm_provider,
-            memory_extractor=memory_extractor,
         )
 
         context = [
@@ -664,12 +511,10 @@ class TestEntitySourceResults:
 
         fusion = MagicMock(spec=HybridFusion)
         llm_provider = AsyncMock(spec=LLMProvider)
-        memory_extractor = MagicMock(spec=MemoryExtractor)
 
         generator = RAGGenerator(
             fusion=fusion,
             llm_provider=llm_provider,
-            memory_extractor=memory_extractor,
         )
 
         entity_result = SearchResult(
