@@ -111,7 +111,6 @@ class TestStatsUsesIndexCount:
         with (
             patch("src.api.stats._get_entity_count", new_callable=AsyncMock, return_value=0),
             patch("src.api.stats._get_relation_count", new_callable=AsyncMock, return_value=0),
-            patch("src.api.stats._get_memory_count", new_callable=AsyncMock, return_value=0),
             patch("src.api.stats._get_card_count", new_callable=AsyncMock, return_value=0),
         ):
             resp = client.get("/api/stats/")
