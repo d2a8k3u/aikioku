@@ -11,21 +11,6 @@ export interface Note {
   modified: string;
 }
 
-export type MemoryTier = 'hot' | 'warm' | 'cold';
-
-export interface Memory {
-  id: string;
-  subject: string;
-  predicate: string;
-  object: string;
-  confidence: number;
-  source: string;
-  created: string;
-  modified: string;
-  vitality_score: number;
-  tier: MemoryTier;
-}
-
 export type CardType = 'cloze' | 'qa' | 'connection';
 export type CardStatus = 'new' | 'learning' | 'review' | 'suspended';
 
@@ -109,8 +94,6 @@ export interface AppSettings {
   llm_provider: string;
   embedding_provider: string;
   embedding_model: string;
-  auto_extract: boolean;
-  auto_consolidation: boolean;
   // Extended (returned by the backend; optional for older callers).
   llm_model?: string;
   ollama_base_url?: string;
@@ -157,8 +140,6 @@ export interface SetupPayload {
   hf_embedding_model?: string;
   openai_base_url?: string;
   openai_embedding_model?: string;
-  auto_extract?: boolean;
-  auto_consolidation?: boolean;
   llm_daily_budget_usd?: number;
   cors_origins?: string;
   ollama_api_key?: string;
@@ -197,7 +178,6 @@ export interface StatsResponse {
   notes: number;
   entities: number;
   relations: number;
-  memories: number;
   cards: number;
   version: string;
 }
@@ -222,13 +202,6 @@ export interface GraphStats {
 
 export interface GraphPathsResponse {
   paths: Entity[][];
-}
-
-export interface MemoryStats {
-  total: number;
-  hot: number;
-  warm: number;
-  cold: number;
 }
 
 export interface ExtractRequest {
@@ -281,7 +254,6 @@ export interface ExportJsonResponse {
   notes: Note[];
   entities: Entity[];
   relations: Relation[];
-  memories: Memory[];
   cards: Record<string, unknown>[];
 }
 
@@ -339,7 +311,6 @@ export interface BuddyProfile {
 export interface BuddyGreeting {
   greeting: string;
   buddy_line: string;
-  about_you: string[];
 }
 
 export interface BuddyCard {

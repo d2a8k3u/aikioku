@@ -117,10 +117,6 @@ export function useWebSocket() {
           // Review due count changed
           break;
         }
-        case 'memory.extracted': {
-          // New memories extracted
-          break;
-        }
         case 'stats.updated': {
           // System stats changed
           break;

@@ -55,7 +55,7 @@ export default function BudgetBanner() {
           Daily LLM budget reached ({usd(status.today_cost)} / {usd(status.daily_budget)}) —
           processing paused.
           {queued > 0 && ` ${queued} item${queued === 1 ? '' : 's'} queued.`} Resumes at{' '}
-          {resetLabel(status.reset_at)}. New notes &amp; memories are still saved.
+          {resetLabel(status.reset_at)}. New notes are still saved.
         </span>
       </div>
     );

@@ -59,7 +59,6 @@ export default function ChatPage() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [profile, setProfile] = useState<BuddyProfile | null>(null);
   const [noteCount, setNoteCount] = useState(0);
-  const [memoryCount, setMemoryCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [snippets, setSnippets] = useState<{ note_id: string; title: string; snippet: string }[]>(
@@ -84,7 +83,6 @@ export default function ChatPage() {
       .get()
       .then((s) => {
         setNoteCount(s.notes);
-        setMemoryCount(s.memories);
       })
       .catch(() => {});
   }, []);
@@ -403,7 +401,7 @@ export default function ChatPage() {
               {name}
             </div>
             <div style={{ font: '400 10px/1 "JetBrains Mono"', color: '#6b707a', marginTop: 6 }}>
-              {stateText} · drawing from {noteCount} notes &amp; {memoryCount} memories
+              {stateText} · drawing from {noteCount} notes
             </div>
           </div>
           <div

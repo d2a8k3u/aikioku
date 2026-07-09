@@ -503,51 +503,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* About you */}
-        {greeting && greeting.about_you.length > 0 && (
-          <div
-            style={{
-              width: '100%',
-              border: '1px solid rgba(255,255,255,0.06)',
-              borderRadius: 15,
-              padding: '18px 20px',
-              background: 'rgba(255,255,255,0.012)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 14 }}>
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#5fd3e0"
-                strokeWidth="1.6"
-              >
-                <path d="M12 3a4 4 0 0 0-4 4 3.5 3.5 0 0 0-1 6.8V18a3 3 0 0 0 5 2 3 3 0 0 0 5-2v-4.2A3.5 3.5 0 0 0 16 7a4 4 0 0 0-4-4z" />
-              </svg>
-              <span style={{ font: '400 11px/1 "JetBrains Mono"', color: '#8a8f99' }}>
-                What KIO remembers about you
-              </span>
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {greeting.about_you.map((fact, i) => (
-                <span
-                  key={i}
-                  style={{
-                    padding: '7px 12px',
-                    borderRadius: 9,
-                    background: 'rgba(52,214,196,0.06)',
-                    border: '1px solid rgba(52,214,196,0.14)',
-                    font: '400 11px/1.3 "JetBrains Mono"',
-                    color: '#aeb3bc',
-                  }}
-                >
-                  {fact}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

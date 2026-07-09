@@ -300,24 +300,6 @@ export const graphApi = {
   },
 };
 
-// Memory
-export const memoryApi = {
-  list: (entity?: string) => {
-    const qs = new URLSearchParams();
-    if (entity) qs.set('entity', entity);
-    const suffix = qs.toString() ? `?${qs}` : '';
-    return request<import('@/types').Memory[]>(`/api/memory/${suffix}`);
-  },
-  stats: () => request<import('@/types').MemoryStats>('/api/memory/stats'),
-  extract: (note_id: string) =>
-    request<import('@/types').Memory[]>('/api/memory/extract', {
-      method: 'POST',
-      body: JSON.stringify({ note_id }),
-    }),
-  consolidate: () =>
-    request<Record<string, unknown>>('/api/memory/consolidate', { method: 'POST' }),
-};
-
 // Review
 export const reviewApi = {
   due: () => request<import('@/types').Card[]>('/api/review/due'),

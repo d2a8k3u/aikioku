@@ -1019,7 +1019,7 @@ export default function SettingsPage() {
                   color: '#4a4f59',
                 }}
               >
-                Daily LLM spend cap. At the limit, processing pauses and new notes &amp; memories
+                Daily LLM spend cap. At the limit, processing pauses and new notes
                 queue until the budget resets at 00:00 UTC (or you raise it). 0 disables the cap.
               </p>
 
@@ -1384,18 +1384,6 @@ export default function SettingsPage() {
               Everything KIO does automatically in the background.
             </p>
 
-            <ToggleRow
-              label="Auto-extract entities"
-              desc="Automatically extracts entities and relationships from notes"
-              value={settings?.auto_extract ?? true}
-              onChange={(v) => updateSetting('auto_extract', v)}
-            />
-            <ToggleRow
-              label="Auto-consolidation"
-              desc="Regularly consolidates memories (dedup, merge, tiering)"
-              value={settings?.auto_consolidation ?? true}
-              onChange={(v) => updateSetting('auto_consolidation', v)}
-            />
           </GlassPanel>
 
           {/* ════ API TOKENS ════ */}
