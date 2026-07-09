@@ -2,7 +2,7 @@
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import httpx
 from fastapi import FastAPI, Request
@@ -13,10 +13,6 @@ from starlette.middleware.base import RequestResponseEndpoint
 from starlette.routing import Route
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 import structlog
-
-if TYPE_CHECKING:
-    from src.knowledge.embeddings import EmbeddingStore
-    from src.llm.base import LLMProvider
 
 from src.llm.json_parse import LLMOutputParseError
 from src.llm.ollama_remote import EmbeddingUnavailableError
@@ -31,7 +27,6 @@ from src.observability import configure_logging, metrics_middleware, render_metr
 
 # Configure logging before importing modules that may log at import time.
 configure_logging(settings.log_level)
-from src.memory.consolidation import MemoryConsolidator  # noqa: E402
 from src.api import (  # noqa: E402
     auth_router,
     chat_router,
@@ -41,7 +36,6 @@ from src.api import (  # noqa: E402
     import_export_router,
     review_router,
     graph_router,
-    memory_router,
     settings_router,
     tokens_router,
     setup_router,
@@ -68,88 +62,6 @@ from src.api.websocket import set_broadcaster  # noqa: E402
 from src.mcp_server import build_mcp  # noqa: E402
 
 logger = structlog.get_logger()
-
-
-async def _run_consolidation_once(
-    event_bus: EventBus,
-    graph: KnowledgeGraph,
-    llm_provider: "LLMProvider | None" = None,
-    *,
-    provider: "LLMProvider | None" = None,
-    store: "EmbeddingStore | None" = None,
-) -> dict[str, Any]:
-    """Run a single consolidation pass over the persisted memories.
-
-    Loads persisted memories, runs the consolidator against the SHARED Kuzu
-    graph handle (never opening a second single-writer connection), persists
-    the processed results (tier/confidence updates, dedup/merge, new summary
-    memories) back to SQLite, and mirrors the changes into the memory vector
-    store so semantic search stays consistent.
-
-    Returns the run summary (JSON-safe, raw Memory objects stripped).
-    """
-    from src.api.memory import (
-        _load_memories,
-        _memories_from_rows,
-        _persist_consolidation,
-        _persist_consolidation_vectors,
-    )
-
-    loaded = _memories_from_rows(_load_memories())
-    consolidator = MemoryConsolidator(graph, event_bus, llm_provider=llm_provider)
-    summary = await consolidator.run(loaded)
-    processed = summary.get("memories", [])
-    _persist_consolidation(loaded, processed)
-    processed_ids = {m.id for m in processed}
-    removed_ids = [m.id for m in loaded if m.id not in processed_ids]
-    await _persist_consolidation_vectors(removed_ids, processed, provider, store)
-    return {k: v for k, v in summary.items() if k != "memories"}
-
-
-async def _consolidation_worker(app: FastAPI, interval_hours: int = 24) -> None:
-    """Background task that runs memory consolidation periodically.
-
-    Reads the LLM provider + SHARED KnowledgeGraph handle from ``app.state`` on
-    every iteration (rather than capturing them once) so it picks up the runtime
-    built by the setup wizard without a restart, and skips cleanly while the app
-    is still unconfigured. Uses the shared Kuzu handle — a second handle would
-    conflict (Kuzu is single-writer).
-    """
-    import asyncio
-
-    await asyncio.sleep(5)  # Let app finish startup first
-    while True:
-        try:
-            llm_provider = getattr(app.state, "llm_provider", None)
-            if llm_provider is None:
-                # Unconfigured: nothing to consolidate yet.
-                await asyncio.sleep(interval_hours * 3600)
-                continue
-            from src import runtime_config
-
-            if not runtime_config.auto_consolidation():
-                # Disabled in Settings: skip the LLM-heavy pass (re-read each
-                # iteration so the wizard/Settings can toggle without a restart).
-                await asyncio.sleep(interval_hours * 3600)
-                continue
-            cost_tracker = getattr(app.state, "cost_tracker", None)
-            if cost_tracker is not None and cost_tracker.is_exhausted():
-                # Daily budget reached: pause LLM-heavy consolidation until the
-                # next run (the budget resets at UTC midnight).
-                logger.info("nightly_consolidation.skipped", reason="budget_exhausted")
-                await asyncio.sleep(interval_hours * 3600)
-                continue
-            summary = await _run_consolidation_once(
-                app.state.event_bus,
-                graph=app.state.knowledge_graph,
-                llm_provider=llm_provider,
-                provider=getattr(app.state, "embedding_provider", None),
-                store=getattr(app.state, "memory_embedding_store", None),
-            )
-            logger.info("nightly_consolidation.done", summary=summary)
-        except Exception:
-            logger.exception("nightly_consolidation.failed")
-        await asyncio.sleep(interval_hours * 3600)
 
 
 async def _budget_drain_worker(app: FastAPI, poll_seconds: int = 60) -> None:
@@ -223,11 +135,9 @@ def build_runtime(app: FastAPI) -> None:
     graph = GraphRetriever(app.state.knowledge_graph)
     app.state.hybrid_fusion = HybridFusion(dense, sparse, graph)
 
-    from src.memory.extraction import MemoryExtractor
     from src.reasoning.rag import RAGGenerator
     from src.retrieval.conversation_retrieval import ConversationRetriever
 
-    memory_extractor = MemoryExtractor(app.state.llm_provider, app.state.event_bus)
     conversation_retriever = (
         ConversationRetriever(
             app.state.conversation_embedding_store,
@@ -236,11 +146,9 @@ def build_runtime(app: FastAPI) -> None:
         if getattr(app.state, "conversation_embedding_store", None) is not None
         else None
     )
-    app.state.memory_extractor = memory_extractor
     app.state.rag_generator = RAGGenerator(
         fusion=app.state.hybrid_fusion,
         llm_provider=app.state.llm_provider,
-        memory_extractor=memory_extractor,
         conversation_retriever=conversation_retriever,
     )
 
@@ -284,16 +192,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         conv_emb_path, collection_name=conv_coll, dimension=runtime_config.embedding_dimension()
     )
 
-    # Initialize the memory-triple EmbeddingStore singleton (semantic memory
-    # search). A SEPARATE Chroma path keeps memory vectors out of the note fusion
-    # path and avoids two PersistentClients on one path.
-    mem_emb_path = os.path.join(os.path.dirname(settings.sqlite_db_path), "chroma_memories")
-    os.makedirs(mem_emb_path, exist_ok=True)
-    mem_coll = runtime_config.get_app_setting("embedding_memories_collection") or "memories"
-    app.state.memory_embedding_store = EmbeddingStore(
-        mem_emb_path, collection_name=mem_coll, dimension=runtime_config.embedding_dimension()
-    )
-
     # Initialize the shared NoteStore singleton and warm its metadata index.
     # reindex() rebuilds the index from the on-disk markdown notes so list/count
     # operations are served from SQLite (no full-corpus scan per request).
@@ -329,12 +227,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     logger.info("aikioku.started", version="0.1.0")
 
-    # Start background consolidation worker
     import asyncio
-
-    app.state._consolidation_task = asyncio.create_task(
-        _consolidation_worker(app, interval_hours=24)
-    )
 
     # Drain LLM work deferred while the daily budget was exhausted, once it resets.
     app.state._budget_drain_task = asyncio.create_task(_budget_drain_worker(app))
@@ -356,7 +249,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
         runtime_config.set_app_setting("embedding_notes_collection", notes_coll)
         runtime_config.set_app_setting("embedding_conversations_collection", conv_coll)
-        runtime_config.set_app_setting("embedding_memories_collection", mem_coll)
     app.state._reembed_task = None
     maybe_schedule_reembed(app)
 
@@ -370,7 +262,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     async with mcp.session_manager.run():
         yield
     # Shutdown
-    app.state._consolidation_task.cancel()
     app.state._budget_drain_task.cancel()
     reembed_task = getattr(app.state, "_reembed_task", None)
     if reembed_task is not None:
@@ -625,7 +516,6 @@ app.include_router(search_router)
 app.include_router(import_export_router)
 app.include_router(review_router)
 app.include_router(graph_router)
-app.include_router(memory_router)
 app.include_router(settings_router)
 app.include_router(tokens_router)
 app.include_router(setup_router)

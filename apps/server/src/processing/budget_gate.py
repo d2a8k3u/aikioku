@@ -9,7 +9,6 @@ deferred processing are identical.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Any, Awaitable, Callable
 
@@ -22,7 +21,6 @@ from src.processing.budget_status import broadcast_budget_status
 logger = logging.getLogger(__name__)
 
 WORK_NOTE_PROCESSING = "note_processing"
-WORK_MEMORY_EXTRACTION = "memory_extraction"
 
 
 async def _run_note_processing(app: FastAPI, payload: dict[str, Any]) -> None:
@@ -49,54 +47,8 @@ async def _run_note_processing(app: FastAPI, payload: dict[str, Any]) -> None:
         sparse.mark_dirty()
 
 
-async def _run_memory_extraction(app: FastAPI, payload: dict[str, Any]) -> list[dict[str, Any]]:
-    """(Re)extract memory triples from a note or free text and persist them."""
-    from src.api.memory import (
-        _create_memory_from_text,
-        _extract_memories,
-        _get_stats,
-    )
-    from src.api.websocket import get_broadcaster
-
-    llm = getattr(app.state, "llm_provider", None)
-    provider = getattr(app.state, "embedding_provider", None)
-    store = getattr(app.state, "memory_embedding_store", None)
-    if payload.get("mode") == "note":
-        memories = await _extract_memories(
-            payload["note_id"], llm=llm, provider=provider, store=store
-        )
-        event = "memory.extracted"
-    else:
-        memories = await _create_memory_from_text(
-            payload["text"],
-            payload.get("source", "user"),
-            llm=llm,
-            provider=provider,
-            store=store,
-        )
-        event = "memory.created"
-
-    # Project the new memories into the knowledge graph (entities + relations).
-    # Fire-and-forget so the response never blocks on per-memory LLM typing,
-    # mirroring note entity extraction in src/api/notes.py.
-    graph = getattr(app.state, "knowledge_graph", None)
-    if graph is not None and llm is not None and memories:
-        from src.api.memory import _memory_from_dict
-        from src.memory.graph_sync import sync_memories_to_graph
-
-        mem_objs = [_memory_from_dict(m) for m in memories]
-        asyncio.ensure_future(sync_memories_to_graph(mem_objs, graph, llm))
-
-    broadcaster = get_broadcaster()
-    if broadcaster is not None:
-        stats = await _get_stats()
-        await broadcaster.broadcast(event, {"count": len(memories), "tier_counts": stats})
-    return memories
-
-
 RUNNERS: dict[str, Callable[[FastAPI, dict[str, Any]], Awaitable[Any]]] = {
     WORK_NOTE_PROCESSING: _run_note_processing,
-    WORK_MEMORY_EXTRACTION: _run_memory_extraction,
 }
 
 
