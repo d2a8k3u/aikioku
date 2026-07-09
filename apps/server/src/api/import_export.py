@@ -567,34 +567,6 @@ async def export_json(request: Request) -> JSONResponse:
             "properties": relation.properties,
         }
 
-    # Memories from SQLite
-    memories = []
-    try:
-        import sqlite3
-
-        conn = sqlite3.connect(settings.sqlite_db_path)
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute("SELECT * FROM memories").fetchall()
-        conn.close()
-        for row in rows:
-            row_dict = dict(row)
-            memories.append(
-                {
-                    "id": row_dict.get("id"),
-                    "subject": row_dict.get("subject"),
-                    "predicate": row_dict.get("predicate"),
-                    "object": row_dict.get("object"),
-                    "confidence": row_dict.get("confidence"),
-                    "source": row_dict.get("source"),
-                    "created": row_dict.get("created"),
-                    "modified": row_dict.get("modified"),
-                    "vitality_score": row_dict.get("vitality_score"),
-                    "tier": row_dict.get("tier"),
-                }
-            )
-    except Exception:
-        pass
-
     # Cards from SQLite
     cards = []
     try:
@@ -686,7 +658,6 @@ async def export_json(request: Request) -> JSONResponse:
         "notes": [_serialize_note(n) for n in notes],
         "entities": [_serialize_entity(e) for e in entities],
         "relations": [_serialize_relation(r) for r in relations],
-        "memories": memories,
         "cards": cards,
         "cognitive_signals": cognitive_signals,
         "settings": app_settings,

@@ -48,7 +48,6 @@ class BuddyProfile(BaseModel):
 class BuddyGreeting(BaseModel):
     greeting: str
     buddy_line: str
-    about_you: list[str]
 
 
 class BuddyCard(BaseModel):
@@ -110,25 +109,6 @@ def _buddy_line(tone: str) -> str:
     return _TONE_LINES.get(tone, _TONE_LINES["warm"])
 
 
-def _about_you(username: str) -> list[str]:
-    """Top memories about the user, formatted as natural-language facts."""
-    try:
-        from src.api.memory import _load_memories
-
-        memories = _load_memories(entity=username)
-        facts: list[str] = []
-        for m in memories[:5]:
-            subj = m.get("subject", "")
-            pred = m.get("predicate", "")
-            obj = m.get("object", "")
-            if subj and pred and obj:
-                facts.append(f"{subj} {pred} {obj}")
-        return facts
-    except Exception:
-        logger.warning("Failed to load about_you facts.", exc_info=True)
-        return []
-
-
 # ------------------------------------------------------------------ endpoints
 
 
@@ -156,7 +136,6 @@ async def get_greeting(
     return BuddyGreeting(
         greeting=_greeting_for(user.username),
         buddy_line=_buddy_line(profile.tone),
-        about_you=_about_you(user.username),
     )
 
 

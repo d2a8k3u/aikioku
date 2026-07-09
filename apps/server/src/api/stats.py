@@ -39,17 +39,6 @@ async def _get_relation_count(request: Request) -> int:
     return graph.count_relations()
 
 
-async def _get_memory_count(request: Request) -> int:
-    """Count memories from the SQLite memories table."""
-    try:
-        conn = sqlite3.connect(settings.sqlite_db_path)
-        total: int = conn.execute("SELECT COUNT(*) FROM memories").fetchone()[0]
-        conn.close()
-    except Exception:
-        total = 0
-    return total
-
-
 async def _get_card_count(request: Request) -> int:
     """Count cards in the SQLite cards table."""
     try:
@@ -71,7 +60,6 @@ async def get_stats(request: Request) -> dict[str, int | str]:
         "notes": await _get_note_count(request),
         "entities": await _get_entity_count(request),
         "relations": await _get_relation_count(request),
-        "memories": await _get_memory_count(request),
         "cards": await _get_card_count(request),
         "version": _VERSION,
     }
