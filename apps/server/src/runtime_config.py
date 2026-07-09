@@ -178,6 +178,34 @@ def auto_title() -> bool:
     return _bool("auto_title", settings.auto_title)
 
 
+def auto_note_consolidation() -> bool:
+    return _bool("auto_note_consolidation", False)
+
+
+def consolidation_similarity_threshold() -> float:
+    return _float("consolidation_similarity_threshold", 0.85)
+
+
+def consolidation_min_cluster_size() -> int:
+    return _int("consolidation_min_cluster_size", 2)
+
+
+def consolidation_max_notes_per_run() -> int:
+    return _int("consolidation_max_notes_per_run", 50)
+
+
+def consolidation_cluster_size_cap() -> int:
+    return _int("consolidation_cluster_size_cap", 5)
+
+
+def consolidation_min_budget_remaining_usd() -> float:
+    return _float("consolidation_min_budget_remaining_usd", 0.50)
+
+
+def consolidation_interval_hours() -> float:
+    return _float("consolidation_interval_hours", 6.0)
+
+
 def llm_daily_budget_usd() -> float:
     return _float("llm_daily_budget_usd", settings.llm_daily_budget_usd)
 
