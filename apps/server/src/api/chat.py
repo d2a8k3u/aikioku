@@ -56,6 +56,42 @@ _HISTORY_LIMIT = 10
 # condensed context is discarded — the user gets an answer, not silence.
 _CONTEXT_BUILD_TIMEOUT_S = 10.0
 
+# Timeout for the fact extraction LLM call. The prompt is simpler than entity
+# extraction (which uses 60s) — a single classification + extraction over a
+# small turn — so 30s is generous while preventing indefinite hangs.
+LLM_FACT_EXTRACTION_TIMEOUT = 30
+
+# Combined text above this many characters is condensed before the LLM call
+# to stay within model context windows without truncating content.
+_FACT_CHAR_BUDGET = 8000
+
+_FACT_SYSTEM_PROMPT = (
+    "You are a fact extractor for a personal knowledge system. Your job is to identify\n"
+    "factual statements made by the USER in a chat conversation that are worth remembering\n"
+    "long-term.\n\n"
+    "Rules:\n"
+    "1. Only extract facts stated by the USER — not information provided by the assistant\n"
+    "   (the assistant's answer is already retrievable via the knowledge base).\n"
+    "2. Only extract clear, factual statements. Skip:\n"
+    "   - Opinions (\"I think X is great\")\n"
+    "   - Questions (\"What is Y?\")\n"
+    "   - Transient statements (\"I'm feeling tired today\")\n"
+    "   - Hypotheticals (\"If I were to...\")\n"
+    "   - Commands/requests (\"Tell me about Z\")\n"
+    "3. A factual statement is something that could be true or false and is worth\n"
+    "   remembering about the user or their context. Examples:\n"
+    "   - \"My wife's name is May\" → fact\n"
+    "   - \"I work at Acme Corp\" → fact\n"
+    "   - \"I prefer Python over JavaScript\" → fact\n"
+    "   - \"My birthday is March 15th\" → fact\n"
+    "4. Preserve the user's original language in the extracted note content.\n"
+    "5. For each fact, provide a concise, descriptive title (max 80 chars) suitable\n"
+    "   for search indexing.\n\n"
+    'Respond with JSON only, no markdown fences:\n'
+    '{"contains_facts": true/false, "facts": [{"title": "...", "content": "..."}]}\n\n'
+    'If no facts are found, return: {"contains_facts": false, "facts": []}'
+)
+
 
 class ChatRequest(BaseModel):
     query: str
@@ -168,6 +204,78 @@ def _extract_graph_entities(request: Request, turn_id: str, user_q: str, assista
     _spawn_background(request.app, _do())
 
 
+def _extract_facts(request: Request, turn_id: str, user_q: str, assistant_a: str) -> None:
+    """Extract factual statements from a chat turn into hidden notes.
+
+    Uses one LLM call to classify the turn and extract any user-stated facts.
+    Each fact becomes a hidden note (source_type="hidden") so it is retrievable
+    via the existing fusion path (dense + sparse + graph) without appearing in
+    the user-facing notes API. Fire-and-forget: failures never affect the chat.
+    """
+
+    async def _do() -> None:
+        try:
+            from src.api.notes import _extract_and_store_entities, _invalidate_sparse_index
+            from src.llm.json_parse import parse_llm_json
+            from src.llm.long_text import condense_for_prompt
+            from src.models.note import Note
+
+            llm = getattr(request.app.state, "llm_provider", None)
+            store = getattr(request.app.state, "note_store", None)
+            if llm is None or store is None:
+                return
+
+            text = f"{user_q}\n\n{assistant_a}".strip()
+            if len(text) > _FACT_CHAR_BUDGET:
+                text = await condense_for_prompt(llm, text)
+
+            prompt = (
+                f"Conversation turn:\n\nUser: {user_q}\n\nAssistant: {assistant_a}\n\n"
+                "Extract factual statements worth remembering. Return JSON with keys "
+                '"contains_facts" and "facts".'
+            )
+            response = await asyncio.wait_for(
+                llm.complete(prompt=prompt, system=_FACT_SYSTEM_PROMPT),
+                timeout=LLM_FACT_EXTRACTION_TIMEOUT,
+            )
+
+            result = parse_llm_json(response, expect="dict")
+            if not isinstance(result, dict):
+                return
+            if not result.get("contains_facts"):
+                return
+            facts = result.get("facts", [])
+            if not isinstance(facts, list):
+                return
+
+            for fact in facts:
+                if not isinstance(fact, dict):
+                    continue
+                title = str(fact.get("title", "")).strip()
+                content = str(fact.get("content", "")).strip()
+                if not title or not content:
+                    continue
+                note = Note(
+                    title=title,
+                    content=content,
+                    path=f"/notes/hidden/{uuid.uuid4()}.md",
+                    source_type="hidden",
+                    frontmatter={
+                        "extracted_from_turn": turn_id,
+                        "tags": ["auto-extracted"],
+                    },
+                )
+                created = store.create(note)
+                _extract_and_store_entities(request, created)
+                _invalidate_sparse_index(request)
+
+            logger.info("Chat fact extraction: turn %s -> %d facts", turn_id, len(facts))
+        except Exception:
+            logger.warning("Chat fact extraction failed for turn %s.", turn_id, exc_info=True)
+
+    _spawn_background(request.app, _do())
+
+
 async def _capture_turn(
     request: Request,
     user_id: str,
@@ -220,6 +328,8 @@ async def _capture_turn(
         await _embed_turn(request, turn_id, created, user_q, assistant_a)
         if runtime_config.auto_entity_extraction():
             _extract_graph_entities(request, turn_id, user_q, assistant_a)
+        if runtime_config.auto_fact_extraction():
+            _extract_facts(request, turn_id, user_q, assistant_a)
     except Exception:
         logger.warning("Failed to capture conversation turn.", exc_info=True)
 
