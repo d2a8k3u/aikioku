@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     auto_extract: bool = True
     auto_entity_extraction: bool = True
     auto_title: bool = True
+    auto_fact_extraction: bool = False
     llm_daily_budget_usd: float = 5.0
     # Fraction of the daily budget at which the UI flags a near-limit warning
     # (still processing). At 1.0 the budget is exhausted and processing pauses.

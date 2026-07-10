@@ -178,6 +178,10 @@ def auto_title() -> bool:
     return _bool("auto_title", settings.auto_title)
 
 
+def auto_fact_extraction() -> bool:
+    return _bool("auto_fact_extraction", settings.auto_fact_extraction)
+
+
 def auto_note_consolidation() -> bool:
     return _bool("auto_note_consolidation", False)
 

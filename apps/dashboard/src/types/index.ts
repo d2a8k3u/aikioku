@@ -110,6 +110,7 @@ export interface AppSettings {
   secret_keys?: string[];
   llm_daily_budget_usd?: number;
   auto_note_consolidation?: boolean;
+  auto_fact_extraction?: boolean;
 }
 
 // Personal access token (machine clients / MCP). The plaintext `token` is

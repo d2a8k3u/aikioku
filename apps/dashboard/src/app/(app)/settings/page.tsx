@@ -1391,6 +1391,13 @@ export default function SettingsPage() {
               onChange={(v) => updateSetting('auto_note_consolidation', v)}
             />
 
+            <ToggleRow
+              label="Fact extraction"
+              desc="Creates hidden notes from factual statements in chat (e.g. 'my wife's name is May')"
+              value={settings?.auto_fact_extraction ?? false}
+              onChange={(v) => updateSetting('auto_fact_extraction', v)}
+            />
+
           </GlassPanel>
 
           {/* ════ API TOKENS ════ */}
