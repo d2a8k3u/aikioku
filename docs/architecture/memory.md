@@ -1,56 +1,42 @@
+# Memory
 
-# Layer 4: Memory
+Agent memories are stored as **hidden notes** — notes with `source_type="hidden"`
+that are fully indexed (entity extraction, embeddings, BM25) but never shown in
+the UI's notes list. They are retrievable in chat and search exactly like regular
+notes, but remain invisible to the user.
 
-Extracts, stores, and consolidates knowledge over time — mimicking human memory
-systems.
+## Hidden Notes
 
-## Extraction
+- **source_type:** `"hidden"` — hidden from the notes UI, but fully indexed
+- **Created via MCP:** the `create_memory` tool accepts free text and creates a
+  hidden note with `source_type="hidden"`, frontmatter `memory_source`, and an
+  auto-derived title
+- **Full pipeline:** entity extraction, embeddings, knowledge-graph linking —
+  everything a regular note gets
+- **Retrieval:** hidden notes participate in hybrid search, RAG, and graph queries
+  identically to visible notes
 
-LLM-driven episodic memory extraction from notes:
+## Consolidation Worker
 
-1. Note content → LLM prompt
-2. LLM identifies discrete facts, insights, events
-3. Each memory linked to source note and entities
-4. Memories stored with confidence score
+A nightly background worker that merges similar hidden notes to prevent
+unbounded growth of agent-generated content.
 
-## Tiering
+- **Schedule:** nightly (runs once per 24h)
+- **Opt-in:** controlled by the `auto_note_consolidation` config flag (off by
+  default)
+- **Budget-gated:** skips if the daily LLM budget is exhausted
+- **Similarity detection:** finds pairs of hidden notes with cosine embedding
+  similarity ≥ 0.85 **and** at least one shared knowledge-graph entity
+- **Merge:** LLM merges the two notes into a single note, preserving all
+  information from both originals
+- **Cleanup:** deletes the originals after a successful merge
+- **Re-indexing:** re-runs entity extraction + embedding on the merged note
 
-Three-tier system based on access patterns and recency:
+Files: `src/processing/consolidation.py` (core logic),
+`src/processing/consolidation_worker.py` (scheduling loop).
 
-| Tier | Description | Retention | Access Pattern |
-|------|-------------|-----------|----------------|
-| Hot  | Recent, frequently accessed | Full detail | Immediate |
-| Warm | Moderate relevance, less recent | Summarized | On-demand |
-| Cold | Archival, rarely accessed | Metadata only | Search-only |
+## Legacy Memory Migration
 
-### Promotion/Demotion
-
-- **Hot → Warm:** Not accessed for 7 days
-- **Warm → Cold:** Not accessed for 30 days
-- **Cold → Warm:** Accessed via search
-- **Warm → Hot:** Accessed 3+ times in 24 hours
-
-## Consolidation
-
-Periodic background process:
-
-1. Identify related memories across notes
-2. Merge overlapping facts
-3. Resolve contradictions (flag for review)
-4. Decay stale memories (reduce confidence)
-5. Strengthen frequently corroborated memories
-
-## Memory Model
-
-```python
-class Memory:
-    id: str
-    content: str           # The remembered fact/insight
-    tier: MemoryTier       # hot, warm, cold
-    confidence: float      # 0.0–1.0
-    source_note_id: str
-    entity_ids: list[str]
-    created_at: datetime
-    last_accessed: datetime
-    access_count: int
-```
+Notes with `source_type="memory"` (left over from the old SPO triple system)
+are automatically migrated to `source_type="hidden"` on startup via
+`src/scripts/migrate_memory_to_hidden.py`. No manual intervention needed.

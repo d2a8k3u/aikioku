@@ -12,7 +12,7 @@ aikioku/
 ├── docs/                           # documentation site (this content)
 │   ├── index.md
 │   ├── architecture/               # 7-layer system design
-│   ├── api/                        # rest.md (29 routers), mcp.md (41 tools)
+│   ├── api/                        # rest.md (28 routers), mcp.md (33 tools)
 │   ├── clients/                    # MCP client setup guides
 │   ├── development/                # setup, testing, docker
 │   └── reference/                  # stack, project structure
@@ -20,7 +20,7 @@ aikioku/
 ├── apps/
 │   ├── server/                     # FastAPI backend
 │   │   ├── pyproject.toml
-│   │   ├── tests/                  # pytest suite (89 files)
+│   │   ├── tests/                  # pytest suite (96 files)
 │   │   └── src/
 │   │       ├── main.py             # FastAPI app entry point (+ /health, /metrics, /)
 │   │       ├── config.py           # Pydantic settings
@@ -31,9 +31,9 @@ aikioku/
 │   │       ├── events.py           # Event bus
 │   │       ├── limiter.py          # Rate limiter
 │   │       ├── observability.py    # Logging + Prometheus metrics
-│   │       ├── mcp_server.py       # FastMCP server (41 tools)
+│   │       ├── mcp_server.py       # FastMCP server (33 tools)
 │   │       │
-│   │       ├── api/                # 29 REST routers
+│   │       ├── api/                # 28 REST routers
 │   │       │   ├── notes.py            # Note CRUD, backlinks, related, history
 │   │       │   ├── search.py           # Full-text search
 │   │       │   ├── retrieval.py        # Hybrid (RRF) retrieval
@@ -42,7 +42,6 @@ aikioku/
 │   │       │   ├── connections.py      # Indirect entity connections
 │   │       │   ├── serendipity.py      # Random walks, surprise
 │   │       │   ├── schema.py           # Graph schema induction
-│   │       │   ├── memory.py           # Memory CRUD, search, consolidation
 │   │       │   ├── chat.py             # Streaming RAG chat
 │   │       │   ├── conversations.py    # Chat history
 │   │       │   ├── review.py           # Spaced repetition
@@ -68,15 +67,16 @@ aikioku/
 │   │       │                       #   pipeline, schema, schema_induction, reembed
 │   │       ├── retrieval/          # dense, sparse, graph_retrieval, fusion,
 │   │       │                       #   conversation_retrieval, search_result
-│   │       ├── memory/             # extraction, consolidation, tiers
+│   │       ├── processing/          # budget_gate, consolidation, consolidation_worker
 │   │       ├── reasoning/          # rag, multi_hop, connections, anomaly, question_gen
 │   │       ├── augmentation/       # spaced_repetition (SM-2), summarization,
 │   │       │                       #   card_auto, serendipity, auto_tag, cognitive_state
-│   │       ├── models/             # note, entity, relation, memory, card, conversation, user
+│   │       ├── models/             # note, entity, relation, card, conversation, user
 │   │       ├── llm/                # base, factory, router (+ budget), ollama,
 │   │       │                       #   ollama_remote, openrouter, openai_embeddings, json_parse
 │   │       ├── storage/            # file_import, note_store, git_sync
 │   │       ├── ingestion/          # pdf, docx, html/web, image, audio, email parsers
+│   │       ├── scripts/            # migrate_memory_to_hidden
 │   │       └── plugins/            # api, manager
 │   │
 │   └── dashboard/                  # Next.js frontend

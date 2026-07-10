@@ -23,7 +23,7 @@ configuration live in an encrypted database.
 - **Capture** — notes, web pages, PDFs, DOCX, images, audio, email
 - **Organize** — automatic knowledge graph, entity extraction, semantic indexing
 - **Retrieve** — hybrid search (dense + sparse + graph), multi-hop reasoning
-- **Remember** — episodic memory extraction, consolidation, spaced repetition
+- **Remember** — hidden notes (agent memories) + consolidation worker
 - **Reason** — grounded RAG with citations, connection discovery
 - **Connect** — MCP server for Claude Desktop, Cursor, Claude Code, Hermes Agent
 

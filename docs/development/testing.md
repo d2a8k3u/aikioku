@@ -2,7 +2,7 @@
 
 ## Backend (pytest)
 
-89 test files spanning every subsystem. Integration tests are excluded by
+96 test files spanning every subsystem. Integration tests are excluded by
 default (`addopts` carries `-m 'not integration'`).
 
 ```bash
@@ -34,15 +34,16 @@ pytest --cov=src --cov-report=term-missing
 | `tests/test_api/` | 28 | REST endpoint integration |
 | `tests/test_knowledge/` | 10 | Graph, embeddings, entity resolution |
 | `tests/test_integration/` | 7 | End-to-end pipelines |
-| `tests/test_models/` | 6 | Note, Entity, Relation, Memory, Card, User |
+| `tests/test_models/` | 6 | Note, Entity, Relation, Card, User |
 | `tests/test_retrieval/` | 5 | Dense, sparse, fusion, graph retrieval |
 | `tests/test_reasoning/` | 5 | RAG, connections, multi-hop |
 | `tests/test_augmentation/` | 5 | Spaced repetition, summarization, serendipity |
 | `tests/test_llm/` | 5 | Provider abstraction and parsing utilities |
-| `tests/test_memory/` | 4 | Extraction, consolidation, tiering |
+| `tests/test_processing/` | 4 | Budget gate, consolidation, consolidation worker |
 | `tests/test_ingestion/` | 2 | Parsers and ingestion API |
 | `tests/test_storage/` | 2 | Note store, note index |
 | `tests/test_plugins/` | 1 | Plugin manager |
+| `tests/test_scripts/` | 1 | Memory-to-hidden migration script |
 
 ### Markers
 

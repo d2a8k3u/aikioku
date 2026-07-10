@@ -1,6 +1,6 @@
 # REST API
 
-The backend exposes 95 endpoints across 29 routers. All application routes are
+The backend exposes 84 endpoints across 28 routers. All application routes are
 prefixed with `/api/` unless noted. Paths below are written without trailing
 slashes; FastAPI accepts both forms.
 
@@ -57,22 +57,6 @@ Enable it in Settings for multi-user deployments. When enabled, obtain a JWT via
 | GET | `/api/serendipity/surprise` | Compute a surprise/novelty score (query: `entity_id`) |
 | GET | `/api/schema/types` | List induced entity/relation types |
 | POST | `/api/schema/induce` | Induce a graph schema from the corpus |
-
-## Memory
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/memory` | List memory triples (query: `entity`) |
-| POST | `/api/memory` | Create triples from free text (`text`, `source`) |
-| GET | `/api/memory/{memory_id}` | Fetch a memory triple |
-| PUT | `/api/memory/{memory_id}` | Update subject/predicate/object/confidence/tier |
-| DELETE | `/api/memory/{memory_id}` | Delete a memory triple |
-| GET | `/api/memory/search` | Semantic search over memory triples (query: `q`, `limit`) |
-| GET | `/api/memory/stats` | Tier counts (hot/warm/cold) |
-| POST | `/api/memory/extract` | Extract memories from a note (`note_id`) |
-| POST | `/api/memory/consolidate` | Run the dedup/merge/tiering pipeline |
-| POST | `/api/memory/backfill-embeddings` | Embed all stored memories (background) |
-| GET | `/api/memory/backfill-embeddings/status` | Backfill progress |
 
 ## Chat
 
@@ -198,7 +182,7 @@ and applies live (no restart).
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/stats` | System-wide counts (notes, entities, relations, memories, cards) |
+| GET | `/api/stats` | System-wide counts (notes, entities, relations, cards) |
 | POST | `/api/admin/reextract` | Re-run entity extraction over all notes |
 | GET | `/api/admin/reextract/status` | Re-extraction job status |
 | GET | `/api/admin/reembed/status` | Re-embedding job status |
@@ -222,6 +206,6 @@ The MCP server is mounted at `/mcp` — see [MCP Server](mcp.md).
 - Chat endpoints: 10 requests/minute per client.
 - LLM calls are bound by a daily budget (`llm_daily_budget_usd`, default `5.0`).
   When it is reached, **interactive** calls (chat, on-demand tools) return
-  `429 Too Many Requests`, while **ingestion** (notes, memories) is still accepted
+  `429 Too Many Requests`, while **ingestion** (notes, including hidden notes) is still accepted
   and persisted — its LLM processing is queued and runs after the budget resets at
   00:00 UTC (or is raised in Settings). See [`GET /api/budget/status`](#budget).
