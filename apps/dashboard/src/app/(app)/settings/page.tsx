@@ -1384,6 +1384,13 @@ export default function SettingsPage() {
               Everything KIO does automatically in the background.
             </p>
 
+            <ToggleRow
+              label="Note consolidation"
+              desc="Nightly merges similar hidden notes (agent memories) to prevent duplicate buildup"
+              value={settings?.auto_note_consolidation ?? false}
+              onChange={(v) => updateSetting('auto_note_consolidation', v)}
+            />
+
           </GlassPanel>
 
           {/* ════ API TOKENS ════ */}

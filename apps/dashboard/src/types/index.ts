@@ -109,6 +109,7 @@ export interface AppSettings {
   cors_origins?: string;
   secret_keys?: string[];
   llm_daily_budget_usd?: number;
+  auto_note_consolidation?: boolean;
 }
 
 // Personal access token (machine clients / MCP). The plaintext `token` is
