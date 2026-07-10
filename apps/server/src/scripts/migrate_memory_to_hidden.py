@@ -43,6 +43,33 @@ def migrate_file(md_path: Path) -> bool:
     return True
 
 
+def run_migration(notes_dir: str) -> dict[str, int]:
+    """Migrate all source_type='memory' notes to source_type='hidden' on disk.
+
+    Returns a summary dict: {"migrated": N, "skipped": M, "failed": F}.
+    Idempotent: a second run finds no memory notes and returns all skipped.
+    """
+    notes_path = Path(notes_dir)
+    if not notes_path.is_dir():
+        return {"migrated": 0, "skipped": 0, "failed": 0}
+
+    md_files = sorted(notes_path.glob("*.md"))
+    migrated = 0
+    skipped = 0
+    failed = 0
+
+    for md_file in md_files:
+        try:
+            if migrate_file(md_file):
+                migrated += 1
+            else:
+                skipped += 1
+        except Exception:
+            failed += 1
+
+    return {"migrated": migrated, "skipped": skipped, "failed": failed}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Migrate legacy source_type='memory' notes to source_type='hidden'."
@@ -67,25 +94,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Error: notes directory not found: {notes_dir}", file=sys.stderr)
         return 1
 
-    md_files = sorted(notes_path.glob("*.md"))
-    migrated = 0
-    skipped = 0
-    failed = 0
+    result = run_migration(notes_dir)
+    print(
+        f"\nMigration complete: {result['migrated']} migrated, "
+        f"{result['skipped']} skipped, {result['failed']} failed."
+    )
 
-    for md_file in md_files:
-        try:
-            if migrate_file(md_file):
-                migrated += 1
-                print(f"  migrated: {md_file.name}")
-            else:
-                skipped += 1
-        except Exception as exc:
-            failed += 1
-            print(f"  FAILED: {md_file.name}: {exc}", file=sys.stderr)
-
-    print(f"\nMigration complete: {migrated} migrated, {skipped} skipped, {failed} failed.")
-
-    if migrated > 0 and not args.notes_dir:
+    if result["migrated"] > 0 and not args.notes_dir:
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
         from src.storage.note_store import NoteStore
 
@@ -93,7 +108,7 @@ def main(argv: list[str] | None = None) -> int:
         reindexed = store.reindex()
         print(f"Note index rebuilt: {reindexed} notes reindexed.")
 
-    if failed:
+    if result["failed"]:
         return 1
     return 0
 

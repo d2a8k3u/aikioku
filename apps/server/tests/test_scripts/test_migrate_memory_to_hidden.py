@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from src.scripts.migrate_memory_to_hidden import migrate_file, main
+from src.scripts.migrate_memory_to_hidden import migrate_file, main, run_migration
 
 
 def _write_note(path: Path, source_type: str, title: str = "Test") -> None:
@@ -88,3 +88,42 @@ def test_main_empty_directory(tmp_path: Path) -> None:
 def test_main_nonexistent_directory(tmp_path: Path) -> None:
     exit_code = main(["--notes-dir", str(tmp_path / "nonexistent")])
     assert exit_code == 1
+
+
+def test_run_migration_migrates_memory_notes(tmp_path: Path) -> None:
+    notes_dir = tmp_path / "notes"
+    notes_dir.mkdir()
+    _write_note(notes_dir / "a.md", "memory", "Note A")
+    _write_note(notes_dir / "b.md", "note", "Note B")
+
+    result = run_migration(str(notes_dir))
+
+    assert result["migrated"] == 1
+    assert result["skipped"] == 1
+    assert result["failed"] == 0
+    assert "source_type: hidden" in (notes_dir / "a.md").read_text(encoding="utf-8")
+
+
+def test_run_migration_idempotent(tmp_path: Path) -> None:
+    notes_dir = tmp_path / "notes"
+    notes_dir.mkdir()
+    _write_note(notes_dir / "a.md", "memory", "Note A")
+
+    first = run_migration(str(notes_dir))
+    assert first["migrated"] == 1
+
+    second = run_migration(str(notes_dir))
+    assert second["migrated"] == 0
+    assert second["skipped"] == 1
+
+
+def test_run_migration_nonexistent_dir(tmp_path: Path) -> None:
+    result = run_migration(str(tmp_path / "nonexistent"))
+    assert result == {"migrated": 0, "skipped": 0, "failed": 0}
+
+
+def test_run_migration_empty_dir(tmp_path: Path) -> None:
+    notes_dir = tmp_path / "notes"
+    notes_dir.mkdir()
+    result = run_migration(str(notes_dir))
+    assert result == {"migrated": 0, "skipped": 0, "failed": 0}

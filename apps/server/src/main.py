@@ -197,6 +197,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # operations are served from SQLite (no full-corpus scan per request).
     from src.storage.note_store import NoteStore
 
+    from src.scripts.migrate_memory_to_hidden import run_migration
+
+    migration_result = run_migration(settings.notes_dir)
+    if migration_result["migrated"] > 0:
+        logger.info(
+            "memory_migration.complete",
+            migrated=migration_result["migrated"],
+            skipped=migration_result["skipped"],
+            failed=migration_result["failed"],
+        )
+
     note_store = NoteStore(settings.notes_dir)
     try:
         indexed = note_store.reindex()
