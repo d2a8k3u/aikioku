@@ -1019,8 +1019,8 @@ export default function SettingsPage() {
                   color: '#4a4f59',
                 }}
               >
-                Daily LLM spend cap. At the limit, processing pauses and new notes
-                queue until the budget resets at 00:00 UTC (or you raise it). 0 disables the cap.
+                Daily LLM spend cap. At the limit, processing pauses and new notes queue until the
+                budget resets at 00:00 UTC (or you raise it). 0 disables the cap.
               </p>
 
               {llmDirty && (
@@ -1397,7 +1397,6 @@ export default function SettingsPage() {
               value={settings?.auto_fact_extraction ?? false}
               onChange={(v) => updateSetting('auto_fact_extraction', v)}
             />
-
           </GlassPanel>
 
           {/* ════ API TOKENS ════ */}

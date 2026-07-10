@@ -71,9 +71,7 @@ async def _consolidation_worker(app: FastAPI, poll_seconds: int = 300) -> None:
                 continue
 
             result = await consolidation.run_consolidation(app)
-            runtime_config.set_app_setting(
-                "consolidation_last_run", datetime.utcnow().isoformat()
-            )
+            runtime_config.set_app_setting("consolidation_last_run", datetime.utcnow().isoformat())
             logger.info("consolidation.completed", **result)
         except Exception:
             logger.exception("consolidation_worker.failed")

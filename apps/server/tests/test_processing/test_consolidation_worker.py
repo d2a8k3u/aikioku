@@ -9,6 +9,7 @@ import pytest
 
 from src.processing.consolidation_worker import _consolidation_worker, _interval_elapsed
 
+
 # Sentinel raised inside the mocked ``asyncio.sleep`` to break the infinite
 # worker loop after one iteration, without leaking StopIteration into the
 # coroutine machinery (which Python wraps in a RuntimeError).
@@ -131,9 +132,7 @@ async def _run_one_iteration(app, monkeypatch, **overrides):
 @pytest.mark.asyncio
 async def test_worker_flag_off_no_mutations(monkeypatch):
     app = _make_app()
-    run_mock, set_calls = await _run_one_iteration(
-        app, monkeypatch, auto_consolidation=False
-    )
+    run_mock, set_calls = await _run_one_iteration(app, monkeypatch, auto_consolidation=False)
     run_mock.assert_not_called()
     assert set_calls == []
 
@@ -141,9 +140,7 @@ async def test_worker_flag_off_no_mutations(monkeypatch):
 @pytest.mark.asyncio
 async def test_worker_not_configured_skips(monkeypatch):
     app = _make_app()
-    run_mock, set_calls = await _run_one_iteration(
-        app, monkeypatch, is_configured=False
-    )
+    run_mock, set_calls = await _run_one_iteration(app, monkeypatch, is_configured=False)
     run_mock.assert_not_called()
     assert set_calls == []
 
@@ -152,9 +149,7 @@ async def test_worker_not_configured_skips(monkeypatch):
 async def test_worker_interval_not_elapsed_skips(monkeypatch):
     app = _make_app()
     recent = datetime.utcnow().isoformat()
-    run_mock, set_calls = await _run_one_iteration(
-        app, monkeypatch, last_run=recent
-    )
+    run_mock, set_calls = await _run_one_iteration(app, monkeypatch, last_run=recent)
     run_mock.assert_not_called()
     assert set_calls == []
 
@@ -172,9 +167,7 @@ async def test_worker_budget_exhausted_skips(monkeypatch):
 async def test_worker_insufficient_budget_skips(monkeypatch):
     app = _make_app()
     app.state.cost_tracker.remaining = MagicMock(return_value=0.10)
-    run_mock, set_calls = await _run_one_iteration(
-        app, monkeypatch, min_budget=0.50
-    )
+    run_mock, set_calls = await _run_one_iteration(app, monkeypatch, min_budget=0.50)
     run_mock.assert_not_called()
     assert set_calls == []
 
@@ -210,15 +203,9 @@ async def test_worker_exception_does_not_crash_loop(monkeypatch):
 
     monkeypatch.setattr(runtime_config, "auto_note_consolidation", lambda: True)
     monkeypatch.setattr(runtime_config, "is_configured", lambda: True)
-    monkeypatch.setattr(
-        runtime_config, "consolidation_interval_hours", lambda: 6.0
-    )
-    monkeypatch.setattr(
-        runtime_config, "get_app_setting", lambda key: None
-    )
-    monkeypatch.setattr(
-        runtime_config, "consolidation_min_budget_remaining_usd", lambda: 0.50
-    )
+    monkeypatch.setattr(runtime_config, "consolidation_interval_hours", lambda: 6.0)
+    monkeypatch.setattr(runtime_config, "get_app_setting", lambda key: None)
+    monkeypatch.setattr(runtime_config, "consolidation_min_budget_remaining_usd", lambda: 0.50)
     monkeypatch.setattr(runtime_config, "set_app_setting", lambda k, v: None)
 
     error = RuntimeError("boom")

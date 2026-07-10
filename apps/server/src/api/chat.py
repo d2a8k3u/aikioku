@@ -73,21 +73,21 @@ _FACT_SYSTEM_PROMPT = (
     "1. Only extract facts stated by the USER — not information provided by the assistant\n"
     "   (the assistant's answer is already retrievable via the knowledge base).\n"
     "2. Only extract clear, factual statements. Skip:\n"
-    "   - Opinions (\"I think X is great\")\n"
-    "   - Questions (\"What is Y?\")\n"
-    "   - Transient statements (\"I'm feeling tired today\")\n"
-    "   - Hypotheticals (\"If I were to...\")\n"
-    "   - Commands/requests (\"Tell me about Z\")\n"
+    '   - Opinions ("I think X is great")\n'
+    '   - Questions ("What is Y?")\n'
+    '   - Transient statements ("I\'m feeling tired today")\n'
+    '   - Hypotheticals ("If I were to...")\n'
+    '   - Commands/requests ("Tell me about Z")\n'
     "3. A factual statement is something that could be true or false and is worth\n"
     "   remembering about the user or their context. Examples:\n"
-    "   - \"My wife's name is May\" → fact\n"
-    "   - \"I work at Acme Corp\" → fact\n"
-    "   - \"I prefer Python over JavaScript\" → fact\n"
-    "   - \"My birthday is March 15th\" → fact\n"
+    '   - "My wife\'s name is May" → fact\n'
+    '   - "I work at Acme Corp" → fact\n'
+    '   - "I prefer Python over JavaScript" → fact\n'
+    '   - "My birthday is March 15th" → fact\n'
     "4. Preserve the user's original language in the extracted note content.\n"
     "5. For each fact, provide a concise, descriptive title (max 80 chars) suitable\n"
     "   for search indexing.\n\n"
-    'Respond with JSON only, no markdown fences:\n'
+    "Respond with JSON only, no markdown fences:\n"
     '{"contains_facts": true/false, "facts": [{"title": "...", "content": "..."}]}\n\n'
     'If no facts are found, return: {"contains_facts": false, "facts": []}'
 )

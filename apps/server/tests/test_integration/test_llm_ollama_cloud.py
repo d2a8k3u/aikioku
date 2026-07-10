@@ -134,5 +134,3 @@ class TestEntityExtractionReal:
         finally:
             os.unlink(kg_path)
             await provider._client.aclose()
-
-

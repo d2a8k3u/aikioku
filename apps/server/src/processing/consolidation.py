@@ -28,7 +28,7 @@ _SINGLE_PASS_CHAR_BUDGET = 4000
 _MERGE_SYSTEM_PROMPT = (
     "You are a knowledge consolidation assistant. Your task is to merge multiple similar notes "
     "into a single comprehensive note that preserves every piece of information from all source "
-    'notes. Never omit a fact, name, number, date, or claim. Remove only exact duplicate '
+    "notes. Never omit a fact, name, number, date, or claim. Remove only exact duplicate "
     'sentences. Return your answer as JSON: {"title": "...", "content": "..."}.'
 )
 
@@ -101,9 +101,7 @@ def _split_component(
     cap: int,
 ) -> list[list[Note]]:
     comp_ids = {n.id for n in comp_notes}
-    comp_pairs = [
-        (a, b, s) for a, b, s in pairs if a.id in comp_ids and b.id in comp_ids
-    ]
+    comp_pairs = [(a, b, s) for a, b, s in pairs if a.id in comp_ids and b.id in comp_ids]
     if not comp_pairs:
         return [comp_notes] if len(comp_notes) >= 2 else []
 
@@ -251,9 +249,7 @@ def delete_originals(
 
 
 async def reprocess_merged_note(app: FastAPI, merged_note: Note) -> None:
-    await extract_entities_from_note(
-        merged_note, app.state.llm_provider, app.state.knowledge_graph
-    )
+    await extract_entities_from_note(merged_note, app.state.llm_provider, app.state.knowledge_graph)
     await store_note_embeddings(
         merged_note, app.state.embedding_provider, app.state.embedding_store
     )

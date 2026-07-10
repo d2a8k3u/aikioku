@@ -21,9 +21,7 @@ _FACT_JSON = json.dumps(
     }
 )
 
-_NO_FACTS_JSON = json.dumps(
-    {"contains_facts": False, "facts": []}
-)
+_NO_FACTS_JSON = json.dumps({"contains_facts": False, "facts": []})
 
 _MULTI_FACT_JSON = json.dumps(
     {
@@ -94,8 +92,10 @@ async def test_extract_facts_factual_turn_creates_note(monkeypatch):
     store = _make_store()
     req = _make_request(llm=llm, store=store)
 
-    with patch("src.api.notes._extract_and_store_entities") as fake_ent, \
-         patch("src.api.notes._invalidate_sparse_index") as fake_inv:
+    with (
+        patch("src.api.notes._extract_and_store_entities") as fake_ent,
+        patch("src.api.notes._invalidate_sparse_index") as fake_inv,
+    ):
         chat._extract_facts(req, "turn-1", "My wife's name is May", "That's nice!")
         await asyncio.sleep(0.05)
 
@@ -211,9 +211,13 @@ async def test_extract_facts_multiple_facts(monkeypatch):
     store = _make_store()
     req = _make_request(llm=llm, store=store)
 
-    with patch("src.api.notes._extract_and_store_entities"), \
-         patch("src.api.notes._invalidate_sparse_index"):
-        chat._extract_facts(req, "turn-8", "My wife is May, I work at Acme, birthday March 15", "Great!")
+    with (
+        patch("src.api.notes._extract_and_store_entities"),
+        patch("src.api.notes._invalidate_sparse_index"),
+    ):
+        chat._extract_facts(
+            req, "turn-8", "My wife is May, I work at Acme, birthday March 15", "Great!"
+        )
         await asyncio.sleep(0.05)
 
     assert store.create.call_count == 3
@@ -260,8 +264,10 @@ async def test_extract_facts_skips_malformed_facts(monkeypatch):
     store = _make_store()
     req = _make_request(llm=llm, store=store)
 
-    with patch("src.api.notes._extract_and_store_entities"), \
-         patch("src.api.notes._invalidate_sparse_index"):
+    with (
+        patch("src.api.notes._extract_and_store_entities"),
+        patch("src.api.notes._invalidate_sparse_index"),
+    ):
         chat._extract_facts(req, "turn-11", "stuff", "reply")
         await asyncio.sleep(0.05)
 
@@ -282,16 +288,23 @@ async def test_capture_turn_calls_extract_facts(monkeypatch):
     monkeypatch.setattr("src.runtime_config.auto_fact_extraction", lambda: True)
     monkeypatch.setattr("src.runtime_config.auto_entity_extraction", lambda: False)
 
-    with patch("src.api.conversations.update_message"), \
-         patch("src.api.websocket.get_broadcaster", return_value=None), \
-         patch.object(chat, "_embed_turn", new=AsyncMock()) as fake_embed, \
-         patch.object(chat, "_extract_facts") as fake_facts:
+    with (
+        patch("src.api.conversations.update_message"),
+        patch("src.api.websocket.get_broadcaster", return_value=None),
+        patch.object(chat, "_embed_turn", new=AsyncMock()) as fake_embed,
+        patch.object(chat, "_extract_facts") as fake_facts,
+    ):
         fake_embed.return_value = None
         req = _make_request()
 
         await chat._capture_turn(
-            req, "user-1", "My wife's name is May", "That's nice!",
-            "turn-12", [], [],
+            req,
+            "user-1",
+            "My wife's name is May",
+            "That's nice!",
+            "turn-12",
+            [],
+            [],
         )
         await asyncio.sleep(0.05)
 
@@ -305,15 +318,22 @@ async def test_capture_turn_no_fact_extraction_when_disabled(monkeypatch):
     monkeypatch.setattr("src.runtime_config.auto_fact_extraction", lambda: False)
     monkeypatch.setattr("src.runtime_config.auto_entity_extraction", lambda: False)
 
-    with patch("src.api.conversations.update_message"), \
-         patch("src.api.websocket.get_broadcaster", return_value=None), \
-         patch.object(chat, "_embed_turn", new=AsyncMock()), \
-         patch.object(chat, "_extract_facts") as fake_facts:
+    with (
+        patch("src.api.conversations.update_message"),
+        patch("src.api.websocket.get_broadcaster", return_value=None),
+        patch.object(chat, "_embed_turn", new=AsyncMock()),
+        patch.object(chat, "_extract_facts") as fake_facts,
+    ):
         req = _make_request()
 
         await chat._capture_turn(
-            req, "user-1", "My wife's name is May", "That's nice!",
-            "turn-13", [], [],
+            req,
+            "user-1",
+            "My wife's name is May",
+            "That's nice!",
+            "turn-13",
+            [],
+            [],
         )
         await asyncio.sleep(0.05)
 

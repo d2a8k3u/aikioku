@@ -325,9 +325,7 @@ class TestEntitySourceResults:
         assert entry["title"] == "Free Energy Principle"
 
     @pytest.mark.asyncio
-    async def test_build_context_includes_entity_snippet(
-        self, mock_llm_provider, tmp_path
-    ):
+    async def test_build_context_includes_entity_snippet(self, mock_llm_provider, tmp_path):
         """The system prompt should contain the entity's snippet text when an
         entity result is in the context.
         """

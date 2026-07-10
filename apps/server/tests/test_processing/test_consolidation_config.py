@@ -49,9 +49,7 @@ class TestConsolidationConfigTypes:
         assert isinstance(runtime_config.consolidation_cluster_size_cap(), int)
 
     def test_min_budget_remaining_is_float(self):
-        assert isinstance(
-            runtime_config.consolidation_min_budget_remaining_usd(), float
-        )
+        assert isinstance(runtime_config.consolidation_min_budget_remaining_usd(), float)
 
     def test_interval_hours_is_float(self):
         assert isinstance(runtime_config.consolidation_interval_hours(), float)
@@ -81,9 +79,7 @@ class TestConsolidationConfigOverrides:
         assert runtime_config.consolidation_cluster_size_cap() == 8
 
     def test_min_budget_remaining_override(self):
-        runtime_config.set_app_setting(
-            "consolidation_min_budget_remaining_usd", "1.25"
-        )
+        runtime_config.set_app_setting("consolidation_min_budget_remaining_usd", "1.25")
         assert runtime_config.consolidation_min_budget_remaining_usd() == 1.25
 
     def test_interval_hours_override(self):
@@ -95,7 +91,5 @@ class TestConsolidationConfigOverrides:
         assert runtime_config.consolidation_min_cluster_size() == 2
 
     def test_invalid_float_falls_back_to_default(self):
-        runtime_config.set_app_setting(
-            "consolidation_similarity_threshold", "not-a-float"
-        )
+        runtime_config.set_app_setting("consolidation_similarity_threshold", "not-a-float")
         assert runtime_config.consolidation_similarity_threshold() == 0.85

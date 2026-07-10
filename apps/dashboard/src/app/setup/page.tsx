@@ -482,8 +482,8 @@ export default function SetupWizard() {
                   placeholder="5"
                 />
                 <p className="mt-1 text-[10px] font-mono text-aiki-text-tertiary">
-                  Daily LLM spend cap. At the limit, processing pauses and new notes
-                  queue until it resets at 00:00 UTC. 0 disables the cap.
+                  Daily LLM spend cap. At the limit, processing pauses and new notes queue until it
+                  resets at 00:00 UTC. 0 disables the cap.
                 </p>
               </div>
               <div className="flex items-center gap-3">

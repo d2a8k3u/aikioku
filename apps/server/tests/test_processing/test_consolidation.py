@@ -94,8 +94,18 @@ def app_state(
 def entity_extraction_response():
     return json.dumps(
         [
-            {"name": "Python", "type": "Concept", "aliases": ["Python language"], "confidence": 0.95},
-            {"name": "Guido van Rossum", "type": "Person", "aliases": ["Guido"], "confidence": 0.90},
+            {
+                "name": "Python",
+                "type": "Concept",
+                "aliases": ["Python language"],
+                "confidence": 0.95,
+            },
+            {
+                "name": "Guido van Rossum",
+                "type": "Person",
+                "aliases": ["Guido"],
+                "confidence": 0.90,
+            },
         ]
     )
 
@@ -322,9 +332,7 @@ class TestMergeCluster:
         from src.processing.consolidation import merge_cluster
 
         n1 = _make_hidden_note("n1", "A", "content a")
-        mock_llm_provider.complete = AsyncMock(
-            return_value=_make_merge_response("Has Title", "")
-        )
+        mock_llm_provider.complete = AsyncMock(return_value=_make_merge_response("Has Title", ""))
         result = await merge_cluster(app_state, [n1])
         assert result is None
 
@@ -417,7 +425,9 @@ class TestRunConsolidationEndToEnd:
 
         from src.models.entity import Entity, EntityType
 
-        shared_entity = Entity(name="Python", type=EntityType.Concept, source_note_ids=[n1.id, n2.id])
+        shared_entity = Entity(
+            name="Python", type=EntityType.Concept, source_note_ids=[n1.id, n2.id]
+        )
         knowledge_graph.create_entity(shared_entity)
         rust_entity = Entity(name="Rust", type=EntityType.Concept, source_note_ids=[n3.id])
         knowledge_graph.create_entity(rust_entity)
@@ -464,9 +474,7 @@ class TestRunConsolidationEndToEnd:
         assert result["clusters"] == 0
         assert result["merged"] == 0
 
-    async def test_run_consolidation_no_embeddings(
-        self, app_state, note_store, embedding_store
-    ):
+    async def test_run_consolidation_no_embeddings(self, app_state, note_store, embedding_store):
         from src.processing.consolidation import run_consolidation
 
         n1 = _make_hidden_note("ne1", "Note 1", "content 1")
@@ -488,16 +496,28 @@ class TestRunConsolidationEndToEnd:
         from src.llm.router import BudgetExceededError
         from src.processing.consolidation import run_consolidation
 
-        cluster_a = [_make_hidden_note(f"ba{i}", f"Note A{i}", "same content here") for i in range(2)]
-        cluster_b = [_make_hidden_note(f"bb{i}", f"Note B{i}", "same content here") for i in range(2)]
+        cluster_a = [
+            _make_hidden_note(f"ba{i}", f"Note A{i}", "same content here") for i in range(2)
+        ]
+        cluster_b = [
+            _make_hidden_note(f"bb{i}", f"Note B{i}", "same content here") for i in range(2)
+        ]
         for n in cluster_a + cluster_b:
             note_store.create(n)
             embedding_store.add(n.id, n.content, [1.0] * 384)
 
         from src.models.entity import Entity, EntityType
 
-        e_a = Entity(name="EntityA", type=EntityType.Concept, source_note_ids=[cluster_a[0].id, cluster_a[1].id])
-        e_b = Entity(name="EntityB", type=EntityType.Concept, source_note_ids=[cluster_b[0].id, cluster_b[1].id])
+        e_a = Entity(
+            name="EntityA",
+            type=EntityType.Concept,
+            source_note_ids=[cluster_a[0].id, cluster_a[1].id],
+        )
+        e_b = Entity(
+            name="EntityB",
+            type=EntityType.Concept,
+            source_note_ids=[cluster_b[0].id, cluster_b[1].id],
+        )
         knowledge_graph.create_entity(e_a)
         knowledge_graph.create_entity(e_b)
 
@@ -509,7 +529,9 @@ class TestRunConsolidationEndToEnd:
                 if merge_call_count[0] >= 2:
                     raise BudgetExceededError(daily_budget=5.0, today_cost=5.0)
                 return _make_merge_response("Merged A", "merged content A")
-            return json.dumps([{"name": "EntityA", "type": "Concept", "aliases": [], "confidence": 0.9}])
+            return json.dumps(
+                [{"name": "EntityA", "type": "Concept", "aliases": [], "confidence": 0.9}]
+            )
 
         mock_llm_provider.complete = AsyncMock(side_effect=_side_complete)
         mock_llm_provider.embed = AsyncMock(return_value=[0.1] * 384)
@@ -547,7 +569,9 @@ class TestRunConsolidationEndToEnd:
                 if merge_call_count[0] == 1:
                     raise RuntimeError("boom on first cluster")
                 return _make_merge_response("Merged B", "merged content B")
-            return json.dumps([{"name": "FailB", "type": "Concept", "aliases": [], "confidence": 0.9}])
+            return json.dumps(
+                [{"name": "FailB", "type": "Concept", "aliases": [], "confidence": 0.9}]
+            )
 
         mock_llm_provider.complete = AsyncMock(side_effect=_side_complete)
         mock_llm_provider.embed = AsyncMock(return_value=[0.1] * 384)
