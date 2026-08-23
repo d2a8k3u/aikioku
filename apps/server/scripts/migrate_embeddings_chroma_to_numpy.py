@@ -7,6 +7,15 @@ deliberately not implemented here: the in-app reembed pipeline
 (src/knowledge/reembed.py) already covers recomputation when the embedding
 config changes, and import-vectors is the lossless path for a store swap.
 
+Merge mode (--merge) imports the chroma docs into an *existing* numpy
+collection instead of creating a fresh one. This covers the live cutover
+case where the app hot-reloaded onto the numpy store and has already
+written documents into the target collection: --merge dedupes by doc_id
+(skipping chroma docs whose doc_id is already present) and skips the
+parity gate, since the target no longer mirrors the chroma collection
+exactly. Pass --target-collection/--convs-target-collection with the
+live collection names in this mode.
+
 Usage (from apps/server/ inside the container):
     python -m scripts.migrate_embeddings_chroma_to_numpy \
         --old-notes-path /data/sqlite/chroma \
@@ -154,6 +163,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--new-convs-path")
     parser.add_argument("--notes-collection", default=None)
     parser.add_argument("--convs-collection", default=None)
+    parser.add_argument("--target-collection", default="notes_migrated")
+    parser.add_argument("--convs-target-collection", default="conversations_migrated")
+    parser.add_argument("--merge", action="store_true")
     parser.add_argument("--mode", choices=["import-vectors", "reembed"], default="import-vectors")
     parser.add_argument("--queries", default="")
     parser.add_argument("--synthetic", action="store_true")
@@ -213,10 +225,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.dry_run:
         logger.info(
-            "migration.dry_run would write notes_docs=%d convs_docs=%d dim=%d",
+            "migration.dry_run would write notes_docs=%d convs_docs=%d dim=%d merge=%s",
             len(notes_ids),
             len(convs_ids),
             dim,
+            args.merge,
         )
         logger.info("migration.dry_run gates skipped")
         return 0
@@ -227,8 +240,19 @@ def main(argv: list[str] | None = None) -> int:
     _backup(args.old_notes_path, backup_dir)
     _backup(args.old_convs_path, backup_dir)
 
-    new_notes = EmbeddingStore(args.new_notes_path, collection_name="notes_migrated", dimension=dim)
+    new_notes = EmbeddingStore(
+        args.new_notes_path, collection_name=args.target_collection, dimension=dim
+    )
+    notes_skipped = 0
+    if args.merge:
+        existing_note_ids = set(new_notes._state.doc_ids)
+        logger.info("migration.merge.notes existing_docs=%d", len(existing_note_ids))
+    else:
+        existing_note_ids = set()
     for doc_id, emb, meta in zip(notes_ids, notes_embs, notes_metas):
+        if doc_id in existing_note_ids:
+            notes_skipped += 1
+            continue
         new_notes.add_document(
             doc_id=doc_id,
             text=str(meta.get("text", "")),
@@ -238,10 +262,25 @@ def main(argv: list[str] | None = None) -> int:
                 "chunk_index": int(meta.get("chunk_index", 0)),
             },
         )
-    logger.info("migration.import.notes.docs=%d", new_notes.count())
+    logger.info(
+        "migration.import.notes.docs=%d skipped_existing=%d",
+        new_notes.count(),
+        notes_skipped,
+    )
 
-    new_convs = EmbeddingStore(args.new_convs_path, collection_name="conversations_migrated", dimension=dim)
+    new_convs = EmbeddingStore(
+        args.new_convs_path, collection_name=args.convs_target_collection, dimension=dim
+    )
+    convs_skipped = 0
+    if args.merge:
+        existing_conv_ids = set(new_convs._state.doc_ids)
+        logger.info("migration.merge.convs existing_docs=%d", len(existing_conv_ids))
+    else:
+        existing_conv_ids = set()
     for doc_id, emb, meta in zip(convs_ids, convs_embs, convs_metas):
+        if doc_id in existing_conv_ids:
+            convs_skipped += 1
+            continue
         new_convs.add_document(
             doc_id=doc_id,
             text=str(meta.get("text", "")),
@@ -251,9 +290,15 @@ def main(argv: list[str] | None = None) -> int:
                 "chunk_index": int(meta.get("chunk_index", 0)),
             },
         )
-    logger.info("migration.import.convs.docs=%d", new_convs.count())
+    logger.info(
+        "migration.import.convs.docs=%d skipped_existing=%d",
+        new_convs.count(),
+        convs_skipped,
+    )
 
-    if args.synthetic:
+    if args.merge:
+        query_embs: list[list[float]] = []
+    elif args.synthetic:
         query_embs = notes_embs[:_PARITY_QUERIES]
     else:
         queries = [" ".join(str(m.get("text", "")).split()[:8]) for m in notes_metas[:_PARITY_QUERIES]]
@@ -262,7 +307,12 @@ def main(argv: list[str] | None = None) -> int:
         queries = (queries + extra)[:_PARITY_QUERIES]
         query_embs = _embed_queries(queries) if queries else []
 
-    if not query_embs:
+    if args.merge:
+        logger.info(
+            "migration.gate_parity.skip merge mode — target already contains live docs; "
+            "parity was validated on the fresh-store path"
+        )
+    elif not query_embs:
         logger.warning("migration.gate_parity.skip no queries available")
     else:
         old_ranks = _old_top_k(notes_coll, query_embs, _PARITY_K)
