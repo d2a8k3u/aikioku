@@ -65,7 +65,6 @@ Enable it in Settings for multi-user deployments. When enabled, obtain a JWT via
 | POST | `/api/chat` | Ask a RAG question (`simple` or `multi_hop`), grounded answer |
 | GET | `/api/chat/stream` | Streaming chat over SSE (GET variant) |
 | POST | `/api/chat/stream` | Streaming chat over SSE (POST variant) |
-| POST | `/api/chat/stop` | Stop an in-progress generation |
 | GET | `/api/conversations/messages` | Load chat history (paginated, newest-first) |
 | DELETE | `/api/conversations/messages` | Clear the caller's chat history |
 

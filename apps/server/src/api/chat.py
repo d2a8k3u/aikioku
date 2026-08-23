@@ -827,27 +827,3 @@ def _delete_turn_placeholder(turn_id: str) -> None:
         delete_message(turn_id)
     except Exception:
         logger.warning("Failed to delete assistant placeholder %s.", turn_id, exc_info=True)
-
-
-# ------------------------------------------------------------------ stop generation
-
-# Active generation tasks keyed by user_id for cancellation.
-_active_generations: dict[str, asyncio.Task[Any]] = {}
-
-
-@router.post("/stop")
-async def stop_generation(
-    request: Request,
-    user: UserInDB = Depends(require_auth),
-) -> dict[str, str]:
-    """Cancel the authenticated user's active chat generation."""
-
-    task = _active_generations.pop(user.username, None)
-    if task is not None and not task.done():
-        task.cancel()
-        broadcaster = get_broadcaster()
-        if broadcaster:
-            await broadcaster.broadcast("buddy.state", {"state": "idle"})
-            await broadcaster.broadcast("chat.streaming", {"active": False})
-        return {"status": "cancelled"}
-    return {"status": "no_active_generation"}
