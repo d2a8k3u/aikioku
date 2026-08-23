@@ -4,7 +4,10 @@ services:
       context: .
       dockerfile: Dockerfile
       target: server
-    command: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    command: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      MALLOC_ARENA_MAX: "2"
+      OMP_NUM_THREADS: "2"
     ports:
       - "127.0.0.1:8869:8000"
     volumes:

@@ -12,6 +12,8 @@ services:
     environment:
       # macOS Docker bind mounts don't forward inotify events; poll instead.
       - WATCHFILES_FORCE_POLLING=true
+      - MALLOC_ARENA_MAX=2
+      - OMP_NUM_THREADS=2
     ports:
       - "127.0.0.1:8869:8000"
     volumes:
