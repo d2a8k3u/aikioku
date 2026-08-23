@@ -28,7 +28,9 @@ import hashlib
 import json
 import logging
 import os
+import time
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -58,12 +60,66 @@ _stats_lock = asyncio.Lock()
 
 _SIMILARITY_THRESHOLD = float(os.getenv("SEMANTIC_CACHE_SIMILARITY_THRESHOLD", "0.85"))
 _TTL = int(os.getenv("SEMANTIC_CACHE_TTL", "3600"))
+_MAX_ENTRIES = int(os.getenv("SEMANTIC_CACHE_MAX_ENTRIES", "5000"))
 
 
 def _build_cache_key(query: str, mode: str, tone: str, model: str) -> str:
     """Build a deterministic SHA-256 cache key from query + mode + tone + model."""
     raw = f"{query}|{mode}|{tone}|{model}"
     return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def _entry_age_seconds(create_on: Any) -> float:
+    """Seconds since an entry was created (datetime or epoch timestamp)."""
+    now = time.time()
+    try:
+        if isinstance(create_on, datetime):
+            return now - create_on.timestamp()
+        return now - float(create_on)
+    except (TypeError, OSError, ValueError, OverflowError):
+        # Unparseable creation time — treat as fresh rather than risk evicting.
+        return 0.0
+
+
+def _purge_entry(dm: Any, question_id: Any) -> None:
+    """Physically remove one expired entry from the scalar and vector stores.
+
+    Runs on the cache executor thread; never raises.
+    """
+    try:
+        dm.s.mark_deleted([question_id])
+        dm.s.clear_deleted_data()
+        dm.v.delete([question_id])
+        dm.v.rebuild()
+    except Exception:
+        logger.warning("Failed to purge expired cache entry %s", question_id, exc_info=True)
+
+
+def _evict_oldest(dm: Any, excess: int) -> None:
+    """Evict the oldest ``excess`` entries to keep the cache within its bound.
+
+    gptcache exposes no oldest-first id query, so we order on the scalar
+    question table's ``create_on`` column directly and delete from the scalar
+    and vector stores in the same step to keep them in sync. Never raises.
+    """
+    try:
+        with dm.s.Session() as session:
+            rows = (
+                session.query(dm.s._ques.id)
+                .filter(dm.s._ques.deleted == 0)
+                .order_by(dm.s._ques.create_on.asc(), dm.s._ques.id.asc())
+                .limit(excess)
+                .all()
+            )
+        ids = [row.id for row in rows]
+        if not ids:
+            return
+        dm.s.mark_deleted(ids)
+        dm.s.clear_deleted_data()
+        dm.v.delete(ids)
+        dm.v.rebuild()
+    except Exception:
+        logger.warning("Failed to evict oldest cache entries — ignored.", exc_info=True)
 
 
 def _patch_onnx_for_transformers_v5() -> None:
@@ -285,6 +341,12 @@ async def cache_get(query: str, mode: str, tone: str, model: str) -> dict[str, A
             if not cached_question:
                 continue
 
+            # FR-B1: TTL on read — entries older than _TTL are misses and are
+            # physically purged in the background so they never linger.
+            if _entry_age_seconds(scalar_data.create_on) > _TTL:
+                loop.run_in_executor(_executor, _purge_entry, dm, data_id)
+                continue
+
             # Cross-encode similarity (ONNX inference — must run in thread pool)
             score = await loop.run_in_executor(
                 _executor,
@@ -376,6 +438,16 @@ async def cache_put(
         loop = asyncio.get_event_loop()
         query_emb = await loop.run_in_executor(_executor, onnx.to_embeddings, query)
         await loop.run_in_executor(_executor, dm.save, query, value, query_emb)
+
+        # FR-B1: bounded eviction — when the cache exceeds _MAX_ENTRIES, drop
+        # the oldest entries. Runs in the background so it never blocks a put.
+        def _evict_if_needed() -> None:
+            total = dm.s.count(is_all=True)
+            excess = total - _MAX_ENTRIES
+            if excess > 0:
+                _evict_oldest(dm, excess)
+
+        loop.run_in_executor(_executor, _evict_if_needed)
 
         logger.debug(
             "Cache stored for query hash=%s (ttl=%ds)",
