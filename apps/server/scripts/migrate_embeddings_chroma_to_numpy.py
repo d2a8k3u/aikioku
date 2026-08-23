@@ -43,7 +43,7 @@ import numpy as np
 logger = logging.getLogger("migrate_embeddings")
 
 _BATCH = 500
-_PARITY_QUERIES = 20
+_PARITY_QUERIES = 50
 _PARITY_K = 20
 _LATENCY_SAMPLES = 20
 _LATENCY_RATIO_LIMIT = 2.0

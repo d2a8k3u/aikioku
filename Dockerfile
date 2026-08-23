@@ -32,7 +32,7 @@ COPY apps/server/pyproject.toml .
 COPY apps/server/src/ src/
 COPY apps/server/tests/ tests/
 
-RUN mkdir -p /data/notes /data/kuzu /data/chroma /data/sqlite
+RUN mkdir -p /data/notes /data/kuzu /data/chroma /data/chroma_conversations /data/sqlite
 
 EXPOSE 8000
 
@@ -98,7 +98,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY apps/server/pyproject.toml .
 RUN pip install --no-cache-dir -e ".[dev]" "numpy>=1.24,<2.0"
 
-RUN mkdir -p /data/notes /data/kuzu /data/chroma /data/sqlite
+RUN mkdir -p /data/notes /data/kuzu /data/chroma /data/chroma_conversations /data/sqlite
 
 EXPOSE 8000
 

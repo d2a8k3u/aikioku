@@ -3,7 +3,7 @@
 A self-hosted personal knowledge management system that combines note-taking,
 knowledge graphs, vector search, and AI reasoning into a single application.
 
-**Stack:** FastAPI + Kuzu + ChromaDB + Tantivy + Next.js  
+**Stack:** FastAPI + Kuzu + numpy vector store + Tantivy + Next.js  
 **Deployment:** Docker Compose (one command)  
 **Access:** Web UI at `:3369`, MCP server at `:8869/mcp`
 
@@ -37,7 +37,7 @@ aikioku/
 Seven integrated layers:
 
 1. **Ingestion** — notes, web pages, PDFs, DOCX, images, audio, email
-2. **Knowledge Representation** — property graph (Kuzu) + dense vectors (ChromaDB) + sparse index (Tantivy)
+2. **Knowledge Representation** — property graph (Kuzu) + dense vectors (numpy vector store) + sparse index (Tantivy)
 3. **Retrieval** — hybrid RRF fusion (dense + sparse + graph), multi-hop reasoning
 4. **Memory** — episodic extraction, consolidation, hot/warm/cold tiering
 5. **Reasoning** — grounded RAG with citations, connection discovery, question generation
