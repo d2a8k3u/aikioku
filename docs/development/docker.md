@@ -37,7 +37,8 @@ Both are bound to `127.0.0.1` only.
 /data/
 ├── notes/          # Markdown note files
 ├── kuzu/           # Kuzu graph database
-├── chroma/         # ChromaDB vector store
+├── chroma/         # numpy vector store (EmbeddingStore collections)
+├── chroma_conversations/  # conversation-turn vector store
 └── sqlite/         # SQLite databases
     ├── aikioku.db
     └── secret.key  # Master encryption key

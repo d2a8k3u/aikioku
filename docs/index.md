@@ -4,7 +4,7 @@
 AI-Augmented Personal Knowledge Management — a self-hosted system that combines
 note-taking, knowledge graphs, vector search, and AI reasoning.
 
-**Stack:** FastAPI + Kuzu + ChromaDB + Tantivy + Next.js  
+**Stack:** FastAPI + Kuzu + numpy vector store + Tantivy + Next.js  
 **Deployment:** Docker Compose (`server` + `dashboard`)  
 **Access:** Web UI at `:3369`, MCP server at `:8869/mcp`
 

@@ -39,7 +39,7 @@ Hermes will invoke `search_notes` or `hybrid_search` on your Aikioku.
 
 ```
 > what do I know about vector databases?
-> find connections between "ChromaDB" and "Kuzu" in my knowledge graph
+> find connections between "numpy" and "Kuzu" in my knowledge graph
 ```
 
 ### Note Management

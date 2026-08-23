@@ -6,7 +6,7 @@ Multi-strategy retrieval with reciprocal rank fusion for best recall.
 ## Strategies
 
 ### Dense Retrieval
-- ChromaDB vector similarity search
+- Exact numpy brute-force cosine similarity (in-process)
 - Configurable embedding provider (Ollama, HuggingFace, OpenAI)
 - Returns top-k by cosine distance
 - Best for: semantic/conceptual queries

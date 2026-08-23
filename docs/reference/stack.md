@@ -20,7 +20,7 @@
 | Metrics | prometheus-client | ≥0.20 |
 | Math | numpy | ≥1.24, <2.0 |
 | Graph DB | kuzu | ≥0.4.2 |
-| Vector DB | chromadb | ≥0.4.24 |
+| Vector store | numpy (brute-force cosine) | built-in |
 | Full-text search | tantivy | ≥0.11.0 |
 | PDF parser | PyMuPDF | ≥1.24.0 |
 | DOCX parser | python-docx | ≥1.1.0 |
@@ -31,6 +31,8 @@
 | Rate limiting | slowapi | ≥0.1.9 |
 | MCP server | mcp | ≥1.27, <2 |
 | Flashcards | genanki | ≥0.13.0 |
+
+chromadb remains available as the `migration` extra for one-shot imports from legacy ChromaDB stores.
 
 ### Dev Dependencies
 

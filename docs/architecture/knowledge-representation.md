@@ -8,7 +8,7 @@ Stores knowledge in three complementary indices for different retrieval strategi
 | Store    | Technology | Purpose                              | Query Style     |
 |----------|------------|--------------------------------------|-----------------|
 | Graph    | Kuzu       | Entities, relations, property graph  | Cypher          |
-| Dense    | ChromaDB   | Semantic similarity search           | Vector distance |
+| Dense    | numpy store | Semantic similarity search (exact cosine) | Cosine |
 | Sparse   | Tantivy    | Full-text keyword search             | BM25            |
 
 ## Graph (Kuzu)
@@ -43,13 +43,13 @@ class Relation:
     evidence: str         # Source text snippet
 ```
 
-## Dense (ChromaDB)
+## Dense (numpy brute-force)
 
-Embedded vector database for semantic similarity.
+In-process numpy brute-force cosine search over all stored vectors — exact, no approximation index.
 
 - **Configurable embedding provider:** Ollama, HuggingFace, OpenAI
 - **Dimension:** 1024 (default, provider-dependent)
-- **Index:** HNSW with cosine distance
+- **Search:** exact cosine over all stored vectors (no approximate index)
 - **Metadata:** note ID, title, tags stored alongside vectors
 
 ## Sparse (Tantivy)
