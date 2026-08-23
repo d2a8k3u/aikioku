@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 class KnowledgeGraph:
     """Manages entities and relations in an embedded Kuzu database."""
 
-    def __init__(self, db_path: str, buffer_pool_size: int = 256 * 1024 * 1024) -> None:
+    def __init__(self, db_path: str, buffer_pool_size: int = 1024 * 1024 * 1024) -> None:
         parent = os.path.dirname(db_path)
         if parent:
             os.makedirs(parent, exist_ok=True)

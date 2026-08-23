@@ -122,7 +122,7 @@ class TestBufferPool:
             kg_module.kuzu.Database = original_database
             kg_module.kuzu.Connection = original_connection
 
-        mock_db.assert_called_once_with(tmp_db_path, buffer_pool_size=256 * 1024 * 1024)
+        mock_db.assert_called_once_with(tmp_db_path, buffer_pool_size=1024 * 1024 * 1024)
 
 
 class TestCreateEntity:
