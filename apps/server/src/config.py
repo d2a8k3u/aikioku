@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     # Storage
     notes_dir: str = "/data/notes"
     sqlite_db_path: str = "/data/sqlite/aikioku.db"
+    kuzu_buffer_pool_mb: int = 256
     # Master key file for the encrypted secrets table. Lives OUTSIDE the DB
     # (bootstrap: can't decrypt the DB from inside it). Auto-generated on first
     # run. Empty -> derived next to sqlite_db_path (".../secret.key").

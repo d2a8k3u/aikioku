@@ -165,7 +165,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     kg_path = settings.sqlite_db_path.replace(".db", "_kg.db")
     os.makedirs(os.path.dirname(kg_path), exist_ok=True)
-    app.state.knowledge_graph = KnowledgeGraph(kg_path)
+    app.state.knowledge_graph = KnowledgeGraph(
+        kg_path, buffer_pool_size=settings.kuzu_buffer_pool_mb * 1024 * 1024
+    )
 
     # Initialize EmbeddingStore singleton. The active collection name is persisted
     # (so a reembed can atomically swap to a new fingerprinted collection); it

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -84,6 +85,44 @@ class TestKnowledgeGraphInit:
         kg = KnowledgeGraph(db_path=tmp_db_path)
         # Count should work (schema exists) — no entities yet
         assert kg.count_entities() == 0
+
+
+class TestBufferPool:
+    """Test buffer pool size passthrough to kuzu.Database."""
+
+    def test_explicit_buffer_pool_size_passed_to_database(self, tmp_db_path):
+        import src.knowledge.graph as kg_module
+
+        mock_db = MagicMock()
+        mock_conn = MagicMock()
+        original_database = kg_module.kuzu.Database
+        original_connection = kg_module.kuzu.Connection
+        kg_module.kuzu.Database = mock_db
+        kg_module.kuzu.Connection = mock_conn
+        try:
+            kg_module.KnowledgeGraph(db_path=tmp_db_path, buffer_pool_size=512 * 1024 * 1024)
+        finally:
+            kg_module.kuzu.Database = original_database
+            kg_module.kuzu.Connection = original_connection
+
+        mock_db.assert_called_once_with(tmp_db_path, buffer_pool_size=512 * 1024 * 1024)
+
+    def test_default_buffer_pool_size_passed_to_database(self, tmp_db_path):
+        import src.knowledge.graph as kg_module
+
+        mock_db = MagicMock()
+        mock_conn = MagicMock()
+        original_database = kg_module.kuzu.Database
+        original_connection = kg_module.kuzu.Connection
+        kg_module.kuzu.Database = mock_db
+        kg_module.kuzu.Connection = mock_conn
+        try:
+            kg_module.KnowledgeGraph(db_path=tmp_db_path)
+        finally:
+            kg_module.kuzu.Database = original_database
+            kg_module.kuzu.Connection = original_connection
+
+        mock_db.assert_called_once_with(tmp_db_path, buffer_pool_size=256 * 1024 * 1024)
 
 
 class TestCreateEntity:
