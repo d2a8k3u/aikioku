@@ -95,14 +95,17 @@ def _purge_entry(dm: Any, question_id: Any) -> None:
         logger.warning("Failed to purge expired cache entry %s", question_id, exc_info=True)
 
 
-def _evict_oldest(dm: Any, excess: int) -> None:
-    """Evict the oldest ``excess`` entries to keep the cache within its bound.
+def _evict_oldest(dm: Any) -> None:
+    """Evict the oldest entries when the cache exceeds its ``_MAX_ENTRIES`` bound.
 
     gptcache exposes no oldest-first id query, so we order on the scalar
     question table's ``create_on`` column directly and delete from the scalar
     and vector stores in the same step to keep them in sync. Never raises.
     """
     try:
+        excess = dm.s.count(is_all=True) - _MAX_ENTRIES
+        if excess <= 0:
+            return
         with dm.s.Session() as session:
             rows = (
                 session.query(dm.s._ques.id)
@@ -341,7 +344,7 @@ async def cache_get(query: str, mode: str, tone: str, model: str) -> dict[str, A
             if not cached_question:
                 continue
 
-            # FR-B1: TTL on read — entries older than _TTL are misses and are
+            # TTL on read: entries older than _TTL are misses and are
             # physically purged in the background so they never linger.
             if _entry_age_seconds(scalar_data.create_on) > _TTL:
                 loop.run_in_executor(_executor, _purge_entry, dm, data_id)
@@ -439,15 +442,9 @@ async def cache_put(
         query_emb = await loop.run_in_executor(_executor, onnx.to_embeddings, query)
         await loop.run_in_executor(_executor, dm.save, query, value, query_emb)
 
-        # FR-B1: bounded eviction — when the cache exceeds _MAX_ENTRIES, drop
-        # the oldest entries. Runs in the background so it never blocks a put.
-        def _evict_if_needed() -> None:
-            total = dm.s.count(is_all=True)
-            excess = total - _MAX_ENTRIES
-            if excess > 0:
-                _evict_oldest(dm, excess)
-
-        loop.run_in_executor(_executor, _evict_if_needed)
+        # Bounded eviction: when the cache exceeds _MAX_ENTRIES, drop the
+        # oldest entries. Runs in the background so it never blocks a put.
+        loop.run_in_executor(_executor, _evict_oldest, dm)
 
         logger.debug(
             "Cache stored for query hash=%s (ttl=%ds)",

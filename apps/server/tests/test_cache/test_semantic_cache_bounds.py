@@ -1,4 +1,4 @@
-"""Semantic cache bounds: TTL on read + bounded eviction on write (FR-B1).
+"""Semantic cache bounds: TTL on read + bounded eviction on write.
 
 - TTL: entries older than ``_TTL`` seconds are treated as cache misses.
 - Bound: ``cache_put`` prunes the oldest entries when the cache exceeds
@@ -12,7 +12,6 @@ tests patch ``HOME`` before first cache init.
 from __future__ import annotations
 
 import asyncio
-import os
 from collections.abc import Iterator
 from pathlib import Path
 
