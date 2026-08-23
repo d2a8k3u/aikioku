@@ -13,6 +13,8 @@ Usage (from apps/server/ inside the container):
         --old-convs-path /data/sqlite/chroma_conversations \
         --new-notes-path /data/sqlite/emb_notes \
         --new-convs-path /data/sqlite/emb_convs
+
+Requires the migration extra: pip install -e '.[migration]'
 """
 
 from __future__ import annotations
