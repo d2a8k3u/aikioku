@@ -56,7 +56,9 @@ def mock_multi_hop_reasoner() -> AsyncMock:
 
 
 @pytest.fixture
-def client(mock_rag_generator: AsyncMock, mock_multi_hop_reasoner: AsyncMock, tmp_path: Any) -> Iterator[tuple[TestClient, Any]]:
+def client(
+    mock_rag_generator: AsyncMock, mock_multi_hop_reasoner: AsyncMock, tmp_path: Any
+) -> Iterator[tuple[TestClient, Any]]:
     with (
         patch("src.api.chat._build_rag_generator", return_value=mock_rag_generator),
         patch("src.api.chat._build_multi_hop_reasoner", return_value=mock_multi_hop_reasoner),
@@ -125,7 +127,7 @@ def test_chat_pipeline_ram_regression(client: tuple[TestClient, Any], monkeypatc
 
     assert len(getattr(app.state, "_bg_tasks", set())) == 0
     assert src_growth < _SRC_GROWTH_BYTES, f"src allocation growth {src_growth} bytes"
-    assert (
-        unfiltered_growth < _UNFILTERED_GROWTH_BYTES
-    ), f"unfiltered allocation growth {unfiltered_growth} bytes"
+    assert unfiltered_growth < _UNFILTERED_GROWTH_BYTES, (
+        f"unfiltered allocation growth {unfiltered_growth} bytes"
+    )
     assert rss_growth < _RSS_CANARY_BYTES, f"RSS growth {rss_growth} bytes"

@@ -85,7 +85,9 @@ class _CollectionState:
             tmp_path = os.path.join(self.directory, tmp_name)
             if os.path.isfile(tmp_path):
                 if os.path.isfile(final_path):
-                    logger.warning("Discarding stale %s for collection dir %s", tmp_name, self.directory)
+                    logger.warning(
+                        "Discarding stale %s for collection dir %s", tmp_name, self.directory
+                    )
                     os.remove(tmp_path)
                 else:
                     os.replace(tmp_path, final_path)
@@ -206,9 +208,7 @@ class _CollectionState:
         return removed
 
     def reset(self) -> None:
-        self._set_contents(
-            np.empty((0, self.dimension), dtype=_F32), [], [], [], []
-        )
+        self._set_contents(np.empty((0, self.dimension), dtype=_F32), [], [], [], [])
 
     # -- helpers -----------------------------------------------------------
 
@@ -336,7 +336,14 @@ class EmbeddingStore:
         meta["text"] = text
         self._append(
             [embedding],
-            [{"doc_id": doc_id, "note_id": str(meta.get("note_id", "")), "text": text, "metadata": meta}],
+            [
+                {
+                    "doc_id": doc_id,
+                    "note_id": str(meta.get("note_id", "")),
+                    "text": text,
+                    "metadata": meta,
+                }
+            ],
         )
 
     def _append(self, embeddings: list[list[float]], rows: list[dict[str, Any]]) -> None:

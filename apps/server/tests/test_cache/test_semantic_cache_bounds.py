@@ -86,8 +86,7 @@ async def test_cache_is_bounded_to_max_entries(monkeypatch) -> None:
 
     await _drain_executor()
     assert _question_count() <= _MAX_ENTRIES, (
-        f"cache must stay bounded to {_MAX_ENTRIES} entries "
-        f"(found {_question_count()})"
+        f"cache must stay bounded to {_MAX_ENTRIES} entries (found {_question_count()})"
     )
 
     # The most recent entries must survive eviction (oldest are evicted).
