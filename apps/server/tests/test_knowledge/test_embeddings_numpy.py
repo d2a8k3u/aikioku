@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import threading
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
@@ -270,38 +271,28 @@ class TestThreadSafety:
         for i in range(20):
             store.add_document(f"n{i}#c0", f"doc {i}", [1.0, 0.0, 0.0, 0.0], {"note_id": f"n{i}"})
 
-        errors: list[BaseException] = []
         barrier = threading.Barrier(6)
 
         def _reader() -> None:
             barrier.wait()
-            try:
-                for _ in range(30):
-                    results = store.search([1.0, 0.0, 0.0, 0.0], limit=5)
-                    assert len(results) == 5
-                    assert all(0.0 <= r["score"] <= 1.0 for r in results)
-            except BaseException as e:  # noqa: BLE001 - pragma: no cover (failure plumbing)
-                errors.append(e)
+            for _ in range(30):
+                results = store.search([1.0, 0.0, 0.0, 0.0], limit=5)
+                assert len(results) == 5
+                assert all(0.0 <= r["score"] <= 1.0 for r in results)
 
         def _writer() -> None:
             barrier.wait()
-            try:
-                for i in range(10):
-                    store.add_document(
-                        f"w{i}#c0", f"writer {i}", [1.0, 0.0, 0.0, 0.0], {"note_id": f"w{i}"}
-                    )
-            except BaseException as e:  # noqa: BLE001 - pragma: no cover (failure plumbing)
-                errors.append(e)
+            for i in range(10):
+                store.add_document(
+                    f"w{i}#c0", f"writer {i}", [1.0, 0.0, 0.0, 0.0], {"note_id": f"w{i}"}
+                )
 
-        threads = [threading.Thread(target=_reader) for _ in range(5)] + [
-            threading.Thread(target=_writer)
-        ]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join(timeout=30)
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            futures = [pool.submit(_reader) for _ in range(5)]
+            futures.append(pool.submit(_writer))
+            for future in futures:
+                future.result(timeout=30)
 
-        assert errors == []
         assert store.count() == 30
         assert len(store.search([1.0, 0.0, 0.0, 0.0], limit=50)) == 30
 

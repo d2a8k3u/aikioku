@@ -10,17 +10,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Request
 
-from src.auth import UserInDB, require_auth
+from src.auth import CurrentUser
 from src.processing.budget_status import compute_status
 
 router = APIRouter(prefix="/api/budget", tags=["budget"])
 
 
 @router.get("/status")
-async def budget_status(
-    request: Request, _user: UserInDB = Depends(require_auth)
-) -> dict[str, Any]:
+async def budget_status(request: Request, _user: CurrentUser) -> dict[str, Any]:
     """Return the current daily-budget state, spend figures, and queue depth."""
     return compute_status(request.app)

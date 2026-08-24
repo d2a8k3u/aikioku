@@ -26,18 +26,19 @@ from collections.abc import AsyncIterator
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, cast
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Request
+from fastapi import APIRouter, BackgroundTasks, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, field_validator
 
 from src import runtime_config
-from src.auth import UserInDB, require_auth
+from src.api.websocket import get_broadcaster
+from src.auth import CurrentUser
 from src.cache.semantic_cache import cache_get, cache_put
 from src.config import settings
 from src.limiter import limiter
 from src.storage.note_store import NoteStore
-from src.api.websocket import get_broadcaster
 from src.utils.background import spawn_background as _spawn_background
+from src.utils.clock import utc_now_naive
 
 if TYPE_CHECKING:
     from src.reasoning.multi_hop import MultiHopReasoner
@@ -296,7 +297,7 @@ async def _capture_turn(
     # Outer guard: this often runs fire-and-forget (streaming path), so an
     # unhandled error here would surface only as an orphaned-task warning.
     try:
-        created = datetime.utcnow()
+        created = utc_now_naive()
 
         # Promote the placeholder assistant message to final content.
         try:
@@ -392,7 +393,7 @@ async def chat(
     request: Request,
     body: ChatRequest,
     background_tasks: BackgroundTasks,
-    user: UserInDB = Depends(require_auth),
+    user: CurrentUser,
 ) -> dict[str, Any]:
     """Process a chat query using RAG or multi-hop reasoning.
 
@@ -439,9 +440,9 @@ async def chat(
 async def chat_stream_get(
     request: Request,
     query: str,
+    user: CurrentUser,
     mode: str = "simple",
     tone: str = "warm",
-    user: UserInDB = Depends(require_auth),
 ) -> StreamingResponse:
     """Stream a chat response via Server-Sent Events (GET)."""
     if mode not in ("simple", "multi_hop"):
@@ -456,7 +457,7 @@ async def chat_stream_get(
 async def chat_stream(
     request: Request,
     body: ChatRequest,
-    user: UserInDB = Depends(require_auth),
+    user: CurrentUser,
 ) -> StreamingResponse:
     """Stream a chat response via Server-Sent Events (POST)."""
     return await _stream_chat(request, body.query, body.mode, user.username, body.tone)
@@ -498,7 +499,7 @@ async def _build_context_progressive(
             rag.build_context(query, note_store, history=history),
             timeout=_CONTEXT_BUILD_TIMEOUT_S,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning(
             "Context build timed out after %ds; falling back to raw snippets",
             _CONTEXT_BUILD_TIMEOUT_S,
@@ -692,7 +693,7 @@ async def _stream_chat(
                     while True:
                         remaining = deadline - asyncio.get_event_loop().time()
                         if remaining <= 0:
-                            raise asyncio.TimeoutError("Stream total timeout exceeded")
+                            raise TimeoutError("Stream total timeout exceeded")
                         try:
                             chunk = await asyncio.wait_for(
                                 stream.__anext__(), timeout=min(remaining, 30.0)
@@ -701,7 +702,7 @@ async def _stream_chat(
                             yield _sse("message", {"chunk": chunk})
                         except StopAsyncIteration:
                             return
-                        except asyncio.TimeoutError:
+                        except TimeoutError:
                             # Per-chunk timeout — the stream stalled. If we have
                             # partial content, stop gracefully; otherwise raise.
                             if answer_parts:
@@ -711,7 +712,7 @@ async def _stream_chat(
                 try:
                     async for event in _stream_with_timeout():
                         yield event
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     if answer_parts:
                         pass  # partial answer is fine
                     else:
@@ -725,6 +726,7 @@ async def _stream_chat(
                 except Exception:
                     # Degrade gracefully: emit the system prompt as a single chunk so
                     # the client receives something rather than an empty stream.
+                    logger.exception("chat stream: greeting generation failed")
                     yield _sse("message", {"chunk": system_prompt})
 
                 answer = "".join(answer_parts)
@@ -778,6 +780,7 @@ async def _stream_chat(
                 except asyncio.CancelledError:
                     raise  # handled by finally
                 except Exception:
+                    logger.exception("chat stream: chunked answer delivery failed")
                     yield _sse("message", {"chunk": answer})
                 _spawn_background(
                     request.app,

@@ -135,12 +135,14 @@ class TestStrictModeRaises:
             strict_embeddings=True,
             hf_api_key="",  # no HF fallback
         )
-        with patch(
-            "httpx.AsyncClient.post",
-            new=AsyncMock(side_effect=httpx.ConnectError("down")),
+        with (
+            patch(
+                "httpx.AsyncClient.post",
+                new=AsyncMock(side_effect=httpx.ConnectError("down")),
+            ),
+            pytest.raises(EmbeddingUnavailableError) as excinfo,
         ):
-            with pytest.raises(EmbeddingUnavailableError) as excinfo:
-                await provider.embed("hello world")
+            await provider.embed("hello world")
 
         # Message should name the model and the embedding base url.
         msg = str(excinfo.value)
@@ -158,9 +160,11 @@ class TestStrictModeRaises:
         mock_resp.status_code = 401
         mock_resp.json.return_value = {"error": "unauthorized"}
 
-        with patch("httpx.AsyncClient.post", new=AsyncMock(return_value=mock_resp)):
-            with pytest.raises(EmbeddingUnavailableError):
-                await provider.embed("x")
+        with (
+            patch("httpx.AsyncClient.post", new=AsyncMock(return_value=mock_resp)),
+            pytest.raises(EmbeddingUnavailableError),
+        ):
+            await provider.embed("x")
 
     @pytest.mark.asyncio
     async def test_strict_skips_hf_fallback(self):
@@ -177,9 +181,9 @@ class TestStrictModeRaises:
                 "httpx.AsyncClient.post",
                 new=AsyncMock(side_effect=httpx.ConnectError("down")),
             ),
+            pytest.raises(EmbeddingUnavailableError),
         ):
-            with pytest.raises(EmbeddingUnavailableError):
-                await provider.embed("x")
+            await provider.embed("x")
 
         mock_hf.assert_not_awaited()
 
@@ -291,7 +295,7 @@ class TestRealHostEmbeddings:
             probe = resp.json().get("embeddings", [[]])[0]
             if not probe:
                 pytest.skip("Host embedder returned empty vector; skipping.")
-        except Exception as exc:  # noqa: BLE001
+        except (httpx.HTTPError, OSError, ValueError, IndexError) as exc:
             pytest.skip(f"Host embedder {model} at {base} unreachable: {exc}")
 
         provider = OllamaRemoteProvider(

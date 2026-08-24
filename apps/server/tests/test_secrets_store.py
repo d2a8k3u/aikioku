@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from src import secrets_store, runtime_config
+from src import runtime_config, secrets_store
 from src.config import settings
 
 

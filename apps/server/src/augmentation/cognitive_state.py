@@ -8,10 +8,10 @@ appropriate AI intervention levels.
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from uuid import uuid4
 
 from src.events import EventBus
@@ -70,7 +70,7 @@ class CognitiveStateTracker:
     cognitive state and the appropriate AI intervention.
     """
 
-    def __init__(self, event_bus: EventBus, db_path: Optional[str] = None) -> None:
+    def __init__(self, event_bus: EventBus, db_path: str | None = None) -> None:
         """Initialize the tracker.
 
         Args:
@@ -108,7 +108,7 @@ class CognitiveStateTracker:
         self,
         signal_type: str,
         value: float,
-        timestamp: Optional[datetime] = None,
+        timestamp: datetime | None = None,
     ) -> None:
         """Store a behavioural signal.
 
@@ -118,7 +118,7 @@ class CognitiveStateTracker:
             timestamp: When the signal occurred. Defaults to now (UTC).
         """
         if timestamp is None:
-            timestamp = datetime.now(timezone.utc)
+            timestamp = datetime.now(UTC)
 
         signal_id = str(uuid4())
         with sqlite3.connect(self._db_path) as conn:
@@ -139,7 +139,7 @@ class CognitiveStateTracker:
         Returns:
             The classified CognitiveState.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         cutoff = now - __import__("datetime").timedelta(seconds=window_seconds)
         cutoff_str = cutoff.isoformat()
 

@@ -138,7 +138,7 @@ class MultiHopReasoner:
                     self._rag.generate(sub_q, note_store),
                     timeout=_SUB_Q_TIMEOUT_S,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning("Sub-question timed out, dropping: %s", sub_q)
                 return None
             except Exception:

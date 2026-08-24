@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 
-_BASE = datetime(2026, 6, 10, 12, 0, 0, tzinfo=timezone.utc)
+_BASE = datetime(2026, 6, 10, 12, 0, 0, tzinfo=UTC)
 
 
 @pytest.fixture

@@ -3,25 +3,27 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from src.auth import (
+    CurrentUser,
     Token,
+    _get_user,
     create_access_token,
     register_user,
-    require_auth,
     verify_password,
-    _get_user,
-    UserInDB,
 )
+
+LoginForm = Annotated[OAuth2PasswordRequestForm, Depends()]
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=Token)
-async def auth_register(form_data: OAuth2PasswordRequestForm = Depends()) -> Token:
+async def auth_register(form_data: LoginForm) -> Token:
     """Register a new user and return a JWT access token."""
     if _get_user(form_data.username) is not None:
         raise HTTPException(
@@ -41,7 +43,7 @@ async def auth_register(form_data: OAuth2PasswordRequestForm = Depends()) -> Tok
 
 
 @router.post("/login", response_model=Token)
-async def auth_login(form_data: OAuth2PasswordRequestForm = Depends()) -> Token:
+async def auth_login(form_data: LoginForm) -> Token:
     """Authenticate an existing user and return a JWT access token."""
     user = _get_user(form_data.username)
     if user is None or not verify_password(form_data.password, user.hashed_password):
@@ -58,6 +60,6 @@ async def auth_login(form_data: OAuth2PasswordRequestForm = Depends()) -> Token:
 
 
 @router.get("/me")
-async def auth_me(user: UserInDB = Depends(require_auth)) -> dict[str, str]:
+async def auth_me(user: CurrentUser) -> dict[str, str]:
     """Return the currently authenticated user's profile."""
     return {"username": user.username, "email": user.email}

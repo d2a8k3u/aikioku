@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Callable
-from typing import Any
+from typing import Any, ClassVar
 
 from src.events import EventBus
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class PluginAPI:
     """API surface for plugin interactions with EventBus hook wiring."""
 
-    _VALID_HOOKS: set[str] = {"onNoteSave", "onQuery", "onReview"}
+    _VALID_HOOKS: ClassVar[set[str]] = {"onNoteSave", "onQuery", "onReview"}
 
     def __init__(self, event_bus: EventBus | None = None) -> None:
         self._hooks: dict[str, list[Callable[..., Any]]] = {}
@@ -48,8 +48,8 @@ class PluginAPI:
                     results.append(None)
                 else:
                     results.append(handler(*args, **kwargs))
-            except Exception as exc:
-                logger.error("plugin_hook_error: %s - %s", hook_name, str(exc))
+            except Exception:
+                logger.exception("plugin_hook_error: %s", hook_name)
                 results.append(None)
         return results
 
@@ -62,8 +62,8 @@ class PluginAPI:
                     results.append(await handler(*args, **kwargs))
                 else:
                     results.append(handler(*args, **kwargs))
-            except Exception as exc:
-                logger.error("plugin_hook_error_async: %s - %s", hook_name, str(exc))
+            except Exception:
+                logger.exception("plugin_hook_error_async: %s", hook_name)
                 results.append(None)
         return results
 

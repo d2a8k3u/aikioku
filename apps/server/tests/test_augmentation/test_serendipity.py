@@ -7,10 +7,10 @@ import tempfile
 
 import pytest
 
+from src.augmentation.serendipity import SerendipityEngine
 from src.knowledge.graph import KnowledgeGraph
 from src.models.entity import Entity, EntityType
 from src.models.relation import Relation, RelationType
-from src.augmentation.serendipity import SerendipityEngine
 
 
 @pytest.fixture
@@ -117,7 +117,7 @@ class TestSurpriseScore:
         assert 0.0 <= score <= 1.0
 
     def test_high_degree_lower_score(self, tmp_graph):
-        kg, e1, e2, e3, e4, e5 = tmp_graph
+        kg, e1, _e2, _e3, e4, _e5 = tmp_graph
         engine = SerendipityEngine(graph=kg)
         # e1 has degree 2, isolated would have 0
         score_e1 = engine.surprise_score(e1.id)

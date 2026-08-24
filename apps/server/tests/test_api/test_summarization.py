@@ -66,11 +66,11 @@ class TestSummarizeNote:
         assert "summary" in data
 
     def test_nonexistent_note_returns_404(self, client):
-        cli, note = client
+        cli, _note = client
         response = cli.post("/api/notes/00000000-0000-0000-0000-000000000000/summarize")
         assert response.status_code == 404
 
     def test_invalid_uuid_returns_422(self, client):
-        cli, note = client
+        cli, _note = client
         response = cli.post("/api/notes/not-a-uuid/summarize")
         assert response.status_code == 422

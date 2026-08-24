@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -64,7 +64,7 @@ def enqueue(work_type: str, entity_id: str, payload: dict[str, Any]) -> None:
     attempt counter rather than creating a duplicate row.
     """
     _ensure_table()
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     with _connect() as conn:
         conn.execute(
             """

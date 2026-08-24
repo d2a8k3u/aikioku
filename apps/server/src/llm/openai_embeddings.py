@@ -8,7 +8,8 @@ OpenAI's ``POST /v1/embeddings``. Strict/fallback behavior mirrors
 from __future__ import annotations
 
 import logging
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 import httpx
 
@@ -55,7 +56,7 @@ class OpenAIEmbeddingProvider(LLMProvider):
                     vec = data[0].get("embedding")
                     if vec:
                         return list(vec)
-        except Exception as exc:
+        except (httpx.HTTPError, ValueError, TypeError) as exc:
             logger.debug("OpenAI embed failed for %s at %s: %s", self.model, embed_url, exc)
 
         if self.strict_embeddings:
@@ -98,4 +99,5 @@ class OpenAIEmbeddingProvider(LLMProvider):
             urllib.request.urlopen(req, timeout=5)
             return True
         except Exception:
+            logger.debug("openai availability probe failed for %s", self.base_url, exc_info=True)
             return False

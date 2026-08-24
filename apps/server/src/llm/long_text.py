@@ -82,7 +82,7 @@ async def _summarize_chunk(llm: LLMProvider, chunk: str) -> str:
             timeout=_CHUNK_TIMEOUT_S,
         )
         return (summary or chunk).strip()
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("condense: chunk summary timed out; keeping verbatim")
         return chunk
     except Exception:
@@ -125,7 +125,7 @@ async def condense_for_prompt(
 
     try:
         return await asyncio.wait_for(_fold(), timeout=_TOTAL_TIMEOUT_S)
-    except (asyncio.TimeoutError, asyncio.CancelledError):
+    except (TimeoutError, asyncio.CancelledError):
         logger.warning(
             "condense: total timeout/cancellation exceeded (%ds); returning raw text",
             _TOTAL_TIMEOUT_S,

@@ -12,6 +12,7 @@ lazily rebuilt on first use when missing or out of sync.
 
 from __future__ import annotations
 
+import builtins
 import json
 import os
 import re
@@ -19,11 +20,12 @@ import sqlite3
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, cast
+from typing import cast
 
 import yaml
 
 from src.models.note import Note
+from src.utils.clock import utc_now_naive
 
 # A note_index row: (id, path, title, tags_json, source_type, created, modified, mtime).
 _IndexRow = tuple[str, str, str, str, str, str, str, float]
@@ -69,7 +71,7 @@ def _markdown_to_note(content: str, note_path: str) -> Note:
     metadata = yaml.safe_load(yaml_text)
 
     if not isinstance(metadata, dict):
-        raise ValueError(f"Invalid frontmatter in {note_path}")
+        raise TypeError(f"Invalid frontmatter in {note_path}")
 
     frontmatter = {}
     if "tags" in metadata:
@@ -81,13 +83,13 @@ def _markdown_to_note(content: str, note_path: str) -> Note:
     if isinstance(created, str):
         created = datetime.fromisoformat(created)
     elif not isinstance(created, datetime):
-        created = datetime.utcnow()
+        created = utc_now_naive()
 
     modified = metadata.get("modified")
     if isinstance(modified, str):
         modified = datetime.fromisoformat(modified)
     elif not isinstance(modified, datetime):
-        modified = datetime.utcnow()
+        modified = utc_now_naive()
 
     return Note(
         id=metadata.get("id", str(uuid.uuid4())),
@@ -130,7 +132,7 @@ class NoteStore:
     operations so they do not scan the whole corpus.
     """
 
-    def __init__(self, notes_dir: str, index_db_path: Optional[str] = None) -> None:
+    def __init__(self, notes_dir: str, index_db_path: str | None = None) -> None:
         """Initialize NoteStore.
 
         Args:
@@ -271,7 +273,7 @@ class NoteStore:
             try:
                 content = md_file.read_text(encoding="utf-8")
                 note = _markdown_to_note(content, str(md_file))
-            except (ValueError, OSError):
+            except (TypeError, ValueError, OSError):
                 continue
             disk_ids.add(note.id)
             rows.append(self._row_from_note(note))
@@ -313,7 +315,7 @@ class NoteStore:
         self._upsert_index(note)
         return note
 
-    def get(self, note_id: str) -> Optional[Note]:
+    def get(self, note_id: str) -> Note | None:
         """Retrieve a note by its ID. Returns None if not found."""
         file_path = self._file_path(note_id)
         if not file_path.exists():
@@ -326,7 +328,7 @@ class NoteStore:
         if note.modified.tzinfo is not None:
             note.modified = datetime.now(tz=note.modified.tzinfo)
         else:
-            note.modified = datetime.utcnow()
+            note.modified = utc_now_naive()
         file_path = self._file_path(note.id)
         content = _note_to_markdown(note)
         _atomic_write_text(file_path, content)
@@ -360,7 +362,7 @@ class NoteStore:
         finally:
             conn.close()
 
-    def _read_note_file(self, note_id: str, fallback_path: str) -> Optional[Note]:
+    def _read_note_file(self, note_id: str, fallback_path: str) -> Note | None:
         """Read and parse a single note file by id, returning None if missing/invalid."""
         file_path = self._file_path(note_id)
         if not file_path.exists():
@@ -368,10 +370,12 @@ class NoteStore:
         try:
             content = file_path.read_text(encoding="utf-8")
             return _markdown_to_note(content, str(file_path))
-        except (ValueError, OSError):
+        except (TypeError, ValueError, OSError):
             return None
 
-    def list(self, skip: int = 0, limit: int = 50, source_type: str | None = None) -> List[Note]:
+    def list(
+        self, skip: int = 0, limit: int = 50, source_type: str | None = None
+    ) -> builtins.list[Note]:
         """Return a page of notes ordered by ``modified`` DESC.
 
         Reads ONLY the page's files (at most ``limit``), using the index to pick
@@ -411,7 +415,7 @@ class NoteStore:
                 notes.append(note)
         return notes
 
-    def list_all(self) -> List[Note]:
+    def list_all(self) -> builtins.list[Note]:
         """List all notes in the storage directory (full scan, for back-fill/compat).
 
         Skips files that fail to parse — e.g. an empty/truncated .md left by an
@@ -423,12 +427,12 @@ class NoteStore:
             try:
                 content = md_file.read_text(encoding="utf-8")
                 note = _markdown_to_note(content, str(md_file))
-            except (ValueError, OSError):
+            except (TypeError, ValueError, OSError):
                 continue
             notes.append(note)
         return notes
 
-    def search(self, query: str) -> List[Note]:
+    def search(self, query: str) -> builtins.list[Note]:
         """Full-text search across note titles and content (case-insensitive).
 
         Hidden notes (e.g. agent-written memories) are excluded — they are
@@ -445,7 +449,7 @@ class NoteStore:
             if query_lower in note.title.lower() or query_lower in note.content.lower()
         ]
 
-    def get_by_tag(self, tag: str) -> List[Note]:
+    def get_by_tag(self, tag: str) -> builtins.list[Note]:
         """Return all notes that have the given tag (case-insensitive).
 
         Uses the index to find matching ids, then reads ONLY those files.
@@ -474,7 +478,7 @@ class NoteStore:
                     results.append(note)
         return results
 
-    def get_by_path(self, path: str) -> Optional[Note]:
+    def get_by_path(self, path: str) -> Note | None:
         """Retrieve a note by its file path. Returns None if not found.
 
         Index lookup by path -> read that one file.

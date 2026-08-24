@@ -12,6 +12,7 @@ from src.llm.json_parse import parse_llm_json
 from src.models.card import Card, CardStatus, CardType
 from src.models.note import Note
 from src.storage.note_store import NoteStore
+from src.utils.clock import utc_now_naive
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +99,7 @@ class SpacedRepetition:
         raw_cards = cast("list[Any]", parse_llm_json(response, expect="list"))
 
         cards: list[Card] = []
-        now = datetime.utcnow()
+        now = utc_now_naive()
         for raw in raw_cards:
             try:
                 card = Card(
@@ -146,7 +147,7 @@ class SpacedRepetition:
         Returns:
             A list of Card objects where next_review <= now.
         """
-        now = datetime.utcnow().isoformat()
+        now = utc_now_naive().isoformat()
         conn = self._get_conn()
         rows = conn.execute(
             "SELECT * FROM cards WHERE next_review <= ? ORDER BY next_review ASC LIMIT ?",
@@ -209,7 +210,7 @@ class SpacedRepetition:
             card.repetitions += 1
             card.status = CardStatus.review
 
-        card.next_review = datetime.utcnow() + timedelta(days=card.interval)
+        card.next_review = utc_now_naive() + timedelta(days=card.interval)
 
         # Persist
         row_data = self._card_to_row(card)
@@ -232,7 +233,7 @@ class SpacedRepetition:
             A dict with keys: total, due, new, learning, review.
         """
         conn = self._get_conn()
-        now = datetime.utcnow().isoformat()
+        now = utc_now_naive().isoformat()
 
         total = conn.execute("SELECT COUNT(*) FROM cards").fetchone()[0]
         due = conn.execute("SELECT COUNT(*) FROM cards WHERE next_review <= ?", (now,)).fetchone()[

@@ -45,7 +45,7 @@ async def _get_card_count(request: Request) -> int:
         conn = sqlite3.connect(settings.sqlite_db_path)
         total: int = conn.execute("SELECT COUNT(*) FROM cards").fetchone()[0]
         conn.close()
-    except Exception:
+    except (sqlite3.Error, TypeError):
         total = 0
     return total
 

@@ -2,19 +2,19 @@
 
 from __future__ import annotations
 
-import bcrypt
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated, Any, cast
 
+import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt  # type: ignore[import-untyped]
 from pydantic import BaseModel
 
-from src.config import settings
 from src import runtime_config
+from src.config import settings
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 7
@@ -75,9 +75,7 @@ def get_password_hash(password: str) -> str:
 
 def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + (
-        expires_delta or timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
-    )
+    expire = datetime.now(UTC) + (expires_delta or timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS))
     to_encode.update({"exp": expire})
     return cast(str, jwt.encode(to_encode, get_secret_key(), algorithm=ALGORITHM))
 
@@ -128,7 +126,7 @@ def register_user(username: str, email: str, password: str) -> UserInDB:
                 user.username,
                 user.email,
                 user.hashed_password,
-                datetime.now(timezone.utc).isoformat(),
+                datetime.now(UTC).isoformat(),
             ),
         )
     return user
@@ -180,3 +178,6 @@ async def require_auth(
         email="anonymous@local",
         hashed_password="",
     )
+
+
+CurrentUser = Annotated[UserInDB, Depends(require_auth)]

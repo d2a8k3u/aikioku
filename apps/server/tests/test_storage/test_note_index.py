@@ -9,7 +9,7 @@ is a cache that is kept in sync incrementally and repaired by reindex().
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -21,7 +21,7 @@ from src.storage.note_store import NoteStore
 def _make_note(suffix: str, *, tags=None, modified=None, title=None) -> Note:
     """Build a Note with deterministic, distinguishable fields."""
     nid = f"00000000-0000-0000-0000-{int(suffix):012d}"
-    base = datetime(2026, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
+    base = datetime(2026, 6, 1, 0, 0, 0, tzinfo=UTC)
     return Note(
         id=nid,
         title=title or f"Note {suffix}",
@@ -111,7 +111,7 @@ class TestPagination:
             store.create(
                 _make_note(
                     str(i),
-                    modified=datetime(2026, 6, i, 0, 0, 0, tzinfo=timezone.utc),
+                    modified=datetime(2026, 6, i, 0, 0, 0, tzinfo=UTC),
                 )
             )
         page = store.list(skip=0, limit=3)
@@ -123,7 +123,7 @@ class TestPagination:
             store.create(
                 _make_note(
                     str(i),
-                    modified=datetime(2026, 6, i, 0, 0, 0, tzinfo=timezone.utc),
+                    modified=datetime(2026, 6, i, 0, 0, 0, tzinfo=UTC),
                 )
             )
         page = store.list(skip=2, limit=2)
@@ -135,7 +135,7 @@ class TestPagination:
             store.create(
                 _make_note(
                     str(i),
-                    modified=datetime(2026, 6, (i % 28) + 1, 0, 0, 0, tzinfo=timezone.utc),
+                    modified=datetime(2026, 6, (i % 28) + 1, 0, 0, 0, tzinfo=UTC),
                 )
             )
 
@@ -296,9 +296,7 @@ class TestScale:
             store.create(
                 _make_note(
                     str(i),
-                    modified=datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc).replace(
-                        second=i % 60
-                    ),
+                    modified=datetime(2026, 1, 1, 0, 0, 0, tzinfo=UTC).replace(second=i % 60),
                 )
             )
 

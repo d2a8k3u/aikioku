@@ -5,7 +5,7 @@ BOD 1: Notes vs Memories distinction.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -16,7 +16,7 @@ from src.storage.note_store import NoteStore
 
 def _make_note(suffix: str, *, modified=None) -> Note:
     nid = f"00000000-0000-0000-0000-{int(suffix):012d}"
-    base = datetime(2026, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
+    base = datetime(2026, 6, 1, 0, 0, 0, tzinfo=UTC)
     return Note(
         id=nid,
         title=f"Note {suffix}",
@@ -32,8 +32,8 @@ def _make_note(suffix: str, *, modified=None) -> Note:
 @pytest.fixture
 def wired_client(tmp_path):
     """A TestClient whose notes router uses a real temp-dir NoteStore."""
-    from src.main import app
     from src.api import notes as notes_mod
+    from src.main import app
 
     notes_dir = str(tmp_path / "notes")
     store = NoteStore(notes_dir)
@@ -49,7 +49,7 @@ class TestUserCreatedNoteHasSourceTypeNote:
     """User-created notes (via REST API) should have source_type='note'."""
 
     def test_create_note_via_api_has_source_type_note(self, wired_client):
-        client, store = wired_client
+        client, _store = wired_client
         note = _make_note("1")
         resp = client.post("/api/notes/", json=note.model_dump(mode="json"))
         assert resp.status_code == 200
@@ -94,8 +94,8 @@ class TestListNotesSourceTypeFilter:
             links=[],
             path="/notes/memory-20.md",
             source_type="memory",
-            created=datetime(2026, 6, 1, tzinfo=timezone.utc),
-            modified=datetime(2026, 6, 1, tzinfo=timezone.utc),
+            created=datetime(2026, 6, 1, tzinfo=UTC),
+            modified=datetime(2026, 6, 1, tzinfo=UTC),
         )
         store.create(note2)
 
@@ -119,8 +119,8 @@ class TestListNotesSourceTypeFilter:
             links=[],
             path="/notes/memory-21.md",
             source_type="memory",
-            created=datetime(2026, 6, 1, tzinfo=timezone.utc),
-            modified=datetime(2026, 6, 1, tzinfo=timezone.utc),
+            created=datetime(2026, 6, 1, tzinfo=UTC),
+            modified=datetime(2026, 6, 1, tzinfo=UTC),
         )
         store.create(note2)
 
@@ -143,8 +143,8 @@ class TestListNotesSourceTypeFilter:
             links=[],
             path="/notes/memory-22.md",
             source_type="memory",
-            created=datetime(2026, 6, 1, tzinfo=timezone.utc),
-            modified=datetime(2026, 6, 1, tzinfo=timezone.utc),
+            created=datetime(2026, 6, 1, tzinfo=UTC),
+            modified=datetime(2026, 6, 1, tzinfo=UTC),
         )
         store.create(note2)
 
@@ -157,7 +157,7 @@ class TestListNotesSourceTypeFilter:
 
 
 def _make_hidden(suffix: str) -> Note:
-    base = datetime(2026, 6, 1, tzinfo=timezone.utc)
+    base = datetime(2026, 6, 1, tzinfo=UTC)
     return Note(
         id=f"00000000-0000-0000-0000-9{int(suffix):011d}",
         title=f"Hidden {suffix}",
@@ -211,7 +211,7 @@ class TestReindexPreservesSourceType:
     """Reindex must preserve source_type from YAML frontmatter."""
 
     def test_reindex_restores_source_type(self, wired_client):
-        client, store = wired_client
+        _client, store = wired_client
         note = Note(
             id="00000000-0000-0000-0000-000000000030",
             title="Memory 30",
@@ -220,8 +220,8 @@ class TestReindexPreservesSourceType:
             links=[],
             path="/notes/memory-30.md",
             source_type="memory",
-            created=datetime(2026, 6, 1, tzinfo=timezone.utc),
-            modified=datetime(2026, 6, 1, tzinfo=timezone.utc),
+            created=datetime(2026, 6, 1, tzinfo=UTC),
+            modified=datetime(2026, 6, 1, tzinfo=UTC),
         )
         store.create(note)
 
@@ -238,7 +238,7 @@ class TestBackwardCompatibility:
     """Old notes without source_type in frontmatter should default to 'note'."""
 
     def test_old_note_without_source_type_defaults_to_note(self, wired_client):
-        client, store = wired_client
+        _client, store = wired_client
         # Write a markdown file without source_type in frontmatter
         note_id = "00000000-0000-0000-0000-000000000040"
         file_path = store._file_path(note_id)

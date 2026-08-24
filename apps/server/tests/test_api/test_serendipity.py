@@ -13,9 +13,9 @@ from fastapi.testclient import TestClient
 def client():
     """Create a FastAPI TestClient with a seeded KnowledgeGraph."""
     from src.knowledge.graph import KnowledgeGraph
+    from src.main import app
     from src.models.entity import Entity, EntityType
     from src.models.relation import Relation, RelationType
-    from src.main import app
 
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = os.path.join(tmpdir, "test_kg.db")
@@ -50,7 +50,7 @@ def client():
 
 class TestRandomWalk:
     def test_returns_path(self, client):
-        cli, e1, e2, e3 = client
+        cli, e1, _e2, _e3 = client
         response = cli.post(f"/api/serendipity/walk?start_entity_id={e1.id}&steps=3")
         assert response.status_code == 200
         data = response.json()
@@ -59,21 +59,21 @@ class TestRandomWalk:
         assert data["path"][0] == e1.id
 
     def test_path_length_within_steps(self, client):
-        cli, e1, e2, e3 = client
+        cli, e1, _e2, _e3 = client
         response = cli.post(f"/api/serendipity/walk?start_entity_id={e1.id}&steps=2")
         assert response.status_code == 200
         data = response.json()
         assert len(data["path"]) <= 3  # start + up to 2 steps
 
     def test_missing_start_entity_returns_422(self, client):
-        cli, *rest = client
+        cli, *_rest = client
         response = cli.post("/api/serendipity/walk?steps=3")
         assert response.status_code == 422
 
 
 class TestSurpriseScore:
     def test_returns_score(self, client):
-        cli, e1, e2, e3 = client
+        cli, _e1, _e2, e3 = client
         response = cli.get(f"/api/serendipity/surprise?entity_id={e3.id}")
         assert response.status_code == 200
         data = response.json()
@@ -81,7 +81,7 @@ class TestSurpriseScore:
         assert 0.0 <= data["score"] <= 1.0
 
     def test_random_surprise_without_entity_id_returns_200(self, client):
-        cli, *rest = client
+        cli, *_rest = client
         response = cli.get("/api/serendipity/surprise")
         assert response.status_code == 200
         data = response.json()
@@ -89,7 +89,7 @@ class TestSurpriseScore:
         assert 0.0 <= data["score"] <= 1.0
 
     def test_isolated_entity_high_score(self, client):
-        cli, e1, e2, e3 = client
+        cli, _e1, _e2, _e3 = client
         # e3 has one relation (to e2), e1 has one relation (to e2)
         # Create an isolated entity
         from src.models.entity import Entity, EntityType

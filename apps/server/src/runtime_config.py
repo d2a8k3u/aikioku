@@ -19,8 +19,8 @@ import sqlite3
 import time
 from pathlib import Path
 
-from src.config import settings
 from src import secrets_store
+from src.config import settings
 
 _DB_TABLE = """
 CREATE TABLE IF NOT EXISTS app_settings (

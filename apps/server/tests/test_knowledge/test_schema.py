@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 from src.models.entity import EntityType
 from src.models.relation import RelationType
 

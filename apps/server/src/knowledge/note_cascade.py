@@ -100,8 +100,8 @@ def purge_note_artifacts(
         try:
             remove_note_vectors(note_id, embedding_store)
             result["vectors"] = True
-        except Exception as exc:
-            logger.error("note %s: vector cleanup failed: %s", note_id, exc, exc_info=True)
+        except Exception:
+            logger.exception("note %s: vector cleanup failed", note_id)
 
     if graph is not None:
         try:
@@ -111,9 +111,9 @@ def purge_note_artifacts(
             result["entities_trimmed"] = len(trimmed_ids)
             try:
                 result["cooccurrence_pruned"] = prune_cooccurrence_for_entities(trimmed_ids, graph)
-            except Exception as exc:
-                logger.error("note %s: co-occurrence prune failed: %s", note_id, exc, exc_info=True)
-        except Exception as exc:
-            logger.error("note %s: graph cleanup failed: %s", note_id, exc, exc_info=True)
+            except Exception:
+                logger.exception("note %s: co-occurrence prune failed", note_id)
+        except Exception:
+            logger.exception("note %s: graph cleanup failed", note_id)
 
     return result

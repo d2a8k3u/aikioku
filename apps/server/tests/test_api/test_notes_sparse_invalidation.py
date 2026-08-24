@@ -23,8 +23,8 @@ def wired_client(tmp_path, monkeypatch):
     Background entity-extraction and embedding tasks are stubbed so the test
     isolates the sparse-invalidation wiring.
     """
-    from src.main import app
     from src.api import notes as notes_mod
+    from src.main import app
 
     notes_dir = str(tmp_path / "notes")
     store = NoteStore(notes_dir)
@@ -52,14 +52,14 @@ _NOTE = {"title": "Docker Note", "content": "containers and zorptastic tokens", 
 
 
 def test_create_note_marks_sparse_dirty(wired_client):
-    client, store, sparse = wired_client
+    client, _store, sparse = wired_client
     resp = client.post("/api/notes/", json=_NOTE)
     assert resp.status_code == 200
     sparse.mark_dirty.assert_called()
 
 
 def test_update_note_marks_sparse_dirty(wired_client):
-    client, store, sparse = wired_client
+    client, _store, sparse = wired_client
     created = client.post("/api/notes/", json=_NOTE).json()
     sparse.mark_dirty.reset_mock()
 
@@ -70,7 +70,7 @@ def test_update_note_marks_sparse_dirty(wired_client):
 
 
 def test_delete_note_marks_sparse_dirty(wired_client):
-    client, store, sparse = wired_client
+    client, _store, sparse = wired_client
     created = client.post("/api/notes/", json=_NOTE).json()
     sparse.mark_dirty.reset_mock()
 
@@ -82,8 +82,8 @@ def test_delete_note_marks_sparse_dirty(wired_client):
 
 def test_create_note_without_fusion_does_not_error(tmp_path, monkeypatch):
     """When app.state.hybrid_fusion is unset, create still succeeds (getattr guard)."""
-    from src.main import app
     from src.api import notes as notes_mod
+    from src.main import app
 
     notes_dir = str(tmp_path / "notes")
     store = NoteStore(notes_dir)

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
-from typing import Any, AsyncIterator, cast
+import logging
+from collections.abc import AsyncIterator
+from typing import Any, cast
 
 import httpx
 
@@ -15,6 +17,8 @@ from src.llm.urls import (
     join,
     normalize_base,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class OllamaProvider(LLMProvider):
@@ -74,4 +78,5 @@ class OllamaProvider(LLMProvider):
             urllib.request.urlopen(join(self.base_url, OLLAMA_TAGS, dialect="ollama"), timeout=5)
             return True
         except Exception:
+            logger.debug("ollama availability probe failed for %s", self.base_url, exc_info=True)
             return False

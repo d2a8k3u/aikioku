@@ -103,7 +103,7 @@ class TestConnectionDiscovery:
             assert c.explanation
 
     def test_direct_connection_stronger_than_indirect(self, tmp_graph):
-        kg, emb, e1, e2, e3, e4, e5 = tmp_graph
+        kg, emb, e1, e2, _e3, e4, _e5 = tmp_graph
         cd = ConnectionDiscovery(graph=kg, embedding_store=emb)
         conns = cd.discover_connections(e1.id, max_distance=3)
         # Find direct vs indirect
@@ -122,7 +122,7 @@ class TestConnectionDiscovery:
         assert all(len(c.path) <= 2 for c in conns)
 
     def test_explanation_contains_entity_names(self, tmp_graph):
-        kg, emb, e1, e2, e3, e4, e5 = tmp_graph
+        kg, emb, e1, _e2, _e3, _e4, _e5 = tmp_graph
         cd = ConnectionDiscovery(graph=kg, embedding_store=emb)
         conns = cd.discover_connections(e1.id, max_distance=3)
         for c in conns:

@@ -5,8 +5,10 @@ from __future__ import annotations
 import logging
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
+
+from src.utils.clock import utc_now_naive
 
 if TYPE_CHECKING:
     from src.knowledge.graph import KnowledgeGraph
@@ -75,13 +77,13 @@ class AnomalyDetector:
                     result.note_id,
                     result.metric_value,
                     result.threshold,
-                    datetime.now(timezone.utc).isoformat(),
+                    datetime.now(UTC).isoformat(),
                 ),
             )
 
     def get_recent(self, hours: int = 24, limit: int = 100) -> list[dict[str, Any]]:
         """Return recent unresolved anomalies."""
-        cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+        cutoff = (datetime.now(UTC) - timedelta(hours=hours)).isoformat()
         with sqlite3.connect(self._db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -101,6 +103,7 @@ class AnomalyDetector:
         try:
             entities = graph.find_entities(limit=10000)
         except Exception:
+            logger.debug("anomaly scan: entity listing unavailable", exc_info=True)
             return results
         for entity in entities:
             if entity.confidence < 0.3:
@@ -122,11 +125,13 @@ class AnomalyDetector:
         try:
             entities = graph.find_entities(limit=10000)
         except Exception:
+            logger.debug("anomaly scan: entity listing unavailable", exc_info=True)
             return results
         for entity in entities:
             try:
                 relations = graph.get_relations(entity.id)
             except Exception:
+                logger.debug("anomaly scan: relations unavailable for %s", entity.id, exc_info=True)
                 continue
             if len(relations) == 0:
                 results.append(
@@ -149,7 +154,7 @@ class AnomalyDetector:
                 rows = conn.execute(
                     "SELECT id, subject, vitality_score FROM memories WHERE vitality_score < 0.2"
                 ).fetchall()
-        except Exception:
+        except sqlite3.Error:
             return results
         for row in rows:
             results.append(
@@ -168,12 +173,12 @@ class AnomalyDetector:
         results: list[AnomalyResult] = []
         try:
             with sqlite3.connect(db_path) as conn:
-                now = datetime.utcnow().isoformat()
+                now = utc_now_naive().isoformat()
                 due_count = conn.execute(
                     "SELECT COUNT(*) FROM cards WHERE next_review <= ?", (now,)
                 ).fetchone()[0]
                 total = conn.execute("SELECT COUNT(*) FROM cards").fetchone()[0]
-        except Exception:
+        except (sqlite3.Error, TypeError):
             return results
         if total > 0 and due_count / total > 0.5:
             results.append(

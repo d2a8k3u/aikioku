@@ -11,13 +11,13 @@ import json
 import logging
 import os
 import random
-from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 import kuzu
 
 from src.models.entity import Entity, EntityType
 from src.models.relation import Relation, RelationType
+from src.utils.clock import utc_now_naive
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ class KnowledgeGraph:
                 "PRIMARY KEY (id))"
             )
         except Exception:
-            pass
+            logger.debug("Kuzu Entity table already present", exc_info=True)
 
         try:
             self._conn.execute(
@@ -52,7 +52,7 @@ class KnowledgeGraph:
                 "type STRING, confidence DOUBLE, properties STRING, created STRING)"
             )
         except Exception:
-            pass
+            logger.debug("Kuzu RELATES_TO table already present", exc_info=True)
 
     def _query(self, query: str, params: dict[str, Any] | None = None) -> list[list[Any]]:
         """Execute a query and return rows as positional lists, narrowing the Kuzu union type."""
@@ -109,7 +109,7 @@ class KnowledgeGraph:
 
     def create_entity(self, entity: Entity) -> Entity:
         """Add or replace an entity in Kuzu."""
-        now = datetime.utcnow().isoformat()
+        now = utc_now_naive().isoformat()
         data = self._entity_to_dict(entity)
         data["created"] = now
         data["modified"] = now
@@ -121,7 +121,7 @@ class KnowledgeGraph:
         )
         return entity
 
-    def get_entity(self, entity_id: str) -> Optional[Entity]:
+    def get_entity(self, entity_id: str) -> Entity | None:
         """Retrieve an entity by its UUID."""
         rows = self._query(
             "MATCH (a:Entity) WHERE a.id = $id "
@@ -134,7 +134,7 @@ class KnowledgeGraph:
 
     def update_entity(self, entity: Entity) -> Entity:
         """Update an existing entity's properties."""
-        now = datetime.utcnow().isoformat()
+        now = utc_now_naive().isoformat()
         data = self._entity_to_dict(entity)
         self._conn.execute(
             "MATCH (a:Entity) WHERE a.id = $id SET "
@@ -244,7 +244,7 @@ class KnowledgeGraph:
         rows = self._query("MATCH (a:Entity) RETURN COUNT(a)")
         return int(rows[0][0]) if rows else 0
 
-    def random_entity(self) -> Optional[Entity]:
+    def random_entity(self) -> Entity | None:
         """Return a random entity from the graph."""
         count = self.count_entities()
         if count == 0:
@@ -266,7 +266,7 @@ class KnowledgeGraph:
 
     def create_relation(self, relation: Relation) -> Relation:
         """Add a relation between two existing entities."""
-        now = datetime.utcnow().isoformat()
+        now = utc_now_naive().isoformat()
         self._conn.execute(
             "MATCH (a:Entity), (b:Entity) WHERE a.id = $sid AND b.id = $tid "
             "CREATE (a)-[:RELATES_TO {type: $type, confidence: $confidence, properties: $properties, created: $created}]->(b)",
@@ -489,8 +489,7 @@ class KnowledgeGraph:
             # dict.update would overwrite list-valued provenance; source_memory_ids
             # is unioned back in below.
             all_properties.update(other.properties)
-            if other.confidence > max_confidence:
-                max_confidence = other.confidence
+            max_confidence = max(max_confidence, other.confidence)
 
             # Redirect outgoing relations of other to canonical
             outgoing = self._query(

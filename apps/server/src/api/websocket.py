@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from src.events import EventBus, Event
+from src.events import Event, EventBus
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["websocket"])
 
@@ -50,6 +53,7 @@ class _EventBusBroadcaster:
                 try:
                     await ws.send_text(message)
                 except Exception:
+                    logger.debug("websocket send failed; dropping connection", exc_info=True)
                     to_remove.append(ws)
             for ws in to_remove:
                 self._connections.remove(ws)
@@ -68,7 +72,7 @@ def set_broadcaster(event_bus: EventBus) -> None:
     _broadcaster = _EventBusBroadcaster(event_bus)
 
 
-def get_broadcaster() -> "_EventBusBroadcaster | None":
+def get_broadcaster() -> _EventBusBroadcaster | None:
     """Return the global broadcaster (used by background jobs to push events).
 
     NOTE: ``EventBus.publish`` dispatches by exact ``event.type`` while the
@@ -94,4 +98,5 @@ async def websocket_events(websocket: WebSocket) -> None:
     except WebSocketDisconnect:
         await _broadcaster.disconnect(websocket)
     except Exception:
+        logger.exception("websocket session terminated by error")
         await _broadcaster.disconnect(websocket)

@@ -41,7 +41,7 @@ chromadb remains available as the `migration` extra for one-shot imports from le
 | pytest | ≥8.1 |
 | pytest-asyncio | ≥0.23 |
 | pytest-cov | ≥5.0 |
-| ruff | ≥0.3 |
+| ruff | ==0.16.4 (pinned — match CI) |
 | mypy | ≥1.9 |
 
 ## Frontend (Node.js 20+)

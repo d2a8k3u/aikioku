@@ -28,7 +28,7 @@ def test_iter_turns_reproduces_embed_text():
             user_id="alice",
             role="user",
             content="hi there",
-            created=datetime(2026, 6, 14, 10, 0, 0),
+            created=datetime(2026, 6, 14, 10, 0, 0),  # noqa: DTZ001
         )
     )
     store_message(
@@ -37,7 +37,7 @@ def test_iter_turns_reproduces_embed_text():
             user_id="alice",
             role="assistant",
             content="hello back",
-            created=datetime(2026, 6, 14, 10, 0, 1),
+            created=datetime(2026, 6, 14, 10, 0, 1),  # noqa: DTZ001
         )
     )
 
@@ -53,7 +53,7 @@ def test_iter_turns_skips_orphan_user_message():
             user_id="bob",
             role="user",
             content="no reply",
-            created=datetime(2026, 6, 14, 11, 0, 0),
+            created=datetime(2026, 6, 14, 11, 0, 0),  # noqa: DTZ001
         )
     )
     ids = [tid for tid, _ in iter_turns_for_reembed()]

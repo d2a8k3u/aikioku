@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from src.reasoning.anomaly import AnomalyDetector
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/anomaly", tags=["anomaly"])
 
@@ -31,7 +34,8 @@ async def scan_anomalies(request: Request) -> dict[str, Any]:
     try:
         results = detector.run_all(graph, db_path=settings.sqlite_db_path)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        logger.exception("anomaly scan failed")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     return {
         "count": len(results),
         "anomalies": [

@@ -61,7 +61,7 @@ class EntityResolver:
                 # Check if query name is in candidate's aliases
                 try:
                     cand_aliases = e.aliases if e.aliases else []
-                except Exception:
+                except AttributeError:
                     cand_aliases = []
                 if entity.name in cand_aliases and e.id not in candidates:
                     candidates[e.id] = e

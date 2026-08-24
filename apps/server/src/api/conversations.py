@@ -16,9 +16,9 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Query
 
-from src.auth import UserInDB, require_auth
+from src.auth import CurrentUser
 from src.config import settings
 from src.models.conversation import ConversationMessage
 
@@ -246,7 +246,7 @@ def clear_messages(user_id: str) -> int:
 
 @router.get("/messages")
 async def get_messages(
-    user: UserInDB = Depends(require_auth),
+    user: CurrentUser,
     limit: int = Query(10, ge=1, le=100),
     before: str | None = None,
 ) -> list[dict[str, Any]]:
@@ -261,7 +261,7 @@ async def get_messages(
 @router.get("/messages/{message_id}")
 async def get_message_endpoint(
     message_id: str,
-    user: UserInDB = Depends(require_auth),
+    user: CurrentUser,
 ) -> dict[str, Any]:
     """Return a single chat message by id.
 
@@ -284,7 +284,7 @@ async def get_message_endpoint(
 @router.delete("/messages/{message_id}")
 async def delete_message_endpoint(
     message_id: str,
-    user: UserInDB = Depends(require_auth),
+    user: CurrentUser,
 ) -> dict[str, Any]:
     """Delete a single chat message by id.
 
@@ -302,7 +302,7 @@ async def delete_message_endpoint(
 
 
 @router.delete("/messages")
-async def delete_messages(user: UserInDB = Depends(require_auth)) -> dict[str, Any]:
+async def delete_messages(user: CurrentUser) -> dict[str, Any]:
     """Delete the authenticated user's entire chat history."""
     deleted = clear_messages(user.username)
     return {"status": "cleared", "deleted": deleted}

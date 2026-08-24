@@ -7,7 +7,7 @@ than scanning the whole corpus.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -20,7 +20,7 @@ from src.storage.note_store import NoteStore
 
 def _make_note(suffix: str, *, modified=None) -> Note:
     nid = f"00000000-0000-0000-0000-{int(suffix):012d}"
-    base = datetime(2026, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
+    base = datetime(2026, 6, 1, 0, 0, 0, tzinfo=UTC)
     return Note(
         id=nid,
         title=f"Note {suffix}",
@@ -36,8 +36,8 @@ def _make_note(suffix: str, *, modified=None) -> Note:
 @pytest.fixture
 def wired_client(tmp_path):
     """A TestClient whose notes router and stats use a real temp-dir NoteStore."""
-    from src.main import app
     from src.api import notes as notes_mod
+    from src.main import app
 
     notes_dir = str(tmp_path / "notes")
     store = NoteStore(notes_dir)
@@ -54,7 +54,7 @@ class TestListEndpointPaginates:
     def test_list_returns_at_most_limit(self, wired_client):
         client, store = wired_client
         for i in range(1, 11):
-            store.create(_make_note(str(i), modified=datetime(2026, 6, i, tzinfo=timezone.utc)))
+            store.create(_make_note(str(i), modified=datetime(2026, 6, i, tzinfo=UTC)))
         resp = client.get("/api/notes/?limit=5")
         assert resp.status_code == 200
         body = resp.json()
@@ -63,9 +63,7 @@ class TestListEndpointPaginates:
     def test_list_reads_only_page_files(self, wired_client, monkeypatch):
         client, store = wired_client
         for i in range(1, 21):
-            store.create(
-                _make_note(str(i), modified=datetime(2026, 6, (i % 28) + 1, tzinfo=timezone.utc))
-            )
+            store.create(_make_note(str(i), modified=datetime(2026, 6, (i % 28) + 1, tzinfo=UTC)))
 
         counter = {"count": 0}
         original = Path.read_text
@@ -84,7 +82,7 @@ class TestListEndpointPaginates:
     def test_list_skip_and_limit(self, wired_client):
         client, store = wired_client
         for i in range(1, 11):
-            store.create(_make_note(str(i), modified=datetime(2026, 6, i, tzinfo=timezone.utc)))
+            store.create(_make_note(str(i), modified=datetime(2026, 6, i, tzinfo=UTC)))
         resp = client.get("/api/notes/?skip=2&limit=2")
         assert resp.status_code == 200
         titles = [n["title"] for n in resp.json()]

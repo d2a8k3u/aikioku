@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from src.scripts.migrate_memory_to_hidden import migrate_file, main, run_migration
+from src.scripts.migrate_memory_to_hidden import main, migrate_file, run_migration
 
 
 def _write_note(path: Path, source_type: str, title: str = "Test") -> None:

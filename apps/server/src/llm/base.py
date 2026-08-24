@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 
 class LLMProvider(ABC):
@@ -31,4 +32,4 @@ class LLMProvider(ABC):
 
     async def aclose(self) -> None:
         """Close any underlying connections. Default no-op."""
-        return None
+        return

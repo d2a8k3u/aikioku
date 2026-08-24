@@ -4,15 +4,16 @@ from __future__ import annotations
 
 import io
 import json
+import logging
 import zipfile
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 
-from src.auth import UserInDB, require_auth
+from src.auth import CurrentUser
 from src.config import settings
 from src.limiter import limiter
 from src.models.entity import Entity
@@ -20,6 +21,8 @@ from src.models.note import Note
 from src.models.relation import Relation
 from src.storage.file_import import parse_markdown_file
 from src.storage.note_store import NoteStore, _note_to_markdown
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["import-export"])
 
@@ -41,19 +44,14 @@ def _extract_and_store_entities(request: Request, note: Note) -> None:
     imported note. Fire-and-forget; deferred to a queue when the daily LLM
     budget is exhausted and drained after it resets or is raised."""
     import asyncio
-    import logging
-
-    logger = logging.getLogger(__name__)
 
     from src.processing.budget_gate import WORK_NOTE_PROCESSING, gated
 
     async def _do_processing() -> None:
         try:
             await gated(request.app, WORK_NOTE_PROCESSING, note.id, {"note_id": note.id})
-        except Exception as exc:
-            logger.error(
-                "Note processing failed for imported note %s: %s", note.id, exc, exc_info=True
-            )
+        except Exception:
+            logger.exception("Note processing failed for imported note %s", note.id)
 
     asyncio.ensure_future(_do_processing())
 
@@ -61,7 +59,7 @@ def _extract_and_store_entities(request: Request, note: Note) -> None:
 def _store_note_embeddings(request: Request, note: Note) -> None:
     """No-op: an imported note's embeddings are produced inside the budget-gated
     processing task scheduled by :func:`_extract_and_store_entities`."""
-    return None
+    return
 
 
 def _process_imported_note(request: Request, note: Note) -> Note:
@@ -88,8 +86,8 @@ def _process_imported_note(request: Request, note: Note) -> Note:
 @limiter.limit("20/minute")
 async def import_markdown(
     request: Request,
-    file: UploadFile = File(...),
-    user: UserInDB = Depends(require_auth),
+    file: Annotated[UploadFile, File()],
+    user: CurrentUser,
 ) -> Note:
     """Accept a single markdown file and create a note."""
     content = await file.read()
@@ -103,8 +101,8 @@ async def import_markdown(
 @limiter.limit("20/minute")
 async def import_obsidian(
     request: Request,
-    file: UploadFile = File(...),
-    user: UserInDB = Depends(require_auth),
+    file: Annotated[UploadFile, File()],
+    user: CurrentUser,
 ) -> dict[str, int]:
     """Accept an Obsidian vault zip, extract all .md files, and create notes."""
     content = await file.read()
@@ -127,10 +125,12 @@ async def import_obsidian(
                 _store_note_embeddings(request, created)
                 imported_count += 1
             except Exception:
+                logger.warning("obsidian import: skipping %s", name, exc_info=True)
                 continue
 
     # Invalidate semantic cache after bulk import
     import asyncio as _asyncio
+
     from src.cache.semantic_cache import cache_invalidate as _cache_invalidate
 
     _asyncio.ensure_future(_cache_invalidate())
@@ -141,8 +141,8 @@ async def import_obsidian(
 @limiter.limit("20/minute")
 async def import_bulk(
     request: Request,
-    files: list[UploadFile] = File(...),
-    user: UserInDB = Depends(require_auth),
+    files: Annotated[list[UploadFile], File()],
+    user: CurrentUser,
 ) -> dict[str, int]:
     """Accept multiple markdown files and create notes for each."""
     store = get_note_store()
@@ -159,10 +159,12 @@ async def import_bulk(
             _store_note_embeddings(request, created)
             imported_count += 1
         except Exception:
+            logger.warning("bulk import: skipping %s", upload_file.filename, exc_info=True)
             continue
 
     # Invalidate semantic cache after bulk import
     import asyncio as _asyncio
+
     from src.cache.semantic_cache import cache_invalidate as _cache_invalidate
 
     _asyncio.ensure_future(_cache_invalidate())
@@ -173,8 +175,8 @@ async def import_bulk(
 @limiter.limit("20/minute")
 async def import_pdf(
     request: Request,
-    file: UploadFile = File(...),
-    user: UserInDB = Depends(require_auth),
+    file: Annotated[UploadFile, File()],
+    user: CurrentUser,
 ) -> Note:
     """Accept a PDF file and create a note."""
     from src.ingestion.pdf_parser import parse_pdf
@@ -194,8 +196,8 @@ async def import_pdf(
 @limiter.limit("20/minute")
 async def import_docx(
     request: Request,
-    file: UploadFile = File(...),
-    user: UserInDB = Depends(require_auth),
+    file: Annotated[UploadFile, File()],
+    user: CurrentUser,
 ) -> Note:
     """Accept a DOCX file and create a note."""
     from src.ingestion.docx_parser import parse_docx
@@ -215,8 +217,8 @@ async def import_docx(
 @limiter.limit("20/minute")
 async def import_audio(
     request: Request,
-    file: UploadFile = File(...),
-    user: UserInDB = Depends(require_auth),
+    file: Annotated[UploadFile, File()],
+    user: CurrentUser,
 ) -> Note:
     """Accept an audio file and create a note (requires Whisper)."""
     from src.ingestion.audio_parser import parse_audio
@@ -236,8 +238,8 @@ async def import_audio(
 @limiter.limit("20/minute")
 async def import_image(
     request: Request,
-    file: UploadFile = File(...),
-    user: UserInDB = Depends(require_auth),
+    file: Annotated[UploadFile, File()],
+    user: CurrentUser,
 ) -> Note:
     """Accept an image file and create a note via OCR (requires Tesseract)."""
     from src.ingestion.image_parser import parse_image
@@ -258,7 +260,7 @@ async def import_image(
 async def import_web(
     request: Request,
     url: str,
-    user: UserInDB = Depends(require_auth),
+    user: CurrentUser,
 ) -> Note:
     """Fetch a web page and create a note from the article text."""
     from src.ingestion.web_parser import parse_web_clip
@@ -276,8 +278,8 @@ async def import_web(
 @limiter.limit("20/minute")
 async def import_email(
     request: Request,
-    file: UploadFile = File(...),
-    user: UserInDB = Depends(require_auth),
+    file: Annotated[UploadFile, File()],
+    user: CurrentUser,
 ) -> Note:
     """Accept a raw email (.eml) file and create a note."""
     from src.ingestion.email_parser import parse_email
@@ -316,6 +318,7 @@ def _import_logseq_zip(request: Request, content: bytes) -> int:
                 _store_note_embeddings(request, created)
                 imported_count += 1
             except Exception:
+                logger.warning("logseq import: skipping %s", name, exc_info=True)
                 continue
     return imported_count
 
@@ -341,6 +344,7 @@ def _import_notion_zip(request: Request, content: bytes) -> int:
                     _store_note_embeddings(request, created)
                     imported_count += 1
                 except Exception:
+                    logger.warning("notion import: skipping page %s", name, exc_info=True)
                     continue
             elif name.endswith(".csv"):
                 try:
@@ -355,8 +359,24 @@ def _import_notion_zip(request: Request, content: bytes) -> int:
                         _store_note_embeddings(request, created)
                         imported_count += 1
                 except Exception:
+                    logger.warning("notion import: skipping table %s", name, exc_info=True)
                     continue
     return imported_count
+
+
+def _flatten_roam_blocks(nodes: list[dict[str, Any]], depth: int = 0) -> list[str]:
+    """Flatten a Roam block tree into indented text lines."""
+    lines: list[str] = []
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        text = node.get("string", "")
+        if text:
+            lines.append("  " * depth + text)
+        kids = node.get("children", [])
+        if kids:
+            lines.extend(_flatten_roam_blocks(kids, depth + 1))
+    return lines
 
 
 def _import_roam_zip(request: Request, content: bytes) -> int:
@@ -379,6 +399,7 @@ def _import_roam_zip(request: Request, content: bytes) -> int:
                             data = _json.loads(zf.read(name).decode("utf-8"))
                             break
                         except Exception:
+                            logger.warning("roam import: skipping %s", name, exc_info=True)
                             continue
                 else:
                     raise HTTPException(status_code=400, detail="No JSON file found in Roam zip")
@@ -390,21 +411,7 @@ def _import_roam_zip(request: Request, content: bytes) -> int:
             continue
         title = page.get("title", "Untitled")
         children = page.get("children", [])
-        lines: list[str] = []
-
-        def _walk(nodes: list[dict[str, Any]], depth: int = 0) -> None:
-            for node in nodes:
-                if not isinstance(node, dict):
-                    continue
-                text = node.get("string", "")
-                if text:
-                    lines.append("  " * depth + text)
-                kids = node.get("children", [])
-                if kids:
-                    _walk(kids, depth + 1)
-
-        _walk(children)
-        body = "\n".join(lines)
+        body = "\n".join(_flatten_roam_blocks(children))
         note = Note(title=title, content=body, path=f"roam/{title}.md")
         created = store.create(note)
         _extract_and_store_entities(request, created)
@@ -417,14 +424,15 @@ def _import_roam_zip(request: Request, content: bytes) -> int:
 @limiter.limit("20/minute")
 async def import_logseq(
     request: Request,
-    file: UploadFile = File(...),
-    user: UserInDB = Depends(require_auth),
+    file: Annotated[UploadFile, File()],
+    user: CurrentUser,
 ) -> dict[str, int]:
     """Accept a Logseq graph export zip and import markdown pages."""
     content = await file.read()
     imported_count = _import_logseq_zip(request, content)
     # Invalidate semantic cache after bulk import
     import asyncio as _asyncio
+
     from src.cache.semantic_cache import cache_invalidate as _cache_invalidate
 
     _asyncio.ensure_future(_cache_invalidate())
@@ -435,14 +443,15 @@ async def import_logseq(
 @limiter.limit("20/minute")
 async def import_notion(
     request: Request,
-    file: UploadFile = File(...),
-    user: UserInDB = Depends(require_auth),
+    file: Annotated[UploadFile, File()],
+    user: CurrentUser,
 ) -> dict[str, int]:
     """Accept a Notion export zip and import pages and CSV databases."""
     content = await file.read()
     imported_count = _import_notion_zip(request, content)
     # Invalidate semantic cache after bulk import
     import asyncio as _asyncio
+
     from src.cache.semantic_cache import cache_invalidate as _cache_invalidate
 
     _asyncio.ensure_future(_cache_invalidate())
@@ -453,14 +462,15 @@ async def import_notion(
 @limiter.limit("20/minute")
 async def import_roam(
     request: Request,
-    file: UploadFile = File(...),
-    user: UserInDB = Depends(require_auth),
+    file: Annotated[UploadFile, File()],
+    user: CurrentUser,
 ) -> dict[str, int]:
     """Accept a Roam Research JSON export and import pages as notes."""
     content = await file.read()
     imported_count = _import_roam_zip(request, content)
     # Invalidate semantic cache after bulk import
     import asyncio as _asyncio
+
     from src.cache.semantic_cache import cache_invalidate as _cache_invalidate
 
     _asyncio.ensure_future(_cache_invalidate())
@@ -593,7 +603,7 @@ async def export_json(request: Request) -> JSONResponse:
                 }
             )
     except Exception:
-        pass
+        logger.warning("json export: cards section unavailable", exc_info=True)
 
     # Cognitive signals from SQLite
     cognitive_signals = []
@@ -616,7 +626,7 @@ async def export_json(request: Request) -> JSONResponse:
                 }
             )
     except Exception:
-        pass
+        logger.warning("json export: cognitive_signals section unavailable", exc_info=True)
 
     # Settings from SQLite
     app_settings = {}
@@ -629,7 +639,7 @@ async def export_json(request: Request) -> JSONResponse:
         conn.close()
         app_settings = {row["key"]: row["value"] for row in rows}
     except Exception:
-        pass
+        logger.warning("json export: app_settings section unavailable", exc_info=True)
 
     # Plugin state from SQLite
     plugin_state = []
@@ -651,7 +661,7 @@ async def export_json(request: Request) -> JSONResponse:
                 }
             )
     except Exception:
-        pass
+        logger.warning("json export: plugin_state section unavailable", exc_info=True)
 
     payload = {
         "version": "0.1.0",

@@ -58,11 +58,9 @@ async def reextract_entities(request: Request) -> dict[str, Any]:
                     # connection (the event loop serialises them).
                     ents = await extract_entities_from_note(note, llm, graph)
                     _reextract_state["entities"] += len(ents)
-                except Exception as exc:  # noqa: BLE001
+                except Exception:
                     _reextract_state["errors"] += 1
-                    logger.warning(
-                        "reextract failed for note %s: %s", getattr(note, "id", "?"), exc
-                    )
+                    logger.exception("reextract failed for note %s", getattr(note, "id", "?"))
                 finally:
                     _reextract_state["processed"] += 1
 

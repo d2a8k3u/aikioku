@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 import asyncio
-
+import logging
 from collections.abc import Awaitable
 from typing import TYPE_CHECKING, cast
 
 from src.retrieval.search_result import SearchResult
 
+logger = logging.getLogger(__name__)
+
 if TYPE_CHECKING:
     from src.retrieval.dense import DenseRetriever
-    from src.retrieval.sparse import SparseRetriever
     from src.retrieval.graph_retrieval import GraphRetriever
+    from src.retrieval.sparse import SparseRetriever
 
 # Reciprocal Rank Fusion constant
 _RRF_K = 60
@@ -83,7 +85,7 @@ class HybridFusion:
                 asyncio.gather(dense_task, sparse_future, graph_future),
                 timeout=self._FUSION_TIMEOUT,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             # Total fusion timeout — return whatever partial results we have.
             # Each individual task may have already completed or timed out;
             # gather what we can from the completed tasks.
@@ -107,7 +109,7 @@ class HybridFusion:
         """Await *coro_or_future* with a timeout; return [] on timeout."""
         try:
             return await asyncio.wait_for(coro_or_future, timeout=timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return []
 
     @staticmethod
@@ -120,6 +122,7 @@ class HybridFusion:
             try:
                 return fut.result()
             except Exception:
+                logger.warning("hybrid fusion: retriever failed", exc_info=True)
                 return []
         return []
 

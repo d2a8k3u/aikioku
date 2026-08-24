@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import io
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-
 
 # ---------------------------------------------------------------------------
 # Helper-level tests (no HTTP)
@@ -248,7 +247,7 @@ class TestImportMarkdownEndpoint:
         assert data["title"] == "Simple Note"
 
     def test_import_missing_file_returns_error(self, client):
-        cli, mock_store = client
+        cli, _mock_store = client
 
         response = cli.post("/api/import/markdown")
         assert response.status_code == 422
@@ -305,7 +304,7 @@ class TestImportBulkEndpoint:
         assert mock_store.create.call_count == 2
 
     def test_import_bulk_empty_returns_zero(self, client):
-        cli, mock_store = client
+        cli, _mock_store = client
 
         response = cli.post(
             "/api/import/bulk",
@@ -346,7 +345,7 @@ class TestImportObsidianEndpoint:
         assert data["imported_count"] == 2
 
     def test_import_obsidian_non_zip_returns_error(self, client):
-        cli, mock_store = client
+        cli, _mock_store = client
 
         response = cli.post(
             "/api/import/obsidian",
@@ -369,8 +368,8 @@ class TestExportNoteEndpoint:
         note_data.frontmatter = {"tags": ["export", "test"]}
         note_data.links = []
         note_data.path = "/notes/export-test.md"
-        note_data.created = datetime(2026, 1, 1, tzinfo=timezone.utc)
-        note_data.modified = datetime(2026, 6, 1, tzinfo=timezone.utc)
+        note_data.created = datetime(2026, 1, 1, tzinfo=UTC)
+        note_data.modified = datetime(2026, 6, 1, tzinfo=UTC)
         note_data.source_type = "note"
         mock_store.get = MagicMock(return_value=note_data)
 
@@ -404,8 +403,8 @@ class TestExportAllEndpoint:
             note.frontmatter = {"tags": [f"tag{i}"]}
             note.links = []
             note.path = f"/notes/note-{i}.md"
-            note.created = datetime(2026, 1, 1, tzinfo=timezone.utc)
-            note.modified = datetime(2026, 6, 1, tzinfo=timezone.utc)
+            note.created = datetime(2026, 1, 1, tzinfo=UTC)
+            note.modified = datetime(2026, 6, 1, tzinfo=UTC)
             note.source_type = "note"
             notes.append(note)
         mock_store.list_all = MagicMock(return_value=notes)

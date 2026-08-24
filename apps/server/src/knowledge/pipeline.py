@@ -197,20 +197,15 @@ async def extract_entities_from_text(
             llm_provider.complete(prompt=prompt),
             timeout=LLM_ENTITY_EXTRACTION_TIMEOUT,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.error(
             "Entity extraction: LLM call timed out after %ds for source %s",
             LLM_ENTITY_EXTRACTION_TIMEOUT,
             source_id,
         )
         return []
-    except Exception as exc:
-        logger.error(
-            "Entity extraction: LLM call failed for source %s: %s",
-            source_id,
-            exc,
-            exc_info=True,
-        )
+    except Exception:
+        logger.exception("Entity extraction: LLM call failed for source %s", source_id)
         return []
 
     # Validate LLM response is a non-empty string
@@ -247,23 +242,21 @@ async def extract_entities_from_text(
                     turns.append(source_id)
                     graph.update_entity(resolved)
             resolved_entities.append(resolved)
-        except Exception as exc:
-            logger.warning(
-                "Entity extraction: failed to resolve/store entity '%s' from source %s: %s",
+        except Exception:
+            logger.exception(
+                "Entity extraction: failed to resolve/store entity '%s' from source %s",
                 entity.name,
                 source_id,
-                exc,
             )
             continue
 
     # Step 6: Create co-occurrence relations between all pairs
     try:
         _create_cooccurrence_relations(resolved_entities, graph)
-    except Exception as exc:
-        logger.warning(
-            "Entity extraction: failed to create co-occurrence relations for source %s: %s",
+    except Exception:
+        logger.exception(
+            "Entity extraction: failed to create co-occurrence relations for source %s",
             source_id,
-            exc,
         )
 
     logger.info(

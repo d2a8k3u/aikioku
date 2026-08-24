@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
 
 import pytest
 from pydantic import ValidationError
+
+from src.utils.clock import utc_now_naive
 
 
 class TestUserCreation:
@@ -35,9 +36,9 @@ class TestUserCreation:
     def test_created_at_and_updated_at_default_to_utcnow(self):
         from src.models.user import User
 
-        before = datetime.utcnow()
+        before = utc_now_naive()
         user = User(name="Dave", email="dave@example.com")
-        after = datetime.utcnow()
+        after = utc_now_naive()
         assert before <= user.created_at <= after
         assert before <= user.updated_at <= after
 

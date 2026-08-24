@@ -175,7 +175,7 @@ async def test_extract_facts_timeout(monkeypatch):
 
     monkeypatch.setattr("src.runtime_config.auto_fact_extraction", lambda: True)
     llm = _make_llm()
-    llm.complete = AsyncMock(side_effect=asyncio.TimeoutError())
+    llm.complete = AsyncMock(side_effect=TimeoutError())
     store = _make_store()
     req = _make_request(llm=llm, store=store)
 

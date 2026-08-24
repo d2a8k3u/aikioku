@@ -12,10 +12,10 @@ from fastapi.testclient import TestClient
 @pytest.fixture
 def client(tmp_path):
     """Create a FastAPI TestClient with a fresh NoteStore in a temp directory."""
-    from src.main import app
-    from src.storage.note_store import NoteStore
     from src.api import import_export
     from src.config import settings
+    from src.main import app
+    from src.storage.note_store import NoteStore
 
     notes_dir = str(tmp_path / "notes")
     store = NoteStore(notes_dir)
@@ -33,7 +33,7 @@ def client(tmp_path):
 
 class TestImportPdfEndpoint:
     def test_import_pdf_missing_dependency(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         with patch("src.ingestion.pdf_parser.parse_pdf", side_effect=ImportError("No PyMuPDF")):
             response = cli.post(
                 "/api/import/pdf",
@@ -42,7 +42,7 @@ class TestImportPdfEndpoint:
         assert response.status_code == 503
 
     def test_import_pdf_bad_file(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         with patch("src.ingestion.pdf_parser.parse_pdf", side_effect=ValueError("bad pdf")):
             response = cli.post(
                 "/api/import/pdf",
@@ -53,7 +53,7 @@ class TestImportPdfEndpoint:
 
 class TestImportDocxEndpoint:
     def test_import_docx_missing_dependency(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         with patch(
             "src.ingestion.docx_parser.parse_docx", side_effect=ImportError("No python-docx")
         ):
@@ -70,7 +70,7 @@ class TestImportDocxEndpoint:
         assert response.status_code == 503
 
     def test_import_docx_bad_file(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         with patch("src.ingestion.docx_parser.parse_docx", side_effect=ValueError("bad docx")):
             response = cli.post(
                 "/api/import/docx",
@@ -87,7 +87,7 @@ class TestImportDocxEndpoint:
 
 class TestImportAudioEndpoint:
     def test_import_audio_missing_dependency(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         with patch("src.ingestion.audio_parser.parse_audio", side_effect=ImportError("No whisper")):
             response = cli.post(
                 "/api/import/audio",
@@ -96,7 +96,7 @@ class TestImportAudioEndpoint:
         assert response.status_code == 503
 
     def test_import_audio_transcription_fails(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         with patch(
             "src.ingestion.audio_parser.parse_audio",
             side_effect=RuntimeError("transcription failed"),
@@ -110,7 +110,7 @@ class TestImportAudioEndpoint:
 
 class TestImportImageEndpoint:
     def test_import_image_missing_dependency(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         with patch(
             "src.ingestion.image_parser.parse_image", side_effect=ImportError("No tesseract")
         ):
@@ -121,7 +121,7 @@ class TestImportImageEndpoint:
         assert response.status_code == 503
 
     def test_import_image_ocr_fails(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         with patch(
             "src.ingestion.image_parser.parse_image", side_effect=RuntimeError("OCR failed")
         ):
@@ -134,7 +134,7 @@ class TestImportImageEndpoint:
 
 class TestImportWebEndpoint:
     def test_import_web_missing_dependency(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         with patch(
             "src.ingestion.web_parser.parse_web_clip", side_effect=ImportError("No requests")
         ):
@@ -142,7 +142,7 @@ class TestImportWebEndpoint:
         assert response.status_code == 503
 
     def test_import_web_bad_url(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         with patch("src.ingestion.web_parser.parse_web_clip", side_effect=RuntimeError("timeout")):
             response = cli.post("/api/import/web?url=https%3A%2F%2Fexample.com")
         assert response.status_code == 400
@@ -150,7 +150,7 @@ class TestImportWebEndpoint:
 
 class TestImportEmailEndpoint:
     def test_import_email_success(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         raw = b"Subject: Hello\r\n\r\nBody text"
         response = cli.post(
             "/api/import/email",
@@ -162,7 +162,7 @@ class TestImportEmailEndpoint:
         assert "Body text" in data["content"]
 
     def test_import_email_bad_file(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         response = cli.post(
             "/api/import/email",
             files={"file": ("bad.eml", io.BytesIO(b"not an email"), "message/rfc822")},

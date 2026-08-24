@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
 
 import pytest
 from pydantic import ValidationError
+
+from src.utils.clock import utc_now_naive
 
 
 class TestNoteCreation:
@@ -46,9 +47,9 @@ class TestNoteCreation:
     def test_created_and_modified_default_to_utcnow(self):
         from src.models.note import Note
 
-        before = datetime.utcnow()
+        before = utc_now_naive()
         note = Note(title="Test", content="Body", path="/test.md")
-        after = datetime.utcnow()
+        after = utc_now_naive()
         assert before <= note.created <= after
         assert before <= note.modified <= after
 

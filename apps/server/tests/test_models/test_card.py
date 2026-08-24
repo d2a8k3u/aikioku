@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 import pytest
 from pydantic import ValidationError
 
@@ -11,7 +10,7 @@ class TestCardCreation:
     """Test basic Card creation."""
 
     def test_create_card_with_required_fields(self, fixed_uuid, fixed_uuid2, fixed_datetime):
-        from src.models.card import Card, CardType, CardStatus
+        from src.models.card import Card, CardStatus, CardType
 
         card = Card(
             note_id=fixed_uuid,
@@ -28,7 +27,7 @@ class TestCardCreation:
         assert card.status == CardStatus.new
 
     def test_id_is_auto_generated_uuid4(self, fixed_uuid, fixed_datetime):
-        from src.models.card import Card, CardType, CardStatus
+        from src.models.card import Card, CardStatus, CardType
 
         card = Card(
             note_id=fixed_uuid,
@@ -44,7 +43,7 @@ class TestCardCreation:
         assert parsed.version == 4
 
     def test_ease_factor_defaults_to_2_5(self, fixed_uuid, fixed_datetime):
-        from src.models.card import Card, CardType, CardStatus
+        from src.models.card import Card, CardStatus, CardType
 
         card = Card(
             note_id=fixed_uuid,
@@ -57,7 +56,7 @@ class TestCardCreation:
         assert card.ease_factor == 2.5
 
     def test_interval_defaults_to_zero(self, fixed_uuid, fixed_datetime):
-        from src.models.card import Card, CardType, CardStatus
+        from src.models.card import Card, CardStatus, CardType
 
         card = Card(
             note_id=fixed_uuid,
@@ -70,7 +69,7 @@ class TestCardCreation:
         assert card.interval == 0
 
     def test_repetitions_defaults_to_zero(self, fixed_uuid, fixed_datetime):
-        from src.models.card import Card, CardType, CardStatus
+        from src.models.card import Card, CardStatus, CardType
 
         card = Card(
             note_id=fixed_uuid,
@@ -87,7 +86,7 @@ class TestCardWithAllFields:
     """Test Card creation with all fields."""
 
     def test_create_card_with_all_fields(self, fixed_uuid, fixed_uuid2, fixed_datetime):
-        from src.models.card import Card, CardType, CardStatus
+        from src.models.card import Card, CardStatus, CardType
 
         card = Card(
             id=fixed_uuid,
@@ -132,7 +131,7 @@ class TestCardValidation:
     """Test Card validation rules."""
 
     def test_ease_factor_below_minimum_raises_error(self, fixed_uuid, fixed_datetime):
-        from src.models.card import Card, CardType, CardStatus
+        from src.models.card import Card, CardStatus, CardType
 
         with pytest.raises(ValidationError):
             Card(
@@ -146,7 +145,7 @@ class TestCardValidation:
             )
 
     def test_ease_factor_at_minimum_is_valid(self, fixed_uuid, fixed_datetime):
-        from src.models.card import Card, CardType, CardStatus
+        from src.models.card import Card, CardStatus, CardType
 
         card = Card(
             note_id=fixed_uuid,
@@ -160,7 +159,7 @@ class TestCardValidation:
         assert card.ease_factor == 1.3
 
     def test_negative_interval_raises_error(self, fixed_uuid, fixed_datetime):
-        from src.models.card import Card, CardType, CardStatus
+        from src.models.card import Card, CardStatus, CardType
 
         with pytest.raises(ValidationError):
             Card(
@@ -174,7 +173,7 @@ class TestCardValidation:
             )
 
     def test_negative_repetitions_raises_error(self, fixed_uuid, fixed_datetime):
-        from src.models.card import Card, CardType, CardStatus
+        from src.models.card import Card, CardStatus, CardType
 
         with pytest.raises(ValidationError):
             Card(
@@ -188,7 +187,7 @@ class TestCardValidation:
             )
 
     def test_zero_interval_is_valid(self, fixed_uuid, fixed_datetime):
-        from src.models.card import Card, CardType, CardStatus
+        from src.models.card import Card, CardStatus, CardType
 
         card = Card(
             note_id=fixed_uuid,
@@ -202,7 +201,7 @@ class TestCardValidation:
         assert card.interval == 0
 
     def test_zero_repetitions_is_valid(self, fixed_uuid, fixed_datetime):
-        from src.models.card import Card, CardType, CardStatus
+        from src.models.card import Card, CardStatus, CardType
 
         card = Card(
             note_id=fixed_uuid,
@@ -216,7 +215,7 @@ class TestCardValidation:
         assert card.repetitions == 0
 
     def test_empty_front_raises_error(self, fixed_uuid, fixed_datetime):
-        from src.models.card import Card, CardType, CardStatus
+        from src.models.card import Card, CardStatus, CardType
 
         with pytest.raises(ValidationError):
             Card(
@@ -229,7 +228,7 @@ class TestCardValidation:
             )
 
     def test_model_is_serializable(self, fixed_uuid, fixed_datetime):
-        from src.models.card import Card, CardType, CardStatus
+        from src.models.card import Card, CardStatus, CardType
 
         card = Card(
             note_id=fixed_uuid,

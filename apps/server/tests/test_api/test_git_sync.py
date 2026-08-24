@@ -35,21 +35,21 @@ class TestGitCommit:
         assert data["message"] == "Add note1"
 
     def test_commit_without_changes(self, client):
-        cli, tmpdir = client
+        cli, _tmpdir = client
         response = cli.post("/api/sync/git/commit?message=Nothing+to+do")
         assert response.status_code == 200
         data = response.json()
         assert data["committed"] is False
 
     def test_missing_message_returns_422(self, client):
-        cli, tmpdir = client
+        cli, _tmpdir = client
         response = cli.post("/api/sync/git/commit")
         assert response.status_code == 422
 
 
 class TestGitHistory:
     def test_returns_list(self, client):
-        cli, tmpdir = client
+        cli, _tmpdir = client
         response = cli.get("/api/sync/git/history")
         assert response.status_code == 200
         data = response.json()
@@ -93,7 +93,7 @@ class TestGitDiff:
         assert isinstance(data["diff"], str)
 
     def test_diff_empty_for_no_history(self, client):
-        cli, tmpdir = client
+        cli, _tmpdir = client
         response = cli.get("/api/sync/git/diff/nonexistent")
         assert response.status_code == 200
         data = response.json()

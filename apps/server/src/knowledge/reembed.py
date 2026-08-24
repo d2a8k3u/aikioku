@@ -21,7 +21,7 @@ import asyncio
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from src import runtime_config
@@ -52,8 +52,8 @@ _reembed_state: dict[str, Any] = {
     "total_convs": 0,
     "error": None,
 }
-_reembed_task: "asyncio.Task[None] | None" = None
-_current_target_fp: "str | None" = None
+_reembed_task: asyncio.Task[None] | None = None
+_current_target_fp: str | None = None
 
 
 # --- public API -----------------------------------------------------------------
@@ -97,7 +97,7 @@ def maybe_schedule_reembed(app: FastAPI) -> bool:
     mismatch, current_fp = current_fingerprint_mismatch()
     try:
         status = json.loads(runtime_config.get_app_setting("reembed_status") or "{}")
-    except Exception:
+    except (TypeError, ValueError):
         status = {}
     if mismatch or status.get("state") in ("running", "failed"):
         schedule_reembed(app, current_fp)
@@ -151,7 +151,7 @@ def _as_aware_utc(dt: datetime) -> datetime:
     created, so the catch-up window comparison must normalize both sides or it
     raises ``TypeError`` on a naive/aware mix.
     """
-    return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
 
 
 async def _embed_with_retry(embedder: LLMProvider, text: str) -> list[float]:
@@ -160,8 +160,9 @@ async def _embed_with_retry(embedder: LLMProvider, text: str) -> list[float]:
     for attempt in range(_EMBED_RETRIES):
         try:
             return await embedder.embed(text)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             last = exc
+            logger.debug("reembed embed attempt %d failed", attempt + 1, exc_info=True)
             await asyncio.sleep(0.5 * (attempt + 1))
     raise last if last is not None else RuntimeError("embed failed")
 
@@ -195,10 +196,13 @@ async def _embed_items(
                 return
             try:
                 emb = await _embed_with_retry(embedder, text)
-            except Exception as exc:  # noqa: BLE001 — already retried above
+            except Exception:
                 failures["count"] += 1
                 logger.warning(
-                    "reembed embed failed for %s (%d total): %s", item_id, failures["count"], exc
+                    "reembed embed failed for %s (%d total)",
+                    item_id,
+                    failures["count"],
+                    exc_info=True,
                 )
                 if failures["count"] >= _ABORT_AFTER_FAILURES:
                     aborted["flag"] = True
@@ -208,8 +212,8 @@ async def _embed_items(
                 # concurrent embeds above never overlap a write on one collection.
                 store.delete(item_id)
                 store.add(note_id=item_id, text=text, embedding=emb)
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("reembed store write failed for %s: %s", item_id, exc)
+            except Exception:
+                logger.warning("reembed store write failed for %s", item_id, exc_info=True)
                 return
             if counter is not None:
                 _reembed_state[counter] += 1
@@ -258,7 +262,8 @@ async def _reembed_worker(app: FastAPI, target_fp: str) -> None:
         # 1. Validate-before-destroy probe (retried to tolerate a transient blip).
         try:
             probe = await _embed_with_retry(embedder, "reembed probe")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
+            logger.exception("reembed embedding probe failed")
             _fail(app, f"embedding probe failed: {exc}")
             return
         if len(probe) != dim:
@@ -277,7 +282,7 @@ async def _reembed_worker(app: FastAPI, target_fp: str) -> None:
         new_notes = EmbeddingStore(emb_path, collection_name=notes_coll, dimension=dim)
         new_convs = EmbeddingStore(conv_emb_path, collection_name=conv_coll, dimension=dim)
 
-        started_at = datetime.now(timezone.utc)
+        started_at = datetime.now(UTC)
         _emit(app, "reembed.started", {"target_fp": target_fp})
 
         # 2. Notes.
@@ -367,6 +372,6 @@ async def _reembed_worker(app: FastAPI, target_fp: str) -> None:
     except asyncio.CancelledError:
         logger.info("reembed superseded/cancelled for %s", target_fp)
         raise
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         _fail(app, f"{type(exc).__name__}: {exc}")
         logger.exception("reembed failed")

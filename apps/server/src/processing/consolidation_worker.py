@@ -10,6 +10,7 @@ from fastapi import FastAPI
 
 from src import runtime_config
 from src.processing import consolidation
+from src.utils.clock import utc_now_naive
 
 logger = structlog.get_logger()
 
@@ -26,7 +27,7 @@ def _interval_elapsed(last_run_str: str | None, interval_hours: float) -> bool:
         last_run = datetime.fromisoformat(last_run_str)
     except (ValueError, TypeError):
         return True
-    return datetime.utcnow() - last_run >= timedelta(hours=interval_hours)
+    return utc_now_naive() - last_run >= timedelta(hours=interval_hours)
 
 
 async def _consolidation_worker(app: FastAPI, poll_seconds: int = 300) -> None:
@@ -71,7 +72,7 @@ async def _consolidation_worker(app: FastAPI, poll_seconds: int = 300) -> None:
                 continue
 
             result = await consolidation.run_consolidation(app)
-            runtime_config.set_app_setting("consolidation_last_run", datetime.utcnow().isoformat())
+            runtime_config.set_app_setting("consolidation_last_run", utc_now_naive().isoformat())
             logger.info("consolidation.completed", **result)
         except Exception:
             logger.exception("consolidation_worker.failed")

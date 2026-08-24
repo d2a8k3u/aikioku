@@ -65,7 +65,7 @@ class TestChatEndpoint:
     """Test POST /api/chat endpoint."""
 
     def test_returns_response_with_citations(self, client):
-        cli, mock_rag, mock_multi = client
+        cli, _mock_rag, _mock_multi = client
         response = cli.post(
             "/api/chat",
             json={"query": "What is Python?", "mode": "simple"},
@@ -100,7 +100,7 @@ class TestChatEndpoint:
         mock_rag.generate.assert_not_called()
 
     def test_multi_hop_response_includes_sub_questions(self, client):
-        cli, mock_rag, mock_multi = client
+        cli, _mock_rag, _mock_multi = client
         response = cli.post(
             "/api/chat",
             json={"query": "How does Python compare to Rust?", "mode": "multi_hop"},
@@ -113,7 +113,7 @@ class TestChatEndpoint:
         ]
 
     def test_missing_query_returns_422(self, client):
-        cli, mock_rag, mock_multi = client
+        cli, _mock_rag, _mock_multi = client
         response = cli.post(
             "/api/chat",
             json={"mode": "simple"},
@@ -127,7 +127,7 @@ class TestChatPersistsConversation:
     def test_persists_user_and_assistant_messages(self, client):
         from src.api import conversations as conv
 
-        cli, mock_rag, mock_multi = client
+        cli, mock_rag, _mock_multi = client
         mock_rag.generate.return_value = {
             "response": "the answer",
             "citations": [],
@@ -162,7 +162,7 @@ class TestChatStreamSinglePass:
     """POST /api/chat/stream (simple mode) must be a TRUE single grounded pass."""
 
     def test_simple_stream_uses_build_context_and_streams_once(self, client):
-        cli, mock_rag, mock_multi = client
+        cli, mock_rag, _mock_multi = client
 
         fake_llm = _FakeStreamingLLM(["Hello ", "world."])
         cli.app.state.llm_provider = fake_llm
@@ -194,7 +194,7 @@ class TestChatStreamSinglePass:
         assert "world." in body
 
     def test_get_stream_uses_build_context(self, client):
-        cli, mock_rag, mock_multi = client
+        cli, mock_rag, _mock_multi = client
 
         fake_llm = _FakeStreamingLLM(["chunk1", "chunk2"])
         cli.app.state.llm_provider = fake_llm
@@ -214,7 +214,7 @@ class TestChatStreamSinglePass:
         assert "chunk1" in body
 
     def test_multi_hop_stream_does_not_rerun_llm_on_answer(self, client):
-        cli, mock_rag, mock_multi = client
+        cli, _mock_rag, mock_multi = client
 
         fake_llm = _FakeStreamingLLM(["SHOULD NOT BE USED"])
         cli.app.state.llm_provider = fake_llm

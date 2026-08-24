@@ -115,4 +115,4 @@ class TestRouterAclose:
         p1.aclose.assert_awaited_once()
         p2.aclose.assert_awaited_once()
         p3.aclose.assert_awaited_once()
-        assert any("boom" in record.message for record in caplog.records)
+        assert "boom" in caplog.text

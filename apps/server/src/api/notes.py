@@ -3,17 +3,18 @@
 from __future__ import annotations
 
 import logging
+import subprocess
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 
-from src.auth import UserInDB, require_auth
+from src.api.websocket import get_broadcaster
+from src.auth import CurrentUser
 from src.cache.semantic_cache import cache_invalidate
 from src.llm.long_text import condense_for_prompt
 from src.models.note import Note, NoteUpdate
 from src.storage.note_store import NoteStore
-from src.api.websocket import get_broadcaster
 
 logger = logging.getLogger(__name__)
 
@@ -67,8 +68,8 @@ def _extract_and_store_entities(request: Request, note: Note) -> None:
                 note.id,
                 {"note_id": note.id},
             )
-        except Exception as exc:
-            logger.error("Note processing failed for note %s: %s", note.id, exc, exc_info=True)
+        except Exception:
+            logger.exception("Note processing failed for note %s", note.id)
 
     asyncio.ensure_future(_do_processing())
 
@@ -89,7 +90,7 @@ def _invalidate_sparse_index(request: Request) -> None:
 def _store_note_embeddings(request: Request, note: Note) -> None:
     """No-op: a note's embeddings are produced inside the budget-gated processing
     task scheduled by :func:`_extract_and_store_entities`."""
-    return None
+    return
 
 
 def _purge_note_artifacts(request: Request, note_id: str) -> None:
@@ -108,8 +109,8 @@ def _purge_note_artifacts(request: Request, note_id: str) -> None:
     try:
         result = purge_note_artifacts(note_id, embedding_store=embedding_store, graph=graph)
         logger.info("note %s delete cascade: %s", note_id, result)
-    except Exception as exc:
-        logger.error("note %s delete cascade failed: %s", note_id, exc, exc_info=True)
+    except Exception:
+        logger.exception("note %s delete cascade failed", note_id)
 
 
 @router.get("/")
@@ -151,7 +152,7 @@ async def get_note(request: Request, note_id: UUID) -> Note:
 async def create_note(
     request: Request,
     note: Note,
-    user: UserInDB = Depends(require_auth),
+    user: CurrentUser,
 ) -> Note:
     """Create a new note and trigger entity extraction + embedding."""
     import asyncio
@@ -228,8 +229,8 @@ async def _auto_generate_title(request: Request, note: Note, store: NoteStore) -
             # Invalidate semantic cache — updated note may change correct answers
             asyncio.ensure_future(cache_invalidate())
             logger.info("Auto-generated title for note %s: %s", note.id, generated_title)
-    except Exception as exc:
-        logger.warning("Auto-title generation failed for note %s: %s", note.id, exc)
+    except Exception:
+        logger.exception("Auto-title generation failed for note %s", note.id)
 
 
 @router.put("/{note_id}")
@@ -237,7 +238,7 @@ async def update_note(
     request: Request,
     note_id: UUID,
     note: NoteUpdate,
-    user: UserInDB = Depends(require_auth),
+    user: CurrentUser,
 ) -> Note:
     """Update an existing note and trigger entity extraction + embedding."""
     store = _get_note_store_from_request(request)
@@ -278,7 +279,7 @@ async def update_note(
 async def delete_note(
     request: Request,
     note_id: UUID,
-    user: UserInDB = Depends(require_auth),
+    user: CurrentUser,
 ) -> dict[str, str]:
     """Delete a note."""
     store = _get_note_store_from_request(request)
@@ -431,8 +432,8 @@ async def get_related_notes(request: Request, note_id: UUID) -> dict[str, Any]:
                             "type": entity.type.value,
                         }
                     )
-        except Exception as exc:
-            logger.warning("Serendipity walk failed for note %s: %s", target_id, exc)
+        except Exception:
+            logger.exception("Serendipity walk failed for note %s", target_id)
 
     # AI insight: one-sentence summary of what makes this note interesting
     insight = ""
@@ -453,7 +454,7 @@ async def get_related_notes(request: Request, note_id: UUID) -> dict[str, Any]:
                 insight = await llm.complete(prompt)
                 insight = insight.strip().strip('"')
         except Exception:
-            logger.warning("Insight generation failed for note %s", target_id)
+            logger.exception("Insight generation failed for note %s", target_id)
 
     return {
         "entities": note_entities,
@@ -475,8 +476,8 @@ async def note_history(
     limit: int = Query(50, ge=1, le=200),
 ) -> list[dict[str, str]]:
     """Get Git commit history for a specific note."""
-    from src.storage.git_sync import GitSync
     from src.config import settings
+    from src.storage.git_sync import GitSync
 
     gs = getattr(request.app.state, "git_sync", None)
     if gs is None:
@@ -498,8 +499,8 @@ async def note_diff(
     If commit_a and commit_b are provided, returns the diff between them.
     Otherwise returns the latest diff (HEAD~1 vs HEAD).
     """
-    from src.storage.git_sync import GitSync
     from src.config import settings
+    from src.storage.git_sync import GitSync
 
     gs = getattr(request.app.state, "git_sync", None)
     if gs is None:
@@ -511,8 +512,8 @@ async def note_diff(
         try:
             result = gs._run_git("diff", commit_a, commit_b, "--", file_path)
             diff = result.stdout
-        except Exception as exc:
-            raise HTTPException(status_code=500, detail=str(exc))
+        except subprocess.CalledProcessError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
     else:
         diff = gs.get_diff(str(note_id))
     return {"note_id": str(note_id), "diff": diff}

@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import email
 import email.utils
+import logging
 from datetime import datetime
 
 from src.models.note import Note
+
+logger = logging.getLogger(__name__)
 
 
 def parse_email(raw_bytes: bytes, filename: str = "imported.eml") -> Note:
@@ -33,8 +36,8 @@ def parse_email(raw_bytes: bytes, filename: str = "imported.eml") -> Note:
     if date_str:
         try:
             created = email.utils.parsedate_to_datetime(date_str)
-        except Exception:
-            pass
+        except (TypeError, ValueError):
+            logger.debug("email import: unparseable Date header %r", date_str)
 
     body_parts: list[str] = []
     if msg.is_multipart():

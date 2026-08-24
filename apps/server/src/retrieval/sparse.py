@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import threading
 from pathlib import Path
 
 import tantivy
 
 from src.retrieval.search_result import SearchResult
+
+logger = logging.getLogger(__name__)
 
 
 def _build_index(notes_dir: Path) -> tantivy.Index:
@@ -96,6 +99,7 @@ class SparseRetriever:
             parsed_query = index.parse_query(query, ["body", "note_id"])
         except Exception:
             # Tantivy throws on empty/invalid queries
+            logger.debug("sparse search: unparseable query %r", query, exc_info=True)
             return []
 
         snippet_gen = tantivy.SnippetGenerator.create(searcher, parsed_query, index.schema, "body")

@@ -173,6 +173,5 @@ class ConnectionDiscovery:
                 norm = np.linalg.norm(s) * np.linalg.norm(t)
                 if norm > 0:
                     sim = float(np.dot(s, t) / norm)
-                    if sim > best:
-                        best = sim
+                    best = max(best, sim)
         return max(0.0, min(1.0, best))

@@ -35,7 +35,7 @@ def _stack_reachable() -> bool:
     try:
         resp = httpx.get(f"{BASE_URL}/api/notes/", timeout=5.0)
         return resp.status_code < 500
-    except Exception:
+    except (httpx.HTTPError, OSError):
         return False
 
 

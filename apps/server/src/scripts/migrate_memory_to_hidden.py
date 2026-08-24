@@ -64,7 +64,8 @@ def run_migration(notes_dir: str) -> dict[str, int]:
                 migrated += 1
             else:
                 skipped += 1
-        except Exception:
+        except (OSError, ValueError) as exc:
+            print(f"failed: {md_file}: {exc}", file=sys.stderr)
             failed += 1
 
     return {"migrated": migrated, "skipped": skipped, "failed": failed}

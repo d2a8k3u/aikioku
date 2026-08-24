@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -29,8 +29,8 @@ def sample_note():
         frontmatter={"tags": ["test", "demo"], "aliases": ["alias1"]},
         links=["other-note-id"],
         path="/notes/test-note.md",
-        created=datetime(2026, 6, 10, 12, 0, 0, tzinfo=timezone.utc),
-        modified=datetime(2026, 6, 10, 12, 0, 0, tzinfo=timezone.utc),
+        created=datetime(2026, 6, 10, 12, 0, 0, tzinfo=UTC),
+        modified=datetime(2026, 6, 10, 12, 0, 0, tzinfo=UTC),
     )
 
 
@@ -46,8 +46,8 @@ def sample_note2():
         frontmatter={"tags": ["python", "coding"]},
         links=[],
         path="/notes/second-note.md",
-        created=datetime(2026, 6, 11, 10, 0, 0, tzinfo=timezone.utc),
-        modified=datetime(2026, 6, 11, 10, 0, 0, tzinfo=timezone.utc),
+        created=datetime(2026, 6, 11, 10, 0, 0, tzinfo=UTC),
+        modified=datetime(2026, 6, 11, 10, 0, 0, tzinfo=UTC),
     )
 
 

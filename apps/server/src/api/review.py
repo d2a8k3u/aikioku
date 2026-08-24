@@ -8,14 +8,14 @@ import httpx
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, field_validator
 
-from src.config import settings
-from src.llm.json_parse import LLMOutputParseError
 from src.api.websocket import get_broadcaster
-from src.models.card import Card
-from src.storage.note_store import NoteStore
 
 # Module-level import for test mocking (lazy usage in _get_spaced_repetition)
-from src.augmentation.spaced_repetition import SpacedRepetition  # noqa: F401
+from src.augmentation.spaced_repetition import SpacedRepetition
+from src.config import settings
+from src.llm.json_parse import LLMOutputParseError
+from src.models.card import Card
+from src.storage.note_store import NoteStore
 
 router = APIRouter(prefix="/api/review", tags=["review"])
 

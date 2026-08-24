@@ -7,8 +7,8 @@ from typing import Any, cast
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, field_validator
 
-from src.plugins.manager import PluginManager
 from src.plugins.api import PluginAPI
+from src.plugins.manager import PluginManager
 
 router = APIRouter(prefix="/api/plugins", tags=["plugins"])
 

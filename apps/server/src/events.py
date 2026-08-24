@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import sqlite3
-from datetime import datetime
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 from uuid import uuid4
 
 import structlog
+
+from src.utils.clock import utc_now_naive
 
 logger = structlog.get_logger()
 
@@ -20,7 +22,7 @@ class Event:
         self.id = str(uuid4())
         self.type = type
         self.data = data
-        self.created = datetime.utcnow()
+        self.created = utc_now_naive()
 
 
 class EventBus:
@@ -67,8 +69,8 @@ class EventBus:
         for handler in handlers:
             try:
                 handler(event)
-            except Exception as e:
-                logger.error("event_bus.handler_error", event_type=event.type, error=str(e))
+            except Exception:
+                logger.exception("event_bus.handler_error", event_type=event.type)
 
         logger.debug("event_bus.publish", event_type=event.type, id=event.id)
 
@@ -99,8 +101,8 @@ class EventBus:
                     await handler(event)
                 else:
                     handler(event)
-            except Exception as e:
-                logger.error("event_bus.handler_error", event_type=event.type, error=str(e))
+            except Exception:
+                logger.exception("event_bus.handler_error", event_type=event.type)
 
     async def process_unprocessed(self, limit: int = 100) -> int:
         """Poll and dispatch unprocessed events asynchronously."""

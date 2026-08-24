@@ -10,13 +10,13 @@ shape the frontend design expects.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Request
 from pydantic import BaseModel, field_validator
 
 from src import runtime_config
-from src.auth import UserInDB, require_auth
+from src.auth import CurrentUser
+from src.utils.clock import utc_now_naive
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +87,7 @@ def _save_profile(profile: BuddyProfile) -> None:
 
 def _greeting_for(name: str) -> str:
     """Time-of-day greeting."""
-    h = datetime.utcnow().hour
+    h = utc_now_naive().hour
     if 5 <= h < 11:
         return f"Good morning, {name}."
     if 11 <= h < 17:
@@ -113,15 +113,13 @@ def _buddy_line(tone: str) -> str:
 
 
 @router.get("/profile", response_model=BuddyProfile)
-async def get_profile(_user: UserInDB = Depends(require_auth)) -> BuddyProfile:
+async def get_profile(_user: CurrentUser) -> BuddyProfile:
     """Return the current buddy configuration."""
     return _load_profile()
 
 
 @router.put("/profile", response_model=BuddyProfile)
-async def update_profile(
-    body: BuddyProfile, _user: UserInDB = Depends(require_auth)
-) -> BuddyProfile:
+async def update_profile(body: BuddyProfile, _user: CurrentUser) -> BuddyProfile:
     """Update buddy configuration and persist to the database."""
     _save_profile(body)
     return _load_profile()
@@ -129,7 +127,7 @@ async def update_profile(
 
 @router.get("/greeting", response_model=BuddyGreeting)
 async def get_greeting(
-    user: UserInDB = Depends(require_auth),
+    user: CurrentUser,
 ) -> BuddyGreeting:
     """Return the time-of-day greeting, tone-based buddy line, and facts about the user."""
     profile = _load_profile()
@@ -142,7 +140,7 @@ async def get_greeting(
 @router.get("/cards", response_model=BuddyCards)
 async def get_cards(
     request: Request,
-    user: UserInDB = Depends(require_auth),
+    user: CurrentUser,
 ) -> BuddyCards:
     """Return up to 4 dynamic home-screen cards based on actual system state."""
     cards: list[BuddyCard] = []

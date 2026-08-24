@@ -1,10 +1,11 @@
 """Tests for ProgressiveSummarizer."""
 
-import pytest
 from unittest.mock import AsyncMock
 
-from src.models.note import Note
+import pytest
+
 from src.augmentation.summarization import ProgressiveSummarizer
+from src.models.note import Note
 
 
 @pytest.fixture

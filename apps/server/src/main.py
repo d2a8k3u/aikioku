@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import httpx
+import structlog
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
@@ -12,54 +13,52 @@ from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.routing import Route
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
-import structlog
 
-from src.llm.json_parse import LLMOutputParseError
-from src.llm.ollama_remote import EmbeddingUnavailableError
-from src.llm.router import BudgetExceededError
-
-from src.config import settings
 from src import runtime_config
+from src.config import settings
 from src.events import EventBus
 from src.knowledge.graph import KnowledgeGraph
 from src.limiter import limiter
+from src.llm.json_parse import LLMOutputParseError
+from src.llm.ollama_remote import EmbeddingUnavailableError
+from src.llm.router import BudgetExceededError
 from src.observability import configure_logging, metrics_middleware, render_metrics
 
 # Configure logging before importing modules that may log at import time.
 configure_logging(settings.log_level)
-from src.api import (  # noqa: E402
-    auth_router,
-    chat_router,
-    conversations_router,
-    notes_router,
-    search_router,
-    import_export_router,
-    review_router,
-    graph_router,
-    settings_router,
-    tokens_router,
-    setup_router,
-    entities_router,
-    stats_router,
-    retrieval_router,
-    serendipity_router,
-    summarization_router,
-    question_gen_router,
-    connections_router,
-    cognitive_state_router,
-    git_sync_router,
-    anomaly_router,
-    auto_tag_router,
-    plugin_router,
-    buddy_router,
-    websocket_router,
+from src.api import (
     admin_router,
-    reembed_router,
-    schema_router,
+    anomaly_router,
+    auth_router,
+    auto_tag_router,
+    buddy_router,
     budget_router,
+    chat_router,
+    cognitive_state_router,
+    connections_router,
+    conversations_router,
+    entities_router,
+    git_sync_router,
+    graph_router,
+    import_export_router,
+    notes_router,
+    plugin_router,
+    question_gen_router,
+    reembed_router,
+    retrieval_router,
+    review_router,
+    schema_router,
+    search_router,
+    serendipity_router,
+    settings_router,
+    setup_router,
+    stats_router,
+    summarization_router,
+    tokens_router,
+    websocket_router,
 )
-from src.api.websocket import set_broadcaster  # noqa: E402
-from src.mcp_server import build_mcp  # noqa: E402
+from src.api.websocket import set_broadcaster
+from src.mcp_server import build_mcp
 
 logger = structlog.get_logger()
 
@@ -126,9 +125,9 @@ def build_runtime(app: FastAPI) -> None:
     app.state.embedding_provider = build_embedding_provider()
 
     from src.retrieval.dense import DenseRetriever
-    from src.retrieval.sparse import SparseRetriever
-    from src.retrieval.graph_retrieval import GraphRetriever
     from src.retrieval.fusion import HybridFusion
+    from src.retrieval.graph_retrieval import GraphRetriever
+    from src.retrieval.sparse import SparseRetriever
 
     dense = DenseRetriever(app.state.embedding_store, app.state.embedding_provider)
     sparse = SparseRetriever(settings.notes_dir)
@@ -197,9 +196,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Initialize the shared NoteStore singleton and warm its metadata index.
     # reindex() rebuilds the index from the on-disk markdown notes so list/count
     # operations are served from SQLite (no full-corpus scan per request).
-    from src.storage.note_store import NoteStore
-
     from src.scripts.migrate_memory_to_hidden import run_migration
+    from src.storage.note_store import NoteStore
 
     migration_result = run_migration(settings.notes_dir)
     if migration_result["migrated"] > 0:
@@ -232,8 +230,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.info("aikioku.unconfigured", detail="awaiting setup wizard")
 
     # Initialize plugin system with EventBus wiring
-    from src.plugins.manager import PluginManager
     from src.plugins.api import PluginAPI
+    from src.plugins.manager import PluginManager
 
     app.state.plugin_manager = PluginManager()
     app.state.plugin_api = PluginAPI(event_bus=app.state.event_bus)

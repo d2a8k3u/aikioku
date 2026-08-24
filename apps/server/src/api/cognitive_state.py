@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, HTTPException, Request
 
 from src.augmentation.cognitive_state import CognitiveStateTracker
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/cognitive", tags=["cognitive"])
 
@@ -27,7 +31,8 @@ async def get_state(request: Request) -> dict[str, str]:
         state = tracker.get_state()
         intervention = tracker.get_intervention_recommendation(state)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        logger.exception("cognitive state lookup failed")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     return {
         "state": state.value,
         "intervention": intervention.value,
@@ -41,5 +46,6 @@ async def record_signal(request: Request, signal_type: str, value: float) -> dic
     try:
         tracker.record_signal(signal_type, value)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        logger.exception("cognitive signal %s could not be recorded", signal_type)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     return {"status": "recorded", "signal_type": signal_type, "value": value}

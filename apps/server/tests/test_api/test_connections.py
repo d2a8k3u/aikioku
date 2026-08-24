@@ -13,9 +13,9 @@ from fastapi.testclient import TestClient
 def client():
     """Create a FastAPI TestClient with a seeded KnowledgeGraph and mock EmbeddingStore."""
     from src.knowledge.graph import KnowledgeGraph
+    from src.main import app
     from src.models.entity import Entity, EntityType
     from src.models.relation import Relation, RelationType
-    from src.main import app
 
     with tempfile.TemporaryDirectory() as tmpdir:
         kg_path = os.path.join(tmpdir, "test_kg.db")
@@ -56,7 +56,7 @@ def client():
 
 class TestDiscoverConnections:
     def test_returns_connections(self, client):
-        cli, e1, e2, e3 = client
+        cli, e1, _e2, _e3 = client
         response = cli.post(f"/api/connections/discover?entity_id={e1.id}&max_distance=3")
         assert response.status_code == 200
         data = response.json()
@@ -65,7 +65,7 @@ class TestDiscoverConnections:
         assert isinstance(data["connections"], list)
 
     def test_connections_have_fields(self, client):
-        cli, e1, e2, e3 = client
+        cli, e1, _e2, _e3 = client
         response = cli.post(f"/api/connections/discover?entity_id={e1.id}&max_distance=3")
         data = response.json()
         for conn in data["connections"]:
@@ -76,12 +76,12 @@ class TestDiscoverConnections:
             assert isinstance(conn["strength"], float)
 
     def test_missing_entity_id_returns_400(self, client):
-        cli, *rest = client
+        cli, *_rest = client
         response = cli.post("/api/connections/discover?max_distance=3")
         assert response.status_code == 400
 
     def test_empty_connections_for_isolated(self, client):
-        cli, e1, e2, e3 = client
+        cli, _e1, _e2, _e3 = client
         from src.models.entity import Entity, EntityType
 
         isolated = Entity(name="Solo", type=EntityType.Concept, confidence=0.90)

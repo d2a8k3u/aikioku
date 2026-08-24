@@ -139,11 +139,11 @@ class SchemaInducer:
                 self._llm.complete(prompt=prompt),
                 timeout=LLM_INDUCTION_TIMEOUT,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error("Schema induction: entity analysis timed out")
             return []
-        except Exception as exc:
-            logger.error("Schema induction: entity analysis LLM call failed: %s", exc)
+        except Exception:
+            logger.exception("Schema induction: entity analysis LLM call failed")
             return []
 
         if not response or not isinstance(response, str):
@@ -239,11 +239,11 @@ class SchemaInducer:
                 self._llm.complete(prompt=prompt),
                 timeout=LLM_INDUCTION_TIMEOUT,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error("Schema induction: relation analysis timed out")
             return []
-        except Exception as exc:
-            logger.error("Schema induction: relation analysis LLM call failed: %s", exc)
+        except Exception:
+            logger.exception("Schema induction: relation analysis LLM call failed")
             return []
 
         if not response or not isinstance(response, str):

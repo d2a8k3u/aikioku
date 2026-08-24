@@ -7,9 +7,10 @@ import logging
 import os
 import sqlite3
 import time
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import Any, AsyncIterator
+from datetime import UTC, datetime, timedelta
+from typing import Any, ClassVar
 
 from src.llm.base import LLMProvider
 
@@ -36,14 +37,14 @@ class CostRecord:
     prompt_tokens: int = 0
     completion_tokens: int = 0
     cost_usd: float = 0.0
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 class CostTracker:
     """Tracks LLM usage costs and enforces daily budget caps."""
 
     # Rough per-token pricing (USD) — override via config if needed
-    _PRICE_PER_1K: dict[str, dict[str, float]] = {
+    _PRICE_PER_1K: ClassVar[dict[str, dict[str, float]]] = {
         "ollama": {"prompt": 0.0, "completion": 0.0},
         "ollama_remote": {"prompt": 0.0, "completion": 0.0},
         # OpenRouter pricing is per-model and billed upstream; left at 0.0 here.
@@ -102,7 +103,7 @@ class CostTracker:
         """Return total cost for today in USD (cached, 60s TTL)."""
         if self._cached_cost is not None and (time.monotonic() - self._cached_cost_ts) < 60.0:
             return self._cached_cost
-        today = datetime.now(timezone.utc).date().isoformat()
+        today = datetime.now(UTC).date().isoformat()
         with sqlite3.connect(self._db_path) as conn:
             row = conn.execute(
                 "SELECT SUM(cost_usd) FROM llm_costs WHERE timestamp >= ?",
@@ -145,7 +146,7 @@ class CostTracker:
 
     def get_stats(self, days: int = 7) -> dict[str, Any]:
         """Return cost stats for the last N days."""
-        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
         with sqlite3.connect(self._db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -184,8 +185,8 @@ class CircuitState:
     def is_open(self, threshold: int = 5, cooldown_seconds: int = 60) -> bool:
         if self.failures >= threshold:
             if self.open_until is None:
-                self.open_until = datetime.now(timezone.utc) + timedelta(seconds=cooldown_seconds)
-            return datetime.now(timezone.utc) < self.open_until
+                self.open_until = datetime.now(UTC) + timedelta(seconds=cooldown_seconds)
+            return datetime.now(UTC) < self.open_until
         return False
 
     def record_success(self) -> None:
@@ -194,7 +195,7 @@ class CircuitState:
 
     def record_failure(self) -> None:
         self.failures += 1
-        self.last_failure = datetime.now(timezone.utc)
+        self.last_failure = datetime.now(UTC)
 
 
 class LLMRouter(LLMProvider):
@@ -227,9 +228,10 @@ class LLMRouter(LLMProvider):
 
     async def _first_available(self) -> tuple[int, LLMProvider]:
         for i, provider in enumerate(self._providers):
-            if not self._circuits[i].is_open(self._failure_threshold, self._cooldown_seconds):
-                if await self._is_available_cached(i, provider):
-                    return i, provider
+            if not self._circuits[i].is_open(
+                self._failure_threshold, self._cooldown_seconds
+            ) and await self._is_available_cached(i, provider):
+                return i, provider
         # Fallback: return first provider even if circuit is open
         return 0, self._providers[0]
 
@@ -275,11 +277,9 @@ class LLMRouter(LLMProvider):
                         self._circuits[fallback_idx].record_success()
                         self._track(fallback, prompt, result)
                         return result
-                    except Exception as exc2:
+                    except Exception:
                         self._record_failure(fallback_idx)
-                        logger.warning(
-                            "fallback_failed: %s - %s", type(fallback).__name__, str(exc2)
-                        )
+                        logger.exception("fallback_failed: %s", type(fallback).__name__)
             raise
 
     async def stream(self, prompt: str, system: str = "", **kwargs: Any) -> AsyncIterator[str]:
@@ -316,11 +316,9 @@ class LLMRouter(LLMProvider):
                         self._track(fallback, prompt, result)
                         yield result
                         return
-                    except Exception as exc2:
+                    except Exception:
                         self._record_failure(fallback_idx)
-                        logger.warning(
-                            "stream_fallback_failed: %s - %s", type(fallback).__name__, str(exc2)
-                        )
+                        logger.exception("stream_fallback_failed: %s", type(fallback).__name__)
             raise
 
     async def embed(self, text: str) -> list[float]:
@@ -343,6 +341,7 @@ class LLMRouter(LLMProvider):
                         return result
                     except Exception:
                         self._record_failure(fallback_idx)
+                        logger.exception("embed_fallback_failed: %s", type(fallback).__name__)
             raise
 
     def is_available(self) -> bool:
@@ -376,8 +375,8 @@ class LLMRouter(LLMProvider):
         for provider in self._providers:
             try:
                 await provider.aclose()
-            except Exception as exc:
-                logger.warning("aclose_failed: %s - %s", type(provider).__name__, str(exc))
+            except Exception:
+                logger.exception("aclose_failed: %s", type(provider).__name__)
 
     def get_circuit_states(self) -> list[dict[str, Any]]:
         """Return current circuit breaker states."""

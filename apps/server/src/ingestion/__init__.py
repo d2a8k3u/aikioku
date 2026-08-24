@@ -5,10 +5,10 @@ when needed.
 """
 
 __all__ = [
-    "parse_pdf",
-    "parse_docx",
     "parse_audio",
-    "parse_image",
-    "parse_web_clip",
+    "parse_docx",
     "parse_email",
+    "parse_image",
+    "parse_pdf",
+    "parse_web_clip",
 ]

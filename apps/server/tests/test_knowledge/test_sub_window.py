@@ -16,12 +16,11 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.knowledge.embeddings import EmbeddingStore
-from src.knowledge.pipeline import sub_window_chunk, store_note_embeddings
+from src.knowledge.pipeline import store_note_embeddings, sub_window_chunk
 from src.llm.base import LLMProvider
 from src.models.note import Note
 from src.retrieval.dense import DenseRetriever
 from src.retrieval.search_result import SearchResult
-
 
 # --------------------------------------------------------------------------- #
 # Fixtures

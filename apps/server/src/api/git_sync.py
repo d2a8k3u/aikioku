@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from src.storage.git_sync import GitSync
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/sync/git", tags=["git-sync"])
 
@@ -29,7 +32,8 @@ async def git_commit(request: Request, message: str) -> dict[str, str | bool]:
     try:
         committed = gs.commit(message)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        logger.exception("git commit failed")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     return {"committed": committed, "message": message}
 
 
@@ -43,7 +47,8 @@ async def git_history(
     try:
         history = gs.get_history(limit=limit)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        logger.exception("git history lookup failed")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     return history
 
 
@@ -54,5 +59,6 @@ async def git_diff(request: Request, note_id: str) -> dict[str, str]:
     try:
         diff = gs.get_diff(note_id)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        logger.exception("git diff failed for note %s", note_id)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     return {"note_id": note_id, "diff": diff}

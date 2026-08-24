@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 import tempfile
-from datetime import datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-import httpx
-
 from src.models.card import Card, CardStatus, CardType
 from src.models.note import Note
+from src.utils.clock import utc_now_naive
 
 
 @pytest.fixture
@@ -46,7 +45,7 @@ class TestGetDueCards:
     """Test GET /api/review/due endpoint."""
 
     def test_returns_due_cards(self, temp_db_path, note_store):
-        now = datetime.utcnow()
+        now = utc_now_naive()
         due_cards = [
             Card(
                 id="card-1",
@@ -89,7 +88,7 @@ class TestCreateCards:
                 type=CardType.qa,
                 front="Who created Python?",
                 back="Guido van Rossum",
-                next_review=datetime.utcnow(),
+                next_review=utc_now_naive(),
                 status=CardStatus.new,
             ),
             Card(
@@ -98,7 +97,7 @@ class TestCreateCards:
                 type=CardType.cloze,
                 front="Python was created by {{Guido van Rossum}}.",
                 back="Python was created by Guido van Rossum.",
-                next_review=datetime.utcnow(),
+                next_review=utc_now_naive(),
                 status=CardStatus.new,
             ),
         ]
@@ -131,7 +130,7 @@ class TestReviewCard:
     """Test POST /api/review/cards/{card_id}/review endpoint."""
 
     def test_rating_3_updates_interval(self, temp_db_path):
-        now = datetime.utcnow()
+        now = utc_now_naive()
         reviewed_card = Card(
             id="card-1",
             note_id="note-1",
@@ -169,7 +168,7 @@ class TestReviewCard:
         mock_sr.review_card.assert_called_once_with("card-1", 3)
 
     def test_rating_1_resets(self, temp_db_path):
-        now = datetime.utcnow()
+        now = utc_now_naive()
         reviewed_card = Card(
             id="card-1",
             note_id="note-1",
@@ -212,8 +211,8 @@ class TestSpacedRepetitionProviderInjection:
     """_get_spaced_repetition must use app.state.llm_provider, never localhost."""
 
     def test_uses_app_state_llm_provider(self, temp_db_path):
-        from src.main import app
         from src.api.review import _get_spaced_repetition
+        from src.main import app
 
         fake_provider = MagicMock(name="fake_llm_provider")
         app.state.llm_provider = fake_provider
@@ -241,8 +240,8 @@ class TestSpacedRepetitionProviderInjection:
     def test_missing_provider_raises_503(self, temp_db_path):
         from fastapi import HTTPException
 
-        from src.main import app
         from src.api.review import _get_spaced_repetition
+        from src.main import app
 
         if hasattr(app.state, "spaced_repetition"):
             delattr(app.state, "spaced_repetition")

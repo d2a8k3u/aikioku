@@ -72,8 +72,8 @@ class TestFindCandidates:
 
     def test_finds_by_alias(self, graph):
         """Should find an entity that has the search entity as an alias."""
-        from src.models.entity import Entity, EntityType
         from src.knowledge.entity_resolution import EntityResolver
+        from src.models.entity import Entity, EntityType
 
         existing = Entity(
             name="Robert",
@@ -105,8 +105,8 @@ class TestFindCandidates:
 
     def test_empty_graph_returns_empty_list(self, graph):
         """Should return empty list when graph is empty."""
-        from src.models.entity import Entity, EntityType
         from src.knowledge.entity_resolution import EntityResolver
+        from src.models.entity import Entity, EntityType
 
         resolver = EntityResolver(graph=graph)
         query = Entity(name="Nobody", type=EntityType.Person)
@@ -119,8 +119,8 @@ class TestComputeScore:
 
     def test_exact_name_match(self):
         """Exact name match should score 1.0."""
-        from src.models.entity import Entity, EntityType
         from src.knowledge.entity_resolution import EntityResolver
+        from src.models.entity import Entity, EntityType
 
         e1 = Entity(name="Alice", type=EntityType.Person)
         e2 = Entity(name="Alice", type=EntityType.Person)
@@ -130,8 +130,8 @@ class TestComputeScore:
 
     def test_alias_match(self):
         """Alias match should score 0.9."""
-        from src.models.entity import Entity, EntityType
         from src.knowledge.entity_resolution import EntityResolver
+        from src.models.entity import Entity, EntityType
 
         e1 = Entity(name="Bob", type=EntityType.Person)
         e2 = Entity(name="Robert", type=EntityType.Person, aliases=["Bob"])
@@ -141,8 +141,8 @@ class TestComputeScore:
 
     def test_levenshtein_close_match(self):
         """Levenshtein distance < 3 should score 0.7."""
-        from src.models.entity import Entity, EntityType
         from src.knowledge.entity_resolution import EntityResolver
+        from src.models.entity import Entity, EntityType
 
         e1 = Entity(name="Alice", type=EntityType.Person)
         e2 = Entity(name="Alicia", type=EntityType.Organization)
@@ -152,8 +152,8 @@ class TestComputeScore:
 
     def test_type_compatibility(self):
         """Same type should add 0.3."""
-        from src.models.entity import Entity, EntityType
         from src.knowledge.entity_resolution import EntityResolver
+        from src.models.entity import Entity, EntityType
 
         e1 = Entity(name="Something", type=EntityType.Person)
         e2 = Entity(name="Different", type=EntityType.Person)
@@ -163,8 +163,8 @@ class TestComputeScore:
 
     def test_no_match(self):
         """Completely different entities should score 0.0."""
-        from src.models.entity import Entity, EntityType
         from src.knowledge.entity_resolution import EntityResolver
+        from src.models.entity import Entity, EntityType
 
         e1 = Entity(name="Alice", type=EntityType.Person)
         e2 = Entity(name="XyzzyCorp", type=EntityType.Organization)
@@ -174,8 +174,8 @@ class TestComputeScore:
 
     def test_combined_signals(self):
         """Levenshtein + type should combine to 1.0 (0.7 + 0.3)."""
-        from src.models.entity import Entity, EntityType
         from src.knowledge.entity_resolution import EntityResolver
+        from src.models.entity import Entity, EntityType
 
         e1 = Entity(name="Alice", type=EntityType.Person)
         e2 = Entity(name="Alic", type=EntityType.Person)
@@ -189,8 +189,8 @@ class TestResolve:
 
     def test_resolve_exact_match_merges(self, graph):
         """Exact name match (>0.85) should return the existing entity (merge)."""
-        from src.models.entity import Entity, EntityType
         from src.knowledge.entity_resolution import EntityResolver
+        from src.models.entity import Entity, EntityType
 
         existing = Entity(name="Alice", type=EntityType.Person)
         graph.create_entity(existing)
@@ -202,8 +202,8 @@ class TestResolve:
 
     def test_resolve_no_match_creates_new(self, graph):
         """No match found should create a new entity in the graph."""
-        from src.models.entity import Entity, EntityType
         from src.knowledge.entity_resolution import EntityResolver
+        from src.models.entity import Entity, EntityType
 
         query = Entity(name="NewPerson", type=EntityType.Person)
         resolver = EntityResolver(graph=graph)
@@ -216,8 +216,8 @@ class TestResolve:
 
     def test_resolve_suggests_below_merge_threshold(self, graph):
         """Score between 0.6 and 0.85 should create new entity (no merge)."""
-        from src.models.entity import Entity, EntityType
         from src.knowledge.entity_resolution import EntityResolver
+        from src.models.entity import Entity, EntityType
 
         # Levenshtein match (0.7) with different type: score = 0.7 (in suggest range)
         existing = Entity(name="Alice", type=EntityType.Person)
@@ -231,8 +231,8 @@ class TestResolve:
 
     def test_resolve_below_suggest_threshold(self, graph):
         """Score below 0.6 should create new entity."""
-        from src.models.entity import Entity, EntityType
         from src.knowledge.entity_resolution import EntityResolver
+        from src.models.entity import Entity, EntityType
 
         existing = Entity(name="Alice", type=EntityType.Person)
         graph.create_entity(existing)
@@ -248,8 +248,8 @@ class TestMergeEntities:
 
     def test_merge_combines_aliases(self, graph):
         """Merging should combine aliases from both entities."""
-        from src.models.entity import Entity, EntityType
         from src.knowledge.entity_resolution import EntityResolver
+        from src.models.entity import Entity, EntityType
 
         source = Entity(
             name="Robert",
@@ -275,8 +275,8 @@ class TestMergeEntities:
 
     def test_merge_keeps_higher_confidence(self, graph):
         """Merging should keep the higher confidence score."""
-        from src.models.entity import Entity, EntityType
         from src.knowledge.entity_resolution import EntityResolver
+        from src.models.entity import Entity, EntityType
 
         source = Entity(name="Alice", type=EntityType.Person, confidence=0.95)
         target = Entity(name="Alice", type=EntityType.Person, confidence=0.7)
@@ -289,8 +289,8 @@ class TestMergeEntities:
 
     def test_merge_combines_source_note_ids(self, graph):
         """Merging should combine source_note_ids from both entities."""
-        from src.models.entity import Entity, EntityType
         from src.knowledge.entity_resolution import EntityResolver
+        from src.models.entity import Entity, EntityType
 
         source = Entity(
             name="Alice",
@@ -314,8 +314,8 @@ class TestMergeEntities:
 
     def test_merge_combines_properties(self, graph):
         """Merging should combine properties from both entities."""
-        from src.models.entity import Entity, EntityType
         from src.knowledge.entity_resolution import EntityResolver
+        from src.models.entity import Entity, EntityType
 
         source = Entity(
             name="Alice",
@@ -338,8 +338,8 @@ class TestMergeEntities:
 
     def test_merge_returns_target_entity(self, graph):
         """Merging should return the target entity (not source)."""
-        from src.models.entity import Entity, EntityType
         from src.knowledge.entity_resolution import EntityResolver
+        from src.models.entity import Entity, EntityType
 
         source = Entity(name="Bob", type=EntityType.Person)
         target = Entity(name="Robert", type=EntityType.Person)
@@ -352,8 +352,8 @@ class TestMergeEntities:
 
     def test_merge_removes_source_entity(self, graph):
         """After merging, the source entity should be removed from the graph."""
-        from src.models.entity import Entity, EntityType
         from src.knowledge.entity_resolution import EntityResolver
+        from src.models.entity import Entity, EntityType
 
         source = Entity(name="Bob", type=EntityType.Person)
         target = Entity(name="Robert", type=EntityType.Person)

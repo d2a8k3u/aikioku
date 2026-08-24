@@ -126,7 +126,7 @@ async def run_setup(payload: SetupPayload, request: Request) -> dict[str, bool]:
 
     # 2. Persist secrets (encrypted). Empty strings are ignored by set_secret.
     for field in _SECRET_FIELDS:
-        if field in data and data[field]:
+        if data.get(field):
             secrets_store.set_secret(field, data[field])
 
     # 3. Create the admin login account.

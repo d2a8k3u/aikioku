@@ -14,7 +14,9 @@ completions.
 from __future__ import annotations
 
 import json
-from typing import Any, AsyncIterator
+import logging
+from collections.abc import AsyncIterator
+from typing import Any
 
 import httpx
 
@@ -22,6 +24,8 @@ from src.llm.base import LLMProvider
 from src.llm.ollama_remote import OllamaRemoteProvider
 from src.llm.prompt_cache import build_messages_with_cache
 from src.llm.urls import OPENROUTER_CHAT, OPENROUTER_MODELS, join, normalize_base
+
+logger = logging.getLogger(__name__)
 
 
 class OpenRouterProvider(LLMProvider):
@@ -151,4 +155,7 @@ class OpenRouterProvider(LLMProvider):
             urllib.request.urlopen(req, timeout=5)
             return True
         except Exception:
+            logger.debug(
+                "openrouter availability probe failed for %s", self.base_url, exc_info=True
+            )
             return False

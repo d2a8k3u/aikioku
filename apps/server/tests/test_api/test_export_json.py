@@ -67,8 +67,8 @@ class TestExportJson:
         note.frontmatter = {}
         note.links = []
         note.path = "/path.md"
-        note.created = datetime(2026, 6, 1, 12, 0, 0)
-        note.modified = datetime(2026, 6, 2, 12, 0, 0)
+        note.created = datetime(2026, 6, 1, 12, 0, 0)  # noqa: DTZ001
+        note.modified = datetime(2026, 6, 2, 12, 0, 0)  # noqa: DTZ001
 
         with patch("src.api.import_export.get_note_store") as mock_store_fn:
             mock_store = MagicMock()

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -41,12 +41,12 @@ class NoteUpdate(BaseModel):
     All fields are optional; omitted fields preserve the existing values.
     """
 
-    id: Optional[str] = None
-    title: Optional[str] = None
-    content: Optional[str] = None
-    frontmatter: Optional[dict[str, Any]] = None
-    links: Optional[list[str]] = None
-    path: Optional[str] = None
-    source_type: Optional[str] = None
-    created: Optional[datetime] = None
-    modified: Optional[datetime] = None
+    id: str | None = None
+    title: str | None = None
+    content: str | None = None
+    frontmatter: dict[str, Any] | None = None
+    links: list[str] | None = None
+    path: str | None = None
+    source_type: str | None = None
+    created: datetime | None = None
+    modified: datetime | None = None

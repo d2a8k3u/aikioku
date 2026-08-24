@@ -38,7 +38,7 @@ async def list_ollama_models(
             resp = await client.get(url, headers=headers)
             resp.raise_for_status()
             data = resp.json()
-    except Exception as exc:
+    except (httpx.HTTPError, ValueError) as exc:
         logger.warning("Failed to fetch Ollama models from %s: %s", url, exc)
         return []
 
@@ -100,7 +100,7 @@ async def list_openrouter_models(
             resp = await client.get(url, headers=headers)
             resp.raise_for_status()
             data = resp.json()
-    except Exception as exc:
+    except (httpx.HTTPError, ValueError) as exc:
         logger.warning("Failed to fetch OpenRouter models from %s: %s", url, exc)
         return []
 
@@ -143,7 +143,7 @@ async def list_hf_embedding_models(query: str = "", limit: int = 20) -> list[dic
             resp = await client.get("https://huggingface.co/api/models", params=params)
             resp.raise_for_status()
             data = resp.json()
-    except Exception as exc:
+    except (httpx.HTTPError, ValueError) as exc:
         logger.warning("Failed to fetch HF embedding models: %s", exc)
         return []
 

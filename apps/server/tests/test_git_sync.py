@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -25,7 +27,7 @@ class TestGitSyncInit:
             GitSync(tmpdir)
             gitignore = os.path.join(tmpdir, ".gitignore")
             assert os.path.isfile(gitignore)
-            assert ".DS_Store" in open(gitignore).read()
+            assert ".DS_Store" in Path(gitignore).read_text()
 
     def test_init_does_not_duplicate_repo(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -170,7 +172,7 @@ class TestGitSyncEdgeCases:
     def test_run_git_raises_on_invalid_command(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             gs = GitSync(tmpdir)
-            with pytest.raises(Exception):
+            with pytest.raises(subprocess.CalledProcessError):
                 gs._run_git("not-a-real-command")
 
     def test_commit_gracefully_handles_git_error(self, monkeypatch):

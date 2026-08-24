@@ -10,7 +10,6 @@ from __future__ import annotations
 import pytest
 from fastapi import HTTPException
 
-
 OLD_HARDCODED_SECRET = "aikioku-dev-secret-change-me"
 
 

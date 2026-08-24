@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import tempfile
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # LLM Router / CostTracker / CircuitBreaker
@@ -17,7 +16,7 @@ import pytest
 
 class TestCostTracker:
     def test_init_creates_table(self):
-        from src.llm.router import CostTracker, CostRecord
+        from src.llm.router import CostRecord, CostTracker
 
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
             path = f.name
@@ -67,7 +66,7 @@ class TestCircuitState:
         cs.record_failure()
         cs.record_failure()
         cs.record_failure()
-        cs.open_until = datetime.now(timezone.utc) - timedelta(seconds=1)
+        cs.open_until = datetime.now(UTC) - timedelta(seconds=1)
         assert cs.is_open(threshold=3, cooldown_seconds=0) is False
 
 
@@ -293,6 +292,7 @@ class TestAnomalyDetector:
 class TestAnomalyAPI:
     def test_recent_returns_list(self):
         from fastapi.testclient import TestClient
+
         from src.main import app
 
         with TestClient(app) as client:
@@ -309,8 +309,8 @@ class TestAnomalyAPI:
 
 class TestAutoTagger:
     def test_rule_based_tags(self):
-        from src.models.note import Note
         from src.augmentation.auto_tag import AutoTagger
+        from src.models.note import Note
 
         engine = AutoTagger()
         note = Note(title="T", content="#python #api Learn FastAPI today!", path="x.md")
@@ -321,6 +321,7 @@ class TestAutoTagger:
     @pytest.mark.skip(reason="Requires JWT auth token")
     def test_api_returns_tags(self):
         from fastapi.testclient import TestClient
+
         from src.main import app
 
         with TestClient(app) as client:
@@ -345,10 +346,10 @@ class TestAutoTagger:
 class TestWebSocketEndpoint:
     def test_websocket_connect_and_disconnect(self):
         from fastapi.testclient import TestClient
-        from src.main import app
+
         from src.api import websocket as ws_mod
+        from src.main import app
 
         ws_mod.set_broadcaster(MagicMock())
-        with TestClient(app) as client:
-            with client.websocket_connect("/ws/events") as ws:
-                ws.send_text("ping")
+        with TestClient(app) as client, client.websocket_connect("/ws/events") as ws:
+            ws.send_text("ping")

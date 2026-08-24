@@ -6,6 +6,7 @@ Run with: pytest -m integration
 from __future__ import annotations
 
 import os
+
 import pytest
 
 pytestmark = pytest.mark.integration
@@ -64,10 +65,11 @@ class TestLLMFactoryReal:
     """Real factory selection test."""
 
     async def test_factory_returns_working_provider(self):
-        from src.config import settings
-        from src.llm.ollama_remote import OllamaRemoteProvider
-        from src.llm.ollama import OllamaProvider
         import httpx
+
+        from src.config import settings
+        from src.llm.ollama import OllamaProvider
+        from src.llm.ollama_remote import OllamaRemoteProvider
 
         if settings.llm_provider == "ollama_remote" and not settings.ollama_api_key:
             pytest.skip("No OLLAMA_API_KEY configured")
@@ -99,12 +101,13 @@ class TestEntityExtractionReal:
     """Real entity extraction via LLM."""
 
     async def test_extract_entities_from_note(self):
-        from src.llm.ollama_remote import OllamaRemoteProvider
+        import os
+        import tempfile
+
         from src.knowledge.graph import KnowledgeGraph
         from src.knowledge.pipeline import extract_entities_from_note
+        from src.llm.ollama_remote import OllamaRemoteProvider
         from src.models.note import Note
-        import tempfile
-        import os
 
         provider = OllamaRemoteProvider(
             base_url=os.environ.get("OLLAMA_BASE_URL", "https://api.ollama.com"),

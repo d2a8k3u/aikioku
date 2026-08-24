@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.processing.consolidation_worker import _consolidation_worker, _interval_elapsed
+from src.utils.clock import utc_now_naive
 
 
 # Sentinel raised inside the mocked ``asyncio.sleep`` to break the infinite
@@ -27,18 +28,18 @@ class TestIntervalElapsed:
         assert _interval_elapsed(None, 6.0) is True
 
     def test_recent_timestamp_returns_false(self):
-        recent = datetime.utcnow().isoformat()
+        recent = utc_now_naive().isoformat()
         assert _interval_elapsed(recent, 6.0) is False
 
     def test_old_timestamp_returns_true(self):
-        old = (datetime.utcnow() - timedelta(hours=10)).isoformat()
+        old = (utc_now_naive() - timedelta(hours=10)).isoformat()
         assert _interval_elapsed(old, 6.0) is True
 
     def test_unparseable_timestamp_returns_true(self):
         assert _interval_elapsed("not-a-timestamp", 6.0) is True
 
     def test_boundary_timestamp_returns_true(self):
-        boundary = (datetime.utcnow() - timedelta(hours=6)).isoformat()
+        boundary = (utc_now_naive() - timedelta(hours=6)).isoformat()
         assert _interval_elapsed(boundary, 6.0) is True
 
 
@@ -148,7 +149,7 @@ async def test_worker_not_configured_skips(monkeypatch):
 @pytest.mark.asyncio
 async def test_worker_interval_not_elapsed_skips(monkeypatch):
     app = _make_app()
-    recent = datetime.utcnow().isoformat()
+    recent = utc_now_naive().isoformat()
     run_mock, set_calls = await _run_one_iteration(app, monkeypatch, last_run=recent)
     run_mock.assert_not_called()
     assert set_calls == []
@@ -191,7 +192,7 @@ async def test_worker_updates_last_run_after_success(monkeypatch):
     key, value = set_calls[0]
     assert key == "consolidation_last_run"
     parsed = datetime.fromisoformat(value)
-    assert (datetime.utcnow() - parsed) < timedelta(minutes=1)
+    assert (utc_now_naive() - parsed) < timedelta(minutes=1)
 
 
 @pytest.mark.asyncio

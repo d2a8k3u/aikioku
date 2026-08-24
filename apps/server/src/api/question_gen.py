@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from src.reasoning.question_gen import QuestionGenerator
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/notes", tags=["notes"])
 
@@ -24,8 +27,8 @@ async def generate_questions(
     count: int = Query(5, ge=1, le=20),
 ) -> dict[str, Any]:
     """Generate review questions from a note."""
-    from src.storage.note_store import NoteStore
     from src.config import settings
+    from src.storage.note_store import NoteStore
 
     store = getattr(request.app.state, "note_store", None)
     if store is None:
@@ -40,7 +43,8 @@ async def generate_questions(
     try:
         questions = generator.generate_from_note(note, count=count)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        logger.exception("question generation failed for note %s", note_id)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     return {
         "note_id": str(note_id),

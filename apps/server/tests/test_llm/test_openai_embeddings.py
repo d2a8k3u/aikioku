@@ -35,9 +35,11 @@ class TestOpenAIEmbed:
     @pytest.mark.asyncio
     async def test_strict_raises_on_failure(self):
         provider = OpenAIEmbeddingProvider(api_key="sk-x", strict_embeddings=True)
-        with patch("httpx.AsyncClient.post", new=AsyncMock(side_effect=httpx.ConnectError("down"))):
-            with pytest.raises(EmbeddingUnavailableError):
-                await provider.embed("x")
+        with (
+            patch("httpx.AsyncClient.post", new=AsyncMock(side_effect=httpx.ConnectError("down"))),
+            pytest.raises(EmbeddingUnavailableError),
+        ):
+            await provider.embed("x")
 
     @pytest.mark.asyncio
     async def test_non_strict_returns_deterministic_fallback(self):

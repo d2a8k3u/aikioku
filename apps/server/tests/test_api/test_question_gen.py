@@ -52,11 +52,11 @@ class TestGenerateQuestions:
         assert len(data["questions"]) <= 2
 
     def test_nonexistent_note_returns_404(self, client):
-        cli, note = client
+        cli, _note = client
         response = cli.get("/api/notes/00000000-0000-0000-0000-000000000000/questions")
         assert response.status_code == 404
 
     def test_invalid_uuid_returns_422(self, client):
-        cli, note = client
+        cli, _note = client
         response = cli.get("/api/notes/not-a-uuid/questions")
         assert response.status_code == 422

@@ -6,7 +6,8 @@ import asyncio
 import hashlib
 import json
 import logging
-from typing import Any, AsyncIterator, cast
+from collections.abc import AsyncIterator
+from typing import Any, cast
 
 import httpx
 
@@ -132,7 +133,7 @@ class OllamaRemoteProvider(LLMProvider):
                     if vec:
                         logger.debug("HF embed success (%d dims)", len(vec))
                         return vec
-                except Exception as exc:
+                except (httpx.HTTPError, ValueError) as exc:
                     logger.debug("HF embed failed: %s", exc)
             # 2. Final fallback
             if self.strict_embeddings:
@@ -177,7 +178,7 @@ class OllamaRemoteProvider(LLMProvider):
                 vec = data.get("embedding", [])
                 if vec:
                     return list(vec)
-        except Exception as exc:
+        except (httpx.HTTPError, ValueError, TypeError) as exc:
             logger.debug(
                 "Ollama embed failed for %s at %s: %s",
                 self.embedding_model,
@@ -195,7 +196,7 @@ class OllamaRemoteProvider(LLMProvider):
                 if vec:
                     logger.debug("HF embed fallback success (%d dims)", len(vec))
                     return vec
-            except Exception as exc:
+            except (httpx.HTTPError, ValueError) as exc:
                 logger.debug("HF embed fallback failed: %s", exc)
 
         # 3. Final fallback
@@ -276,6 +277,9 @@ class OllamaRemoteProvider(LLMProvider):
             urllib.request.urlopen(req, timeout=5)
             return True
         except Exception:
+            logger.debug(
+                "ollama_remote availability probe failed for %s", self.base_url, exc_info=True
+            )
             return False
 
 

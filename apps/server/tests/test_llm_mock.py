@@ -29,7 +29,7 @@ class TestOllamaProviderMocked:
             result = await provider.complete("hi", system="be nice")
             assert result == "hello back"
             mock_post.assert_awaited_once()
-            args, kwargs = mock_post.call_args
+            _args, kwargs = mock_post.call_args
             assert kwargs["json"]["model"] == "m"
             assert kwargs["json"]["prompt"] == "hi"
             assert kwargs["json"]["system"] == "be nice"
@@ -54,9 +54,11 @@ class TestOllamaProviderMocked:
             "fail", request=MagicMock(), response=MagicMock(status_code=500)
         )
 
-        with patch.object(provider._client, "post", new=AsyncMock(return_value=mock_resp)):
-            with pytest.raises(httpx.HTTPStatusError):
-                await provider.complete("x")
+        with (
+            patch.object(provider._client, "post", new=AsyncMock(return_value=mock_resp)),
+            pytest.raises(httpx.HTTPStatusError),
+        ):
+            await provider.complete("x")
 
     @pytest.mark.asyncio
     async def test_embed_returns_embedding_list(self):

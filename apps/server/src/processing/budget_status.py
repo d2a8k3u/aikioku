@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import FastAPI
@@ -20,8 +20,8 @@ logger = logging.getLogger(__name__)
 
 def _next_utc_midnight_iso() -> str:
     """ISO timestamp of the next UTC midnight — when today's spend window resets."""
-    tomorrow = (datetime.now(timezone.utc) + timedelta(days=1)).date()
-    reset = datetime(tomorrow.year, tomorrow.month, tomorrow.day, tzinfo=timezone.utc)
+    tomorrow = (datetime.now(UTC) + timedelta(days=1)).date()
+    reset = datetime(tomorrow.year, tomorrow.month, tomorrow.day, tzinfo=UTC)
     return reset.isoformat()
 
 

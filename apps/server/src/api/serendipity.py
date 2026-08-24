@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from src.augmentation.serendipity import SerendipityEngine
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/serendipity", tags=["serendipity"])
 
@@ -32,7 +35,8 @@ async def random_walk(
     try:
         path = engine.random_walk(start_entity_id, steps=steps)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        logger.exception("serendipity walk failed from entity %s", start_entity_id)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     return {"path": path}
 
 
@@ -52,5 +56,6 @@ async def surprise_score(
         else:
             entity_id, score = engine.random_surprise()
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        logger.exception("surprise scoring failed for entity %s", entity_id)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     return {"entity_id": entity_id, "score": score}

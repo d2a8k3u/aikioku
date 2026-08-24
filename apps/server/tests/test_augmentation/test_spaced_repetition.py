@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import AsyncMock
 
@@ -25,7 +25,7 @@ def fixed_uuid2() -> str:
 
 @pytest.fixture
 def fixed_datetime() -> datetime:
-    return datetime(2026, 6, 10, 12, 0, 0, tzinfo=timezone.utc)
+    return datetime(2026, 6, 10, 12, 0, 0, tzinfo=UTC)
 
 
 @pytest.fixture
@@ -177,8 +177,8 @@ class TestGetDueCards:
         )
 
         # Create cards: one due, one not due
-        past = datetime(2025, 1, 1, tzinfo=timezone.utc)
-        future = datetime(2099, 12, 31, tzinfo=timezone.utc)
+        past = datetime(2025, 1, 1, tzinfo=UTC)
+        future = datetime(2099, 12, 31, tzinfo=UTC)
 
         due_card = Card(
             note_id=sample_note.id,
@@ -246,7 +246,7 @@ class TestReviewCard:
             ease_factor=2.5,
             interval=10,
             repetitions=5,
-            next_review=datetime(2025, 1, 1, tzinfo=timezone.utc),
+            next_review=datetime(2025, 1, 1, tzinfo=UTC),
             status=CardStatus.review,
         )
         row = sr._card_to_row(card)
@@ -286,7 +286,7 @@ class TestReviewCard:
             ease_factor=2.5,
             interval=4,
             repetitions=2,
-            next_review=datetime(2025, 1, 1, tzinfo=timezone.utc),
+            next_review=datetime(2025, 1, 1, tzinfo=UTC),
             status=CardStatus.review,
         )
         row = sr._card_to_row(card)
@@ -328,7 +328,7 @@ class TestReviewCard:
             ease_factor=2.5,
             interval=4,
             repetitions=2,
-            next_review=datetime(2025, 1, 1, tzinfo=timezone.utc),
+            next_review=datetime(2025, 1, 1, tzinfo=UTC),
             status=CardStatus.review,
         )
         row = sr._card_to_row(card)
@@ -371,7 +371,7 @@ class TestReviewCard:
             ease_factor=1.35,  # just 0.05 above minimum
             interval=5,
             repetitions=3,
-            next_review=datetime(2025, 1, 1, tzinfo=timezone.utc),
+            next_review=datetime(2025, 1, 1, tzinfo=UTC),
             status=CardStatus.review,
         )
         row = sr._card_to_row(card)
@@ -408,8 +408,8 @@ class TestGetStats:
             db_path=temp_db_path,
         )
 
-        past = datetime(2025, 1, 1, tzinfo=timezone.utc)
-        future = datetime(2099, 12, 31, tzinfo=timezone.utc)
+        past = datetime(2025, 1, 1, tzinfo=UTC)
+        future = datetime(2099, 12, 31, tzinfo=UTC)
 
         # Create cards with different statuses
         cards_data = [

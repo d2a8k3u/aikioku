@@ -60,7 +60,7 @@ class AutoTagger:
             try:
                 response = await self._llm.complete(prompt=prompt, system=self._SYSTEM_PROMPT)
             except Exception:
-                logger.warning("Auto-tag: LLM call failed for a chunk, skipping it")
+                logger.warning("Auto-tag: LLM call failed for a chunk, skipping it", exc_info=True)
                 continue
             try:
                 data = parse_llm_json(response, expect="list")

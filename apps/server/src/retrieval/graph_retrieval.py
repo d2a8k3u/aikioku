@@ -123,10 +123,7 @@ def build_entity_context_snippet(entity: Entity, graph: KnowledgeGraph) -> str:
     relations = graph.get_relations(entity.id)
     if relations:
         rel_lines: list[str] = ["Relations:"]
-        shown = 0
-        for rel in relations:
-            if shown >= _MAX_RELATIONS:
-                break
+        for rel in relations[:_MAX_RELATIONS]:
             # Determine the "other" entity in the relation and its name.
             if rel.source_entity_id == entity.id:
                 other_id = rel.target_entity_id
@@ -140,7 +137,6 @@ def build_entity_context_snippet(entity: Entity, graph: KnowledgeGraph) -> str:
                 other = graph.get_entity(other_id)
                 other_name = other.name if other else other_id
                 rel_lines.append(f"  - {other_name} {rel.type.value} {entity.name}")
-            shown += 1
         lines.extend(rel_lines)
 
     # Properties (exclude internal provenance fields)

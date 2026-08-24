@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
@@ -23,13 +23,13 @@ def fixed_uuid2() -> str:
 @pytest.fixture
 def fixed_datetime() -> datetime:
     """Return a fixed UTC datetime for deterministic assertions."""
-    return datetime(2026, 6, 10, 12, 0, 0, tzinfo=timezone.utc)
+    return datetime(2026, 6, 10, 12, 0, 0, tzinfo=UTC)
 
 
 @pytest.fixture
 def fixed_datetime_later() -> datetime:
     """Return a later fixed UTC datetime."""
-    return datetime(2026, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
+    return datetime(2026, 6, 15, 12, 0, 0, tzinfo=UTC)
 
 
 @pytest.fixture(autouse=True)

@@ -7,11 +7,11 @@ surface. They are created here by the logged-in owner, stored one-way hashed by
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
 from src import access_tokens
-from src.auth import UserInDB, require_auth
+from src.auth import CurrentUser
 
 router = APIRouter(prefix="/api/settings/tokens", tags=["tokens"])
 
@@ -33,7 +33,7 @@ def _public(token: access_tokens.AccessToken) -> dict[str, str | None]:
 
 
 @router.get("/")
-async def list_tokens(_user: UserInDB = Depends(require_auth)) -> list[dict[str, str | None]]:
+async def list_tokens(_user: CurrentUser) -> list[dict[str, str | None]]:
     """List access tokens (never returns the secret value)."""
     return [_public(t) for t in access_tokens.list_tokens()]
 
@@ -41,7 +41,7 @@ async def list_tokens(_user: UserInDB = Depends(require_auth)) -> list[dict[str,
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_token(
     body: TokenCreate,
-    user: UserInDB = Depends(require_auth),
+    user: CurrentUser,
 ) -> dict[str, str | None]:
     """Create a token. The plaintext ``token`` is returned only in this response."""
     if body.scope not in access_tokens.VALID_SCOPES:
@@ -58,7 +58,7 @@ async def create_token(
 @router.delete("/{token_id}")
 async def delete_token(
     token_id: str,
-    _user: UserInDB = Depends(require_auth),
+    _user: CurrentUser,
 ) -> dict[str, bool]:
     """Revoke a token by id."""
     removed = access_tokens.delete_token(token_id)

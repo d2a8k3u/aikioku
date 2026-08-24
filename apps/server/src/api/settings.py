@@ -9,11 +9,11 @@ returned; only their key names are listed.
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel
 
 from src import runtime_config, secrets_store
-from src.auth import UserInDB, require_auth
+from src.auth import CurrentUser
 from src.utils.background import spawn_background
 
 logger = logging.getLogger(__name__)
@@ -143,7 +143,7 @@ async def _apply_budget_change(request: Request) -> None:
 
 
 @router.get("/")
-async def get_settings(_user: UserInDB = Depends(require_auth)) -> dict[str, Any]:
+async def get_settings(_user: CurrentUser) -> dict[str, Any]:
     """Return current application settings."""
     return _settings_to_dict()
 
@@ -152,7 +152,7 @@ async def get_settings(_user: UserInDB = Depends(require_auth)) -> dict[str, Any
 async def update_settings(
     body: SettingsUpdate,
     request: Request,
-    _user: UserInDB = Depends(require_auth),
+    _user: CurrentUser,
 ) -> dict[str, Any]:
     """Update application settings and persist to the database."""
     update_data = body.model_dump(exclude_unset=True)
@@ -171,7 +171,7 @@ async def update_settings(
 
 
 @router.get("/secrets")
-async def list_secrets(_user: UserInDB = Depends(require_auth)) -> dict[str, list[str]]:
+async def list_secrets(_user: CurrentUser) -> dict[str, list[str]]:
     """Return the names of stored secrets (never the values)."""
     return {"keys": secrets_store.list_secret_keys()}
 
@@ -180,7 +180,7 @@ async def list_secrets(_user: UserInDB = Depends(require_auth)) -> dict[str, lis
 async def set_secret(
     body: SecretUpdate,
     request: Request,
-    _user: UserInDB = Depends(require_auth),
+    _user: CurrentUser,
 ) -> dict[str, list[str]]:
     """Set or rotate an encrypted secret."""
     if body.key not in _SECRET_KEYS:
@@ -199,7 +199,7 @@ async def set_secret(
 async def delete_secret(
     key: str,
     request: Request,
-    _user: UserInDB = Depends(require_auth),
+    _user: CurrentUser,
 ) -> dict[str, list[str]]:
     """Remove an encrypted secret."""
     secrets_store.delete_secret(key)
@@ -222,6 +222,7 @@ def _filter_models(models: list[dict[str, Any]], q: str | None) -> list[dict[str
 
 @router.get("/models")
 async def list_models(
+    _user: CurrentUser,
     provider: str = Query(..., description="ollama | ollama_remote | openrouter"),
     base_url: str | None = Query(
         None, description="Override the saved base URL (preview unsaved config)"
@@ -230,7 +231,6 @@ async def list_models(
         None, description="Override the saved API key (preview unsaved config)"
     ),
     q: str | None = Query(None, description="Case-insensitive substring filter on model id/name"),
-    _user: UserInDB = Depends(require_auth),
 ) -> dict[str, Any]:
     """Return available chat/embedding models for the given provider.
 
@@ -242,9 +242,9 @@ async def list_models(
     provider, not an empty filter result.
     """
     from src.llm.model_list import (
+        classify_ollama_models,
         list_ollama_models,
         list_openrouter_models,
-        classify_ollama_models,
     )
 
     if provider in ("ollama", "ollama_remote"):
@@ -327,6 +327,7 @@ _OPENAI_EMBEDDING_MODELS: list[dict[str, Any]] = [
 
 @router.get("/embedding-models")
 async def list_embedding_models(
+    _user: CurrentUser,
     provider: str = Query("ollama", description="ollama | huggingface | openai"),
     base_url: str | None = Query(
         None, description="Override the saved base URL (preview unsaved config)"
@@ -335,7 +336,6 @@ async def list_embedding_models(
         None, description="Override the saved API key (preview unsaved config)"
     ),
     q: str | None = Query(None, description="Case-insensitive substring filter on model id/name"),
-    _user: UserInDB = Depends(require_auth),
 ) -> dict[str, Any]:
     """Return selectable embedding models for the given provider.
 

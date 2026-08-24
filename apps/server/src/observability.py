@@ -111,5 +111,5 @@ def render_metrics() -> tuple[bytes, str]:
 
         EMBEDDING_DEGRADED.set(ollama_remote.DETERMINISTIC_FALLBACK_COUNT)
     except Exception:  # pragma: no cover - defensive
-        pass
+        logging.getLogger(__name__).debug("embedding degraded gauge refresh failed", exc_info=True)
     return generate_latest(), CONTENT_TYPE_LATEST

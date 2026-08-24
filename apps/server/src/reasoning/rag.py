@@ -32,7 +32,7 @@ class RAGGenerator:
         self,
         fusion: HybridFusion,
         llm_provider: LLMProvider,
-        conversation_retriever: "ConversationRetriever | None" = None,
+        conversation_retriever: ConversationRetriever | None = None,
     ) -> None:
         """Create a RAGGenerator.
 
@@ -100,7 +100,7 @@ class RAGGenerator:
             return []
         try:
             return await asyncio.wait_for(self._conversation_retriever.search(query), timeout=5.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("Conversation recall timed out; continuing without it.")
             return []
         except Exception:
@@ -226,14 +226,18 @@ class RAGGenerator:
         """
         lines = [
             "You are a helpful assistant with access to the user's knowledge base.",
-            "Answer the user's question directly using the context below. The answer "
-            "may require SYNTHESIZING across multiple notes — combine related "
-            "information even when no single note explicitly defines the term or "
-            "states the answer verbatim.",
-            "Only reply that information is missing when the context is clearly "
-            "irrelevant to the question. When relevant material is present, give a "
-            "best-effort answer grounded in it and note any uncertainty briefly — do "
-            "not refuse just because no note is an exact match.",
+            (
+                "Answer the user's question directly using the context below. The answer "
+                "may require SYNTHESIZING across multiple notes — combine related "
+                "information even when no single note explicitly defines the term or "
+                "states the answer verbatim."
+            ),
+            (
+                "Only reply that information is missing when the context is clearly "
+                "irrelevant to the question. When relevant material is present, give a "
+                "best-effort answer grounded in it and note any uncertainty briefly — do "
+                "not refuse just because no note is an exact match."
+            ),
             "Always respond in the same language as the user's most recent message.",
             "",
             "Context:",

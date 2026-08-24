@@ -19,9 +19,9 @@ def tmp_db_path():
 def client(tmp_db_path):
     """Create a FastAPI TestClient with a real KnowledgeGraph in app state."""
     from src.knowledge.graph import KnowledgeGraph
+    from src.main import app
     from src.models.entity import Entity, EntityType
     from src.models.relation import Relation, RelationType
-    from src.main import app
 
     kg = KnowledgeGraph(db_path=tmp_db_path)
     app.state.knowledge_graph = kg
@@ -48,7 +48,7 @@ def client(tmp_db_path):
 
 class TestListEntities:
     def test_returns_list(self, client):
-        cli, kg, *rest = client
+        cli, _kg, *_rest = client
         response = cli.get("/api/entities")
         assert response.status_code == 200
         data = response.json()
@@ -56,7 +56,7 @@ class TestListEntities:
         assert len(data) == 3
 
     def test_optional_type_filter(self, client):
-        cli, kg, *rest = client
+        cli, _kg, *_rest = client
         response = cli.get("/api/entities?type=Person")
         assert response.status_code == 200
         data = response.json()
@@ -65,7 +65,7 @@ class TestListEntities:
         assert names == {"Alice", "Bob"}
 
     def test_entities_have_expected_fields(self, client):
-        cli, kg, *rest = client
+        cli, _kg, *_rest = client
         response = cli.get("/api/entities")
         data = response.json()
         for entity in data:
@@ -80,7 +80,7 @@ class TestListEntities:
 
 class TestGetEntity:
     def test_returns_entity(self, client):
-        cli, kg, e1, *rest = client
+        cli, _kg, e1, *_rest = client
         response = cli.get(f"/api/entities/{e1.id}")
         assert response.status_code == 200
         data = response.json()
@@ -89,14 +89,14 @@ class TestGetEntity:
         assert data["type"] == "Person"
 
     def test_nonexistent_returns_404(self, client):
-        cli, kg, *rest = client
+        cli, _kg, *_rest = client
         response = cli.get("/api/entities/nonexistent-id")
         assert response.status_code == 404
 
 
 class TestGetSubgraph:
     def test_returns_subgraph(self, client):
-        cli, kg, e1, e2, e3 = client
+        cli, _kg, e1, _e2, _e3 = client
         response = cli.get(f"/api/entities/{e1.id}/subgraph")
         assert response.status_code == 200
         data = response.json()
@@ -107,7 +107,7 @@ class TestGetSubgraph:
         assert isinstance(data["edges"], list)
 
     def test_subgraph_depth_param(self, client):
-        cli, kg, e1, e2, e3 = client
+        cli, _kg, e1, _e2, _e3 = client
         response = cli.get(f"/api/entities/{e1.id}/subgraph?depth=1")
         assert response.status_code == 200
         data = response.json()
@@ -115,6 +115,6 @@ class TestGetSubgraph:
         assert data["root_id"] == e1.id
 
     def test_nonexistent_subgraph_returns_404(self, client):
-        cli, kg, *rest = client
+        cli, _kg, *_rest = client
         response = cli.get("/api/entities/nonexistent-id/subgraph")
         assert response.status_code == 404

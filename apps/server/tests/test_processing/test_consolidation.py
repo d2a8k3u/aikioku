@@ -20,7 +20,6 @@ from src.llm.base import LLMProvider
 from src.models.note import Note
 from src.storage.note_store import NoteStore
 
-
 # --------------------------------------------------------------------------- #
 # Fixtures
 # --------------------------------------------------------------------------- #

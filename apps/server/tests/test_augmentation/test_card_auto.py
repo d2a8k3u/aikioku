@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import sqlite3
 import tempfile
-from datetime import datetime
 from pathlib import Path
 from unittest.mock import AsyncMock
 
@@ -14,7 +13,7 @@ import pytest
 from src.events import Event, EventBus
 from src.models.card import CardStatus
 from src.models.note import Note
-
+from src.utils.clock import utc_now_naive
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -341,7 +340,7 @@ class TestContentHashObsolescence:
 
         # Insert some cards directly into the DB for this note
         conn = sqlite3.connect(temp_db_path)
-        now_iso = datetime.utcnow().isoformat()
+        now_iso = utc_now_naive().isoformat()
         conn.execute(
             "INSERT INTO cards (id, note_id, type, front, back, ease_factor, interval, repetitions, next_review, status) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -428,7 +427,7 @@ class TestDailyBalancer:
             max_per_day=20,
         )
 
-        today = datetime.utcnow().strftime("%Y-%m-%d")
+        today = utc_now_naive().strftime("%Y-%m-%d")
 
         # Before: count should be 0
         assert _get_daily_count(temp_db_path, today) == 0
@@ -525,7 +524,7 @@ class TestDailyBalancer:
             ("2020-01-01", 1),
         )
         # Also delete today's entry
-        today = datetime.utcnow().strftime("%Y-%m-%d")
+        today = utc_now_naive().strftime("%Y-%m-%d")
         conn.execute("DELETE FROM card_generation_log WHERE date = ?", (today,))
         conn.commit()
         conn.close()

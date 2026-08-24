@@ -10,6 +10,7 @@ from typing import Any
 import yaml
 
 from src.models.note import Note
+from src.utils.clock import utc_now_naive
 
 
 def parse_markdown_file(content: str, filename: str) -> Note:
@@ -25,8 +26,8 @@ def parse_markdown_file(content: str, filename: str) -> Note:
     title = _title_from_filename(filename)
     frontmatter: dict[str, Any] = {}
     body = content
-    created = datetime.utcnow()
-    modified = datetime.utcnow()
+    created = utc_now_naive()
+    modified = utc_now_naive()
 
     # Try to extract YAML frontmatter
     fm_match = re.match(r"^---\s*\n(.*?)\n---\s*\n?(.*)", content, re.DOTALL)

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
 from src.reasoning.connections import ConnectionDiscovery
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/connections", tags=["connections"])
 
@@ -35,7 +38,8 @@ async def discover_connections(
     try:
         connections = cd.discover_connections(entity_id, max_distance=max_distance)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        logger.exception("connection discovery failed for entity %s", entity_id)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     return {
         "entity_id": entity_id,

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import sqlite3
 import tempfile
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock
 
@@ -17,6 +17,7 @@ from src.augmentation.spaced_repetition import SpacedRepetition
 from src.models.card import Card, CardStatus, CardType
 from src.models.note import Note
 from src.storage.note_store import NoteStore
+from src.utils.clock import utc_now_naive
 
 
 @pytest.fixture
@@ -154,7 +155,7 @@ class TestReviewCardSm2:
             ease_factor=2.5,
             interval=4,
             repetitions=2,
-            next_review=datetime(2025, 1, 1, tzinfo=timezone.utc),
+            next_review=datetime(2025, 1, 1, tzinfo=UTC),
             status=CardStatus.review,
         )
         _insert_card(db_path, card, spaced_repetition)
@@ -171,7 +172,7 @@ class TestReviewCardSm2:
         # status transitions to 'review' since repetitions >= 2 before increment (now 3)
         assert reviewed.status == CardStatus.review
         # next_review should be approximately now + 10 days
-        expected_review = datetime.utcnow() + timedelta(days=10)
+        expected_review = utc_now_naive() + timedelta(days=10)
         # Allow 5-second tolerance for test execution time
         assert abs((reviewed.next_review - expected_review).total_seconds()) < 5
 
@@ -194,7 +195,7 @@ class TestReviewCardAgain:
             ease_factor=2.5,
             interval=10,
             repetitions=5,
-            next_review=datetime(2025, 1, 1, tzinfo=timezone.utc),
+            next_review=datetime(2025, 1, 1, tzinfo=UTC),
             status=CardStatus.review,
         )
         _insert_card(db_path, card, spaced_repetition)
@@ -209,7 +210,7 @@ class TestReviewCardAgain:
         # Status set to learning
         assert reviewed.status == CardStatus.learning
         # next_review should be approximately now + 1 day
-        expected_review = datetime.utcnow() + timedelta(days=1)
+        expected_review = utc_now_naive() + timedelta(days=1)
         assert abs((reviewed.next_review - expected_review).total_seconds()) < 5
 
 
@@ -222,7 +223,7 @@ class TestDueCards:
         sample_note: Note,
         db_path: str,
     ):
-        now = datetime.utcnow()
+        now = utc_now_naive()
         past = now - timedelta(days=2)
         future = now + timedelta(days=7)
 
@@ -281,7 +282,7 @@ class TestCardStats:
         sample_note: Note,
         db_path: str,
     ):
-        now = datetime.utcnow()
+        now = utc_now_naive()
         past = now - timedelta(days=1)
         future = now + timedelta(days=30)
 

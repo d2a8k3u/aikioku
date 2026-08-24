@@ -19,8 +19,8 @@ _NOTE = {"title": "Cascade Note", "content": "zorptastic tokens", "path": "n.md"
 
 @pytest.fixture
 def wired_client(tmp_path, monkeypatch):
-    from src.main import app
     from src.api import notes as notes_mod
+    from src.main import app
 
     store = NoteStore(str(tmp_path / "notes"))
     app.state.note_store = store
@@ -47,7 +47,7 @@ def wired_client(tmp_path, monkeypatch):
 
 
 def test_delete_calls_embedding_delete(wired_client):
-    client, store, embedding_store, sparse = wired_client
+    client, _store, embedding_store, _sparse = wired_client
     note_id = client.post("/api/notes/", json=_NOTE).json()["id"]
 
     resp = client.delete(f"/api/notes/{note_id}")
@@ -57,7 +57,7 @@ def test_delete_calls_embedding_delete(wired_client):
 
 
 def test_delete_with_stores_unset_still_succeeds(wired_client):
-    client, store, embedding_store, sparse = wired_client
+    client, _store, _embedding_store, sparse = wired_client
     from src.main import app
 
     note_id = client.post("/api/notes/", json=_NOTE).json()["id"]
@@ -71,7 +71,7 @@ def test_delete_with_stores_unset_still_succeeds(wired_client):
 
 
 def test_delete_when_embedding_delete_raises_still_succeeds(wired_client):
-    client, store, embedding_store, sparse = wired_client
+    client, store, embedding_store, _sparse = wired_client
     embedding_store.delete.side_effect = RuntimeError("chroma down")
     note_id = client.post("/api/notes/", json=_NOTE).json()["id"]
 

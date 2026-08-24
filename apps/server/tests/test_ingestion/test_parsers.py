@@ -10,7 +10,6 @@ import pytest
 
 from src.models.note import Note
 
-
 # ---------------------------------------------------------------------------
 # Helpers to generate real file bytes inside Docker where deps are installed
 # ---------------------------------------------------------------------------

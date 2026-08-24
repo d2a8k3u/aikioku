@@ -101,7 +101,7 @@ def populated_note_store(note_store):
 @pytest.fixture
 def populated_embedding_store(embedding_store, populated_note_store):
     """Add embeddings for all notes."""
-    store, notes = populated_note_store
+    _store, notes = populated_note_store
     for i, note in enumerate(notes):
         embedding = _make_embedding(seed=i + 1)
         embedding_store.add(note_id=note.id, text=note.content, embedding=embedding)
@@ -111,7 +111,7 @@ def populated_embedding_store(embedding_store, populated_note_store):
 @pytest.fixture
 def populated_kg(knowledge_graph, populated_note_store):
     """Add entities linked to notes."""
-    store, notes = populated_note_store
+    _store, _notes = populated_note_store
 
     entities = [
         Entity(
@@ -151,7 +151,7 @@ class TestDenseRetrieval:
     @pytest.mark.asyncio
     async def test_dense_retrieval(self, populated_embedding_store, mock_llm_provider):
         """Dense retriever should return semantically similar results."""
-        emb_store, notes = populated_embedding_store
+        emb_store, _notes = populated_embedding_store
 
         dense = DenseRetriever(embedding_store=emb_store, llm_provider=mock_llm_provider)
         results = await dense.search("programming languages", limit=5)
@@ -181,7 +181,7 @@ class TestDenseRetrieval:
 class TestSparseRetrieval:
     def test_sparse_retrieval(self, temp_dirs, populated_note_store):
         """Sparse retriever should find keyword matches."""
-        store, notes = populated_note_store
+        _store, _notes = populated_note_store
         sparse = SparseRetriever(notes_dir=temp_dirs["notes"])
 
         results = sparse.search("Python", limit=10)
@@ -193,7 +193,7 @@ class TestSparseRetrieval:
 
     def test_sparse_retrieval_keyword_specificity(self, temp_dirs, populated_note_store):
         """Sparse retriever should differentiate between specific keywords."""
-        store, notes = populated_note_store
+        _store, _notes = populated_note_store
         sparse = SparseRetriever(notes_dir=temp_dirs["notes"])
 
         results = sparse.search("Rust", limit=10)
@@ -203,7 +203,7 @@ class TestSparseRetrieval:
 
     def test_sparse_retrieval_no_match(self, temp_dirs, populated_note_store):
         """Sparse retriever with no matching query returns empty."""
-        store, notes = populated_note_store
+        _store, _notes = populated_note_store
         sparse = SparseRetriever(notes_dir=temp_dirs["notes"])
 
         results = sparse.search("xyznonexistent", limit=10)
@@ -226,7 +226,7 @@ class TestHybridFusion:
         mock_llm_provider,
     ):
         """Hybrid fusion should return fused results from all 3 retrievers."""
-        store, notes = populated_note_store
+        _store, _notes = populated_note_store
         emb_store, _ = populated_embedding_store
         kg, _ = populated_kg
 
@@ -257,7 +257,7 @@ class TestHybridFusion:
         mock_llm_provider,
     ):
         """Fused results should be deduplicated and sorted by score."""
-        store, notes = populated_note_store
+        _store, _notes = populated_note_store
         emb_store, _ = populated_embedding_store
         kg, _ = populated_kg
 
@@ -289,7 +289,7 @@ class TestHybridFusion:
 class TestGraphRetrieval:
     def test_graph_retrieval(self, populated_kg):
         """Graph retriever should find notes via entity names."""
-        kg, entities = populated_kg
+        kg, _entities = populated_kg
         retriever = GraphRetriever(graph=kg)
 
         results = retriever.search("Python", limit=10)
@@ -305,7 +305,7 @@ class TestGraphRetrieval:
 
     def test_graph_retrieval_unique_note_ids(self, populated_kg):
         """Graph retriever should not return duplicate note_ids."""
-        kg, entities = populated_kg
+        kg, _entities = populated_kg
         retriever = GraphRetriever(graph=kg)
 
         # Search for something that matches entity with multiple source_note_ids
@@ -315,7 +315,7 @@ class TestGraphRetrieval:
 
     def test_graph_retrieval_no_match(self, populated_kg):
         """Graph retriever with no matching entity returns empty."""
-        kg, entities = populated_kg
+        kg, _entities = populated_kg
         retriever = GraphRetriever(graph=kg)
 
         results = retriever.search("zzzznonexistent", limit=10)

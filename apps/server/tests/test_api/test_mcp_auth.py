@@ -31,14 +31,14 @@ def mcp_client(tmp_path_factory):
     from src.main import app
 
     d = tmp_path_factory.mktemp("mcp_mod")
+    # base_url sets the Host header to an allowed value: the MCP transport
+    # has DNS-rebinding protection that rejects the default "testserver" host.
     with (
         patch.object(settings, "sqlite_db_path", str(d / "test.db")),
         patch.object(settings, "notes_dir", str(d)),
+        TestClient(app, base_url="http://127.0.0.1:8869") as client,
     ):
-        # base_url sets the Host header to an allowed value: the MCP transport
-        # has DNS-rebinding protection that rejects the default "testserver" host.
-        with TestClient(app, base_url="http://127.0.0.1:8869") as client:
-            yield client
+        yield client
 
 
 def _tools_list() -> dict:

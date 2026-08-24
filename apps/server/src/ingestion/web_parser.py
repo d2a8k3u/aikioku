@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import logging
+
 from src.models.note import Note
+
+logger = logging.getLogger(__name__)
 
 
 def parse_web_clip(url: str) -> Note:
@@ -66,6 +70,7 @@ def parse_web_clip(url: str) -> Note:
             else:
                 summary = html_text
         except Exception:
+            logger.debug("web clip: HTML parsing failed, stripping tags", exc_info=True)
             # Last resort: strip tags with a regex
             import re
 

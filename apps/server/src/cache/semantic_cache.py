@@ -209,9 +209,7 @@ def _patch_onnx_for_transformers_v5() -> None:
         logger.debug("Patched GPTCache Onnx classes for transformers >= 5.x compatibility")
 
     except Exception:
-        # If patching fails (e.g. gptcache not installed), that's fine —
-        # the init will fail gracefully later.
-        pass
+        logger.debug("GPTCache Onnx compatibility patch skipped", exc_info=True)
 
 
 async def _init_cache() -> tuple[Any, Any, Any] | None:

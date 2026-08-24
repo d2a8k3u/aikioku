@@ -17,7 +17,6 @@ from src.knowledge.graph import KnowledgeGraph
 from src.llm.base import LLMProvider
 from src.models.note import Note
 
-
 # --------------------------------------------------------------------------- #
 # Fixtures
 # --------------------------------------------------------------------------- #

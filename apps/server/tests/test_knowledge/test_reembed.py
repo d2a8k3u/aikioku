@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
@@ -29,7 +29,11 @@ class FakeLLM:
 
 
 def _note(nid: str, content: str, modified: datetime | None = None):
-    return SimpleNamespace(id=nid, content=content, modified=modified or datetime(2020, 1, 1))
+    return SimpleNamespace(
+        id=nid,
+        content=content,
+        modified=modified or datetime(2020, 1, 1),  # noqa: DTZ001
+    )
 
 
 def _make_app(llm: FakeLLM, notes: list) -> SimpleNamespace:
@@ -90,9 +94,9 @@ async def test_worker_happy_path_builds_swaps_deletes(monkeypatch):
 
 
 def test_as_aware_utc_coerces_naive_and_passes_aware_through():
-    naive = datetime(2020, 1, 1)
-    aware = datetime(2020, 1, 1, tzinfo=timezone.utc)
-    assert reembed._as_aware_utc(naive).tzinfo is timezone.utc
+    naive = datetime(2020, 1, 1)  # noqa: DTZ001
+    aware = datetime(2020, 1, 1, tzinfo=UTC)
+    assert reembed._as_aware_utc(naive).tzinfo is UTC
     assert reembed._as_aware_utc(aware) is aware
 
 
@@ -101,7 +105,7 @@ async def test_worker_catchup_tzaware_modified_does_not_crash(monkeypatch):
     # comparison against the (now aware) start time must not raise TypeError.
     llm = FakeLLM(dim=8)
     monkeypatch.setattr("src.llm.factory.build_embedding_provider", lambda *a, **k: llm)
-    future_aware = datetime(2999, 1, 1, tzinfo=timezone.utc)
+    future_aware = datetime(2999, 1, 1, tzinfo=UTC)
     app = _make_app(llm, [_note("n1", "alpha", modified=future_aware)])
     fp = "deadbeef00000002"
     reembed._current_target_fp = fp

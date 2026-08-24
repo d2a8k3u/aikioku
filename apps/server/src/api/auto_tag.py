@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 
 from src.augmentation.auto_tag import AutoTagger
-from src.auth import UserInDB, require_auth
+from src.auth import CurrentUser
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/tags", tags=["tags"])
 
@@ -25,11 +28,11 @@ def _get_tagger(request: Request) -> AutoTagger:
 async def auto_tag_note(
     request: Request,
     note_id: UUID,
-    user: UserInDB = Depends(require_auth),
+    user: CurrentUser,
 ) -> dict[str, str | list[str]]:
     """Generate tags for a note using the auto-tagging engine and persist them."""
-    from src.storage.note_store import NoteStore
     from src.config import settings
+    from src.storage.note_store import NoteStore
 
     store = getattr(request.app.state, "note_store", None)
     if store is None:
@@ -44,12 +47,14 @@ async def auto_tag_note(
     try:
         tags = await tagger.generate_tags(note)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        logger.exception("auto-tag generation failed for note %s", note_id)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     note.frontmatter["tags"] = tags
     store.update(note)
     # Invalidate semantic cache — updated note may change correct answers
     import asyncio
+
     from src.cache.semantic_cache import cache_invalidate
 
     asyncio.ensure_future(cache_invalidate())

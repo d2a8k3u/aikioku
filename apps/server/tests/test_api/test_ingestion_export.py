@@ -15,10 +15,10 @@ from fastapi.testclient import TestClient
 @pytest.fixture
 def client(tmp_path):
     """Create a FastAPI TestClient with a fresh NoteStore in a temp directory."""
-    from src.main import app
-    from src.storage.note_store import NoteStore
     from src.api import import_export
     from src.config import settings
+    from src.main import app
+    from src.storage.note_store import NoteStore
 
     notes_dir = str(tmp_path / "notes")
     store = NoteStore(notes_dir)
@@ -175,7 +175,7 @@ class TestEmailParser:
 
 class TestImportPdf:
     def test_import_pdf_missing_dependency(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         with patch("src.ingestion.pdf_parser.parse_pdf", side_effect=ImportError("No PyMuPDF")):
             response = cli.post(
                 "/api/import/pdf",
@@ -184,7 +184,7 @@ class TestImportPdf:
         assert response.status_code == 503
 
     def test_import_pdf_bad_file(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         with patch("src.ingestion.pdf_parser.parse_pdf", side_effect=ValueError("bad pdf")):
             response = cli.post(
                 "/api/import/pdf",
@@ -195,7 +195,7 @@ class TestImportPdf:
 
 class TestImportDocx:
     def test_import_docx_missing_dependency(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         with patch(
             "src.ingestion.docx_parser.parse_docx", side_effect=ImportError("No python-docx")
         ):
@@ -214,7 +214,7 @@ class TestImportDocx:
 
 class TestImportAudio:
     def test_import_audio_missing_dependency(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         with patch("src.ingestion.audio_parser.parse_audio", side_effect=ImportError("No whisper")):
             response = cli.post(
                 "/api/import/audio",
@@ -225,7 +225,7 @@ class TestImportAudio:
 
 class TestImportImage:
     def test_import_image_missing_dependency(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         with patch(
             "src.ingestion.image_parser.parse_image", side_effect=ImportError("No tesseract")
         ):
@@ -238,7 +238,7 @@ class TestImportImage:
 
 class TestImportWeb:
     def test_import_web_missing_dependency(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         with patch(
             "src.ingestion.web_parser.parse_web_clip", side_effect=ImportError("No requests")
         ):
@@ -246,7 +246,7 @@ class TestImportWeb:
         assert response.status_code == 503
 
     def test_import_web_bad_url(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         with patch("src.ingestion.web_parser.parse_web_clip", side_effect=RuntimeError("timeout")):
             response = cli.post("/api/import/web?url=https%3A%2F%2Fexample.com")
         assert response.status_code == 400
@@ -254,7 +254,7 @@ class TestImportWeb:
 
 class TestImportEmail:
     def test_import_email_success(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         raw = b"Subject: Hello\r\n\r\nBody text"
         response = cli.post(
             "/api/import/email",
@@ -266,7 +266,7 @@ class TestImportEmail:
         assert "Body text" in data["content"]
 
     def test_import_email_bad_file(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         response = cli.post(
             "/api/import/email",
             files={"file": ("bad.eml", io.BytesIO(b"not an email"), "message/rfc822")},
@@ -282,7 +282,7 @@ class TestImportEmail:
 
 class TestImportLogseq:
     def test_import_logseq_zip(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w") as zf:
             zf.writestr("pages/note1.md", "---\ntitle: Logseq Note\n---\nContent")
@@ -296,7 +296,7 @@ class TestImportLogseq:
         assert data["imported_count"] == 1
 
     def test_import_logseq_non_zip(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         response = cli.post(
             "/api/import/logseq",
             files={"file": ("not.zip", io.BytesIO(b"nope"), "text/plain")},
@@ -306,7 +306,7 @@ class TestImportLogseq:
 
 class TestImportNotion:
     def test_import_notion_zip(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w") as zf:
             zf.writestr("Page 1.md", "---\ntitle: Notion Page\n---\nContent")
@@ -324,7 +324,7 @@ class TestImportNotion:
 
 class TestImportRoam:
     def test_import_roam_json(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         payload = [
             {
                 "title": "Roam Page",
@@ -347,7 +347,7 @@ class TestImportRoam:
         assert data["imported_count"] == 1
 
     def test_import_roam_zip(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         import json as _json
 
         payload = [{"title": "Zipped Roam", "children": [{"string": "Hello"}]}]
@@ -364,7 +364,7 @@ class TestImportRoam:
         assert data["imported_count"] == 1
 
     def test_import_roam_bad_input(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         response = cli.post(
             "/api/import/roam",
             files={"file": ("bad.txt", io.BytesIO(b"not json"), "text/plain")},
@@ -379,7 +379,7 @@ class TestImportRoam:
 
 class TestExportAnki:
     def test_export_anki_empty(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         response = cli.get("/api/export/anki")
         assert response.status_code == 200
         data = response.json()
@@ -404,7 +404,7 @@ class TestExportAnki:
 
 class TestExportBibtex:
     def test_export_bibtex_empty(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         response = cli.get("/api/export/bibtex")
         assert response.status_code == 200
         assert "@misc" not in response.text
@@ -430,7 +430,7 @@ class TestExportBibtex:
 
 class TestExportJsonExpanded:
     def test_export_json_includes_cognitive_signals(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         response = cli.get("/api/export/json")
         assert response.status_code == 200
         data = response.json()
@@ -446,7 +446,7 @@ class TestExportJsonExpanded:
 
 class TestGitSyncApi:
     def test_git_commit(self, client):
-        cli, store, tmpdir = client
+        cli, _store, tmpdir = client
         note_path = os.path.join(tmpdir, "note1.md")
         with open(note_path, "w") as f:
             f.write("Hello\n")
@@ -456,7 +456,7 @@ class TestGitSyncApi:
         assert data["committed"] is True
 
     def test_git_history(self, client):
-        cli, store, tmpdir = client
+        cli, _store, _tmpdir = client
         response = cli.get("/api/sync/git/history")
         assert response.status_code == 200
         data = response.json()
@@ -464,7 +464,7 @@ class TestGitSyncApi:
         assert len(data) >= 1
 
     def test_git_diff(self, client):
-        cli, store, tmpdir = client
+        cli, _store, tmpdir = client
         note_path = os.path.join(tmpdir, "note.md")
         with open(note_path, "w") as f:
             f.write("v1\n")
@@ -482,7 +482,7 @@ class TestGitSyncApi:
 
 class TestNoteVersioning:
     def test_note_history(self, client):
-        cli, store, tmpdir = client
+        cli, store, _tmpdir = client
         from src.models.note import Note
 
         note = Note(title="Versioned", content="v1", path="v.md")
@@ -498,7 +498,7 @@ class TestNoteVersioning:
         assert isinstance(data, list)
 
     def test_note_diff(self, client):
-        cli, store, tmpdir = client
+        cli, store, _tmpdir = client
         from src.models.note import Note
 
         note = Note(title="Versioned", content="v1", path="v.md")
@@ -513,7 +513,7 @@ class TestNoteVersioning:
         assert "diff" in data
 
     def test_note_diff_custom_commits(self, client):
-        cli, store, tmpdir = client
+        cli, store, _tmpdir = client
         from src.models.note import Note
 
         note = Note(title="Versioned", content="v1", path="v.md")
@@ -532,7 +532,7 @@ class TestNoteVersioning:
             assert "diff" in data
 
     def test_note_history_nonexistent(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         response = cli.get("/api/notes/00000000-0000-0000-0000-000000000000/history")
         # Git history for a nonexistent file returns empty list (HTTP 200)
         assert response.status_code == 200
@@ -547,7 +547,7 @@ class TestNoteVersioning:
 
 class TestImportTriggersExtraction:
     def test_markdown_import_triggers_entities_and_embeddings(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         with (
             patch("src.api.import_export._extract_and_store_entities") as mock_extract,
             patch("src.api.import_export._store_note_embeddings") as mock_embed,
@@ -561,7 +561,7 @@ class TestImportTriggersExtraction:
             mock_embed.assert_called_once()
 
     def test_obsidian_import_triggers_entities_and_embeddings(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w") as zf:
             zf.writestr("n.md", "# Hello")
@@ -579,7 +579,7 @@ class TestImportTriggersExtraction:
             assert mock_embed.call_count == 1
 
     def test_bulk_import_triggers_entities_and_embeddings(self, client):
-        cli, store, _ = client
+        cli, _store, _ = client
         with (
             patch("src.api.import_export._extract_and_store_entities") as mock_extract,
             patch("src.api.import_export._store_note_embeddings") as mock_embed,

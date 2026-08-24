@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import hashlib
 import sqlite3
-from datetime import datetime
 
 import structlog
 
@@ -17,6 +16,7 @@ from src.llm.base import LLMProvider
 from src.models.card import CardStatus
 from src.models.note import Note
 from src.storage.note_store import NoteStore
+from src.utils.clock import utc_now_naive
 
 logger = structlog.get_logger(__name__)
 
@@ -153,7 +153,7 @@ class CardAutoGenerator:
         Returns:
             True if we can still generate cards today, False if quota exceeded.
         """
-        today = datetime.utcnow().strftime("%Y-%m-%d")
+        today = utc_now_naive().strftime("%Y-%m-%d")
         conn = self._get_conn()
         row = conn.execute(
             "SELECT count FROM card_generation_log WHERE date = ?", (today,)
@@ -170,8 +170,8 @@ class CardAutoGenerator:
             note_id: The note ID that had cards generated.
             content_hash_val: The SHA-256 hash of the note content at generation time.
         """
-        today = datetime.utcnow().strftime("%Y-%m-%d")
-        now_iso = datetime.utcnow().isoformat()
+        today = utc_now_naive().strftime("%Y-%m-%d")
+        now_iso = utc_now_naive().isoformat()
 
         conn = sqlite3.connect(self._db_path)
         # Increment daily count

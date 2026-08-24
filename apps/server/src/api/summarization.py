@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request
 
 from src.augmentation.summarization import ProgressiveSummarizer
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/notes", tags=["notes"])
 
@@ -25,8 +28,8 @@ def _get_summarizer(request: Request) -> ProgressiveSummarizer:
 @router.post("/{note_id}/summarize")
 async def summarize_note(request: Request, note_id: UUID) -> dict[str, Any]:
     """Generate a multi-level summary for a note."""
-    from src.storage.note_store import NoteStore
     from src.config import settings
+    from src.storage.note_store import NoteStore
 
     store = getattr(request.app.state, "note_store", None)
     if store is None:
@@ -41,5 +44,6 @@ async def summarize_note(request: Request, note_id: UUID) -> dict[str, Any]:
     try:
         summary = await summarizer.summarize(note)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        logger.exception("summarization failed for note %s", note_id)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     return {"note_id": str(note_id), "summary": summary}

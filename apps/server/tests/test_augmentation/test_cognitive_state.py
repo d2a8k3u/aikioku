@@ -2,7 +2,7 @@
 
 import os
 import tempfile
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -20,10 +20,10 @@ def tmp_db():
 
 def test_get_state_returns_flow_for_sustained_typing(tmp_db):
     """FLOW: sustained typing (3-15 chars/sec), low deletion (<15%), minimal switching, 2+ min duration."""
-    from src.augmentation.cognitive_state import CognitiveStateTracker, CognitiveState
+    from src.augmentation.cognitive_state import CognitiveState, CognitiveStateTracker
 
     tracker = CognitiveStateTracker(event_bus=tmp_db)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Simulate 3 minutes of sustained typing at ~8 chars/sec, low deletion
     for i in range(180):  # 3 minutes, one signal per second
@@ -38,7 +38,7 @@ def test_get_state_returns_flow_for_sustained_typing(tmp_db):
 
 def test_get_state_returns_idle_for_no_recent_signals(tmp_db):
     """IDLE: no signals for >5 minutes."""
-    from src.augmentation.cognitive_state import CognitiveStateTracker, CognitiveState
+    from src.augmentation.cognitive_state import CognitiveState, CognitiveStateTracker
 
     tracker = CognitiveStateTracker(event_bus=tmp_db)
     # No signals recorded at all
@@ -48,10 +48,10 @@ def test_get_state_returns_idle_for_no_recent_signals(tmp_db):
 
 def test_get_state_returns_frustrated_for_high_deletion(tmp_db):
     """FRUSTRATED: high deletion, rapid short inputs."""
-    from src.augmentation.cognitive_state import CognitiveStateTracker, CognitiveState
+    from src.augmentation.cognitive_state import CognitiveState, CognitiveStateTracker
 
     tracker = CognitiveStateTracker(event_bus=tmp_db)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Simulate high deletion rate and rapid short inputs
     for i in range(30):
@@ -67,8 +67,8 @@ def test_get_state_returns_frustrated_for_high_deletion(tmp_db):
 def test_intervention_for_flow_is_background_only(tmp_db):
     """FLOW → BACKGROUND_ONLY."""
     from src.augmentation.cognitive_state import (
-        CognitiveStateTracker,
         CognitiveState,
+        CognitiveStateTracker,
         InterventionType,
     )
 
@@ -80,8 +80,8 @@ def test_intervention_for_flow_is_background_only(tmp_db):
 def test_intervention_for_frustrated_is_proactive(tmp_db):
     """FRUSTRATED → PROACTIVE."""
     from src.augmentation.cognitive_state import (
-        CognitiveStateTracker,
         CognitiveState,
+        CognitiveStateTracker,
         InterventionType,
     )
 
@@ -95,7 +95,7 @@ def test_signal_history_returns_recorded_signals(tmp_db):
     from src.augmentation.cognitive_state import CognitiveStateTracker
 
     tracker = CognitiveStateTracker(event_bus=tmp_db)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     tracker.record_signal("typing_speed", 10.0, timestamp=now)
     tracker.record_signal("deletion_rate", 0.1, timestamp=now + timedelta(seconds=1))

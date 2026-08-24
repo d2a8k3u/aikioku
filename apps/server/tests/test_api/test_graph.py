@@ -19,9 +19,9 @@ def tmp_db_path():
 def client(tmp_db_path):
     """Create a FastAPI TestClient with a real KnowledgeGraph in app state."""
     from src.knowledge.graph import KnowledgeGraph
+    from src.main import app
     from src.models.entity import Entity, EntityType
     from src.models.relation import Relation, RelationType
-    from src.main import app
 
     # Inject a real KnowledgeGraph into app state
     kg = KnowledgeGraph(db_path=tmp_db_path)
@@ -65,7 +65,7 @@ def client(tmp_db_path):
 
 class TestListEntities:
     def test_returns_list(self, client):
-        cli, kg, *rest = client
+        cli, _kg, *_rest = client
         response = cli.get("/api/graph/entities")
         assert response.status_code == 200
         data = response.json()
@@ -73,7 +73,7 @@ class TestListEntities:
         assert len(data) == 4
 
     def test_optional_type_filter(self, client):
-        cli, kg, *rest = client
+        cli, _kg, *_rest = client
         response = cli.get("/api/graph/entities?type=Person")
         assert response.status_code == 200
         data = response.json()
@@ -83,7 +83,7 @@ class TestListEntities:
         assert names == {"Alice", "Bob"}
 
     def test_entities_have_expected_fields(self, client):
-        cli, kg, *rest = client
+        cli, _kg, *_rest = client
         response = cli.get("/api/graph/entities")
         data = response.json()
         for entity in data:
@@ -94,7 +94,7 @@ class TestListEntities:
 
 class TestGetEntity:
     def test_returns_entity(self, client):
-        cli, kg, e1, *rest = client
+        cli, _kg, e1, *_rest = client
         response = cli.get(f"/api/graph/entities/{e1.id}")
         assert response.status_code == 200
         data = response.json()
@@ -102,21 +102,21 @@ class TestGetEntity:
         assert data["name"] == "Alice"
 
     def test_returns_entity_with_relations(self, client):
-        cli, kg, e1, *rest = client
+        cli, _kg, e1, *_rest = client
         response = cli.get(f"/api/graph/entities/{e1.id}")
         data = response.json()
         assert "relations" in data
         assert isinstance(data["relations"], list)
 
     def test_nonexistent_returns_404(self, client):
-        cli, kg, *rest = client
+        cli, _kg, *_rest = client
         response = cli.get("/api/graph/entities/nonexistent-id")
         assert response.status_code == 404
 
 
 class TestGetEntityRelations:
     def test_returns_relations(self, client):
-        cli, kg, e1, *rest = client
+        cli, _kg, e1, *_rest = client
         response = cli.get(f"/api/graph/entities/{e1.id}/relations")
         assert response.status_code == 200
         data = response.json()
@@ -126,7 +126,7 @@ class TestGetEntityRelations:
 
 class TestListRelations:
     def test_returns_all_relations(self, client):
-        cli, kg, *rest = client
+        cli, _kg, *_rest = client
         response = cli.get("/api/graph/relations")
         assert response.status_code == 200
         data = response.json()
@@ -134,7 +134,7 @@ class TestListRelations:
         assert len(data) == 3
 
     def test_relations_have_expected_fields(self, client):
-        cli, kg, *rest = client
+        cli, _kg, *_rest = client
         response = cli.get("/api/graph/relations")
         data = response.json()
         for rel in data:
@@ -144,7 +144,7 @@ class TestListRelations:
             assert "confidence" in rel
 
     def test_relations_reflect_real_edges(self, client):
-        cli, kg, e1, e2, e3, e4 = client
+        cli, _kg, e1, e2, e3, e4 = client
         response = cli.get("/api/graph/relations")
         data = response.json()
         triples = {(r["source_entity_id"], r["target_entity_id"], r["type"]) for r in data}
@@ -153,7 +153,7 @@ class TestListRelations:
         assert (e2.id, e4.id, "depends_on") in triples
 
     def test_respects_limit(self, client):
-        cli, kg, *rest = client
+        cli, _kg, *_rest = client
         response = cli.get("/api/graph/relations?limit=1")
         assert response.status_code == 200
         assert len(response.json()) == 1
@@ -161,7 +161,7 @@ class TestListRelations:
 
 class TestGraphFull:
     def test_returns_nodes_and_edges(self, client):
-        cli, kg, *rest = client
+        cli, _kg, *_rest = client
         response = cli.get("/api/graph/full")
         assert response.status_code == 200
         data = response.json()
@@ -169,7 +169,7 @@ class TestGraphFull:
         assert len(data["edges"]) == 3
 
     def test_node_fields(self, client):
-        cli, kg, *rest = client
+        cli, _kg, *_rest = client
         data = cli.get("/api/graph/full").json()
         for node in data["nodes"]:
             for field in (
@@ -184,13 +184,13 @@ class TestGraphFull:
                 assert field in node
 
     def test_edge_fields(self, client):
-        cli, kg, *rest = client
+        cli, _kg, *_rest = client
         data = cli.get("/api/graph/full").json()
         for edge in data["edges"]:
             assert set(edge) == {"source_entity_id", "target_entity_id", "type", "confidence"}
 
     def test_edges_reflect_real_edges(self, client):
-        cli, kg, e1, e2, e3, e4 = client
+        cli, _kg, e1, e2, e3, e4 = client
         data = cli.get("/api/graph/full").json()
         triples = {(e["source_entity_id"], e["target_entity_id"], e["type"]) for e in data["edges"]}
         assert (e1.id, e2.id, "works_at") in triples
@@ -198,19 +198,19 @@ class TestGraphFull:
         assert (e2.id, e4.id, "depends_on") in triples
 
     def test_respects_limits(self, client):
-        cli, kg, *rest = client
+        cli, _kg, *_rest = client
         assert len(cli.get("/api/graph/full?limit=1").json()["nodes"]) == 1
         assert len(cli.get("/api/graph/full?relation_limit=1").json()["edges"]) == 1
 
     def test_limit_bounds(self, client):
-        cli, kg, *rest = client
+        cli, _kg, *_rest = client
         assert cli.get("/api/graph/full?limit=0").status_code == 422
         assert cli.get("/api/graph/full?limit=99999").status_code == 422
 
 
 class TestFindPaths:
     def test_returns_paths(self, client):
-        cli, kg, e1, e2, e3, e4 = client
+        cli, _kg, e1, _e2, _e3, e4 = client
         response = cli.get(f"/api/graph/paths?source={e1.id}&target={e4.id}")
         assert response.status_code == 200
         data = response.json()
@@ -218,7 +218,7 @@ class TestFindPaths:
         assert isinstance(data["paths"], list)
 
     def test_direct_path(self, client):
-        cli, kg, e1, e2, e3, e4 = client
+        cli, _kg, e1, e2, _e3, _e4 = client
         response = cli.get(f"/api/graph/paths?source={e1.id}&target={e2.id}")
         assert response.status_code == 200
         data = response.json()
@@ -231,7 +231,7 @@ class TestFindPaths:
 
 class TestGraphStats:
     def test_returns_counts(self, client):
-        cli, kg, *rest = client
+        cli, _kg, *_rest = client
         response = cli.get("/api/graph/stats")
         assert response.status_code == 200
         data = response.json()
@@ -240,7 +240,7 @@ class TestGraphStats:
         assert "types" in data
 
     def test_counts_match_data(self, client):
-        cli, kg, *rest = client
+        cli, _kg, *_rest = client
         response = cli.get("/api/graph/stats")
         data = response.json()
         assert data["entities"] == 4
