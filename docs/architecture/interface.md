@@ -32,7 +32,6 @@ Web UI and API surface for interacting with Aikioku.
 - React 18
 - Tailwind CSS v4
 - Zustand (state)
-- TanStack React Query (data fetching)
 - Three.js (ambient canvas visuals on the home screen)
 
 ## API Surface
