@@ -51,16 +51,10 @@ chromadb remains available as the `migration` extra for one-shot imports from le
 | Framework | Next.js | ^16.2.9 |
 | UI library | React | 18.3.1 |
 | Styling | Tailwind CSS | ^4 |
-| Data fetching | TanStack React Query | ^5 |
 | State | Zustand | ^5 |
 | Markdown rendering | react-markdown + remark-gfm | ^10 / ^4 |
-| Rich text | TipTap (@tiptap/react) + tiptap-markdown | ^2 / 0.8.10 |
-| Animation | framer-motion | ^11 |
 | Class utilities | clsx + tailwind-merge | ^2 / ^2 |
 | Canvas visuals | Three.js | ^0.170.0 |
-
-`react-force-graph-3d` and `three-spritetext` are present as dependencies but are
-not currently wired into the UI.
 
 ### Dev Dependencies
 
